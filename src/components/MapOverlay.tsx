@@ -1,44 +1,111 @@
 "use client";
 
 /**
- * MAP OVERLAY - Activities on map, Join Bubble
- * -----------------------------------------------------------------------------
- * DATA: GET /api/bubbles/list (real bubbles); zone → coords for map placement.
- * ON JOIN: POST /api/bubbles/join → addBubbleConversation → navigate to /chat/bubble-[id]
- * Google Maps: NEXT_PUBLIC_GOOGLE_MAPS_API_KEY
- * -----------------------------------------------------------------------------
+ * MAP OVERLAY - Dark discovery: glass pills on map + horizontal activity cards
+ * Join/chat logic unchanged from prior implementation.
  */
 
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
-import { ArrowLeft, Clock, MapPin, Users } from "lucide-react";
-import { GoogleMap, useJsApiLoader, OverlayView, Marker } from "@react-google-maps/api";
-import { Button } from "@/components/ui/button";
+import { ArrowLeft, Compass, Layers, LayoutGrid, Map as MapIcon, Moon, Sun } from "lucide-react";
+import { GoogleMap, useJsApiLoader, OverlayView } from "@react-google-maps/api";
+import { AnimatePresence, motion } from "framer-motion";
 import { toast } from "sonner";
 import { supabase } from "@/lib/supabase";
-import type { Bubble } from "@/lib/mockData";
 import { useConversations } from "@/contexts/ConversationsContext";
+import { MapFilterProvider, useMapFilter } from "@/contexts/MapFilterContext";
+import { MapDiscoveryProvider, useMapDiscovery } from "@/contexts/MapDiscoveryContext";
+import { MapThemeProvider, useMapTheme } from "@/contexts/MapThemeContext";
+import { CampusModeProvider, useCampusMode } from "@/contexts/CampusModeContext";
+import { applyMapDisplayTheme, buildMapOptions } from "@/lib/mapStyles";
+import { applyCampusModeToMap, isOnCampus } from "@/lib/campusBounds";
+import {
+  applyOffCampusMapView,
+  DEFAULT_MAP_CENTER,
+  DEFAULT_MAP_ZOOM,
+  fitMapToBubbles,
+} from "@/lib/mapCamera";
+import { getUwBounds } from "@/lib/campusBounds";
+import { sortBubblesBySoonest, sortBubblesByNearest } from "@/lib/eventSort";
+import { UserLocationProvider, useUserLocation } from "@/contexts/UserLocationContext";
+import {
+  activityEmoji,
+  categoryMatchesFilter,
+  inferCategory,
+  type CategoryFilterId,
+} from "@/lib/eventCategories";
+import { clusterMapBubbles, clusterMapBubblesByPixels, type MapBubble, type MapCluster } from "@/lib/mapClustering";
+import { MOCK_MAP_EVENTS, MOCK_EVENT_IDS, getMockEventById } from "@/lib/mockMapEvents";
+import EventPill from "@/components/map/EventPill";
+import ClusterPill from "@/components/map/ClusterPill";
+import ActivityCard from "@/components/map/ActivityCard";
+import MapFilterBar from "@/components/map/MapFilterBar";
+import OffCampusFilterToast from "@/components/map/OffCampusFilterToast";
+import ActiveFilterSummary from "@/components/map/ActiveFilterSummary";
+import {
+  readCampusFilterFromUrl,
+  writeMapFiltersToUrl,
+  type CampusFilterId,
+} from "@/lib/mapFilterUrl";
+import { matchesCampusFilter, resolveOnCampus } from "@/lib/campus";
+import CampusModeModal from "@/components/map/CampusModeModal";
+import OffCampusWarningDialog from "@/components/map/OffCampusWarningDialog";
+import UserLocationMarker from "@/components/map/UserLocationMarker";
+import CampusBoundaryLayer from "@/components/map/CampusBoundaryLayer";
 
-/** Sample bubbles shown on map when no real bubbles exist. Same 5 as seed API; id = demo-0 … demo-4. */
-const DEMO_BUBBLES: (Bubble & { lat: number; lng: number })[] = [
-  { id: "demo-0", title: "3v3 Basketball at PAC", emoji: "🏀", category: "Sports", zone: "PAC", joined: 0, maxPeople: 6, startingIn: "15 mins", duration: "1 hr", distance: "—", description: "Pickup game at the PAC gym. Tap Join to create and open group chat.", lat: 43.4722, lng: -80.5461, creator: "?", creatorAvatar: "?" },
-  { id: "demo-1", title: "CS 341 Study - DC Library", emoji: "📚", category: "Study", zone: "DC", joined: 0, maxPeople: 8, startingIn: "1 hr", duration: "2 hrs", distance: "—", description: "Midterm prep in Davis Centre library. Tap Join to create and open group chat.", lat: 43.4725, lng: -80.5445, creator: "?", creatorAvatar: "?" },
-  { id: "demo-2", title: "Coffee & Chat - SLC", emoji: "☕", category: "Casual", zone: "SLC", joined: 0, maxPeople: 5, startingIn: "30 mins", duration: "1 hr", distance: "—", description: "Grabbing coffee at SLC. Tap Join to create and open group chat.", lat: 43.4718, lng: -80.5455, creator: "?", creatorAvatar: "?" },
-  { id: "demo-3", title: "Smash Bros at PAC Lounge", emoji: "🎮", category: "Gaming", zone: "PAC", joined: 0, maxPeople: 8, startingIn: "45 mins", duration: "2 hrs", distance: "—", description: "Casual Smash in PAC common area. Tap Join to create and open group chat.", lat: 43.4722, lng: -80.5458, creator: "?", creatorAvatar: "?" },
-  { id: "demo-4", title: "Evening Run - Columbia Fields", emoji: "🥾", category: "Fitness", zone: "Columbia Fields", joined: 0, maxPeople: 6, startingIn: "1 hr", duration: "1 hr", distance: "—", description: "Easy run around the fields. Tap Join to create and open group chat.", lat: 43.474, lng: -80.548, creator: "?", creatorAvatar: "?" },
-];
+const DEMO_BUBBLES = MOCK_MAP_EVENTS;
 
-/** Zone name → map coordinates (UW campus). Used when API bubbles have no lat/lng. */
 const ZONE_COORDS: Record<string, { lat: number; lng: number }> = {
-  PAC: { lat: 43.4722, lng: -80.5461 },
-  DC: { lat: 43.4725, lng: -80.5445 },
-  SLC: { lat: 43.4718, lng: -80.5455 },
-  EV3: { lat: 43.4728, lng: -80.5438 },
-  MC: { lat: 43.473, lng: -80.544 },
-  "Columbia Fields": { lat: 43.474, lng: -80.548 },
-  "Laurel Creek": { lat: 43.47, lng: -80.55 },
+  // ── Academic / indoor ──────────────────────────────────────────────────
+  PAC:                        { lat: 43.4738, lng: -80.5468 },
+  "PAC Courts":               { lat: 43.4736, lng: -80.5470 },
+  "PAC Pool":                 { lat: 43.4740, lng: -80.5465 },
+  "PAC Gym":                  { lat: 43.4738, lng: -80.5468 },
+  SLC:                        { lat: 43.4718, lng: -80.5442 },
+  "SLC Atrium":               { lat: 43.4720, lng: -80.5438 },
+  "SLC Game Room":            { lat: 43.4718, lng: -80.5442 },
+  "SLC Turnkey Desk":         { lat: 43.4717, lng: -80.5444 },
+  "Bomber Bar (SLC)":         { lat: 43.4716, lng: -80.5446 },
+  DC:                         { lat: 43.4725, lng: -80.5430 },
+  "DC Library 2nd Floor":     { lat: 43.4725, lng: -80.5430 },
+  "Dana Porter Library":      { lat: 43.4709, lng: -80.5430 },
+  MC:                         { lat: 43.4724, lng: -80.5421 },
+  "MC Study Hall":            { lat: 43.4724, lng: -80.5421 },
+  EV3:                        { lat: 43.4729, lng: -80.5418 },
+  "EV3 Atrium":               { lat: 43.4729, lng: -80.5418 },
+  // ── Outdoor campus ────────────────────────────────────────────────────
+  "Peter Russell Rock Garden":{ lat: 43.4672, lng: -80.5415 },
+  "Columbia Fields":          { lat: 43.4755, lng: -80.5480 },
+  "Columbia Lake":            { lat: 43.4700, lng: -80.5558 },
+  "REV Quad":                 { lat: 43.4699, lng: -80.5537 },
+  "Village 1 Rec Room":       { lat: 43.4700, lng: -80.5492 },
+  // ── Off-campus / uptown ───────────────────────────────────────────────
+  "Chatime Waterloo":         { lat: 43.4730, lng: -80.5395 },
+  "Pizza Nova Uptown":        { lat: 43.4660, lng: -80.5222 },
+  "Waterloo Park Entrance":   { lat: 43.4677, lng: -80.5218 },
+  "Uptown Waterloo":          { lat: 43.4645, lng: -80.5180 },
+  "Laurel Creek":             { lat: 43.4700, lng: -80.5500 },
 };
-const CAMPUS_CENTER = { lat: 43.4723, lng: -80.5449 };
+
+const MAP_CONTAINER_STYLE = { width: "100%", height: "100%" };
+const MAP_TYPE_STORAGE_KEY = "wanderers-map-type";
+
+type MapTypeId = "roadmap" | "satellite";
+
+function readStoredMapType(): MapTypeId {
+  if (typeof window === "undefined") return "roadmap";
+  return sessionStorage.getItem(MAP_TYPE_STORAGE_KEY) === "satellite" ? "satellite" : "roadmap";
+}
+
+function formatStartTime(startTime: string): { startingIn: string; startTimeMs: number } {
+  const ms = new Date(startTime).getTime();
+  const diffMin = Math.round((ms - Date.now()) / 60_000);
+  if (Number.isNaN(ms)) return { startingIn: "Soon", startTimeMs: Date.now() };
+  if (diffMin <= 0) return { startingIn: "Starting now", startTimeMs: ms };
+  if (diffMin < 60) return { startingIn: `In ${diffMin} mins`, startTimeMs: ms };
+  const hrs = Math.round(diffMin / 60);
+  return { startingIn: `In ${hrs} hr${hrs !== 1 ? "s" : ""}`, startTimeMs: ms };
+}
 
 type ApiBubble = {
   id: string;
@@ -50,27 +117,21 @@ type ApiBubble = {
   members_count: number;
 };
 
-function activityEmoji(activity: string): string {
-  const a = (activity || "").toLowerCase();
-  if (a.includes("basketball") || a.includes("sport")) return "🏀";
-  if (a.includes("study") || a.includes("leetcode")) return "📚";
-  if (a.includes("coffee") || a.includes("food")) return "☕";
-  if (a.includes("game") || a.includes("gaming")) return "🎮";
-  return "🫧";
-}
-
-function toBubbleForContext(b: ApiBubble, lat: number, lng: number): Bubble & { lat: number; lng: number } {
+function toBubbleForContext(b: ApiBubble, lat: number, lng: number): MapBubble {
+  const category = inferCategory(b.activity);
   const maxPeople = b.max_members ?? 8;
   const joined = b.members_count ?? 0;
+  const { startingIn, startTimeMs } = formatStartTime(b.start_time);
   return {
     id: b.id,
     title: b.activity,
-    emoji: activityEmoji(b.activity),
-    category: "Casual",
+    emoji: activityEmoji(b.activity, category),
+    category,
     zone: b.zone,
     joined,
     maxPeople,
-    startingIn: "Soon",
+    startingIn,
+    startTimeMs,
     duration: `${b.duration_minutes} min`,
     distance: "—",
     description: "",
@@ -78,86 +139,618 @@ function toBubbleForContext(b: ApiBubble, lat: number, lng: number): Bubble & { 
     lng,
     creator: "?",
     creatorAvatar: "?",
+    onCampus: resolveOnCampus(lat, lng),
   };
 }
 
-const UW_CAMPUS_CENTER = { lat: 43.4723, lng: -80.5449 };
-const MAP_CONTAINER_STYLE = { width: "100%", height: "100%" };
-const BUBBLE_SIZE = 150;
-const MAP_OPTIONS = {
-  disableDefaultUI: false,
-  zoomControl: true,
-  mapTypeControl: true,
-  fullscreenControl: true,
-  streetViewControl: false,
-  mapTypeId: "satellite",
-  styles: [
-    {
-      featureType: "poi",
-      elementType: "labels",
-      stylers: [{ visibility: "off" }],
-    },
-  ],
-};
-
-function MapBubble({
-  bubble,
-  isHovered,
-  onMouseEnter,
-  onMouseLeave,
-  onJoin,
-}: {
-  bubble: Bubble & { lat: number; lng: number };
-  isHovered: boolean;
-  onMouseEnter: () => void;
-  onMouseLeave: () => void;
-  onJoin: () => void;
-}) {
-  return (
-    <OverlayView
-      position={{ lat: bubble.lat, lng: bubble.lng }}
-      mapPaneName={OverlayView.OVERLAY_MOUSE_TARGET}
-      getPixelPositionOffset={() => ({ x: -BUBBLE_SIZE / 2, y: -BUBBLE_SIZE / 2 })}
-    >
-      <div
-        onMouseEnter={onMouseEnter}
-        onMouseLeave={onMouseLeave}
-        className="absolute left-0 top-0 flex flex-col items-center justify-center cursor-pointer"
-        style={{ width: BUBBLE_SIZE, height: BUBBLE_SIZE }}
-      >
-        <div
-          className="absolute inset-0 rounded-full flex items-center justify-center"
-          style={{
-            backgroundColor: "rgba(147, 197, 253, 0.55)",
-            boxShadow: "0 1px 4px rgba(0,0,0,0.08)",
-          }}
-        >
-          <span className="text-4xl relative z-10 select-none">{bubble.emoji}</span>
-        </div>
-        {isHovered && (
-          <Button
-            size="sm"
-            className="rounded-xl text-xs h-8 px-4 font-semibold relative z-10 shadow-md"
-            onClick={(e) => {
-              e.stopPropagation();
-              onJoin();
-            }}
-          >
-            Join Bubble
-          </Button>
-        )}
-      </div>
-    </OverlayView>
-  );
-}
+type ViewMode = "map" | "list";
+type SortMode = "soonest" | "nearest";
 
 type MapOverlayProps = {
   onClose: () => void;
 };
 
-export default function MapOverlay({ onClose }: MapOverlayProps) {
+function MapDiscoveryContent({
+  onClose,
+  sortedBubbles,
+  filteredBubbles,
+  filteredCount,
+  mapZoom,
+  setMapZoom,
+  joinedIds,
+  myBubbleIds,
+  joiningId,
+  seeding,
+  viewMode,
+  setViewMode,
+  handleJoin,
+  handleOpenChat,
+  handleSeedDemo,
+  scrollToCard,
+  cardRefs,
+  mapRef,
+  mapOptions,
+  zoomToCluster,
+  withOffCampusCheck,
+  sortMode,
+  setSortMode,
+  campusFilter,
+  onCampusFilterChange,
+  onClearFilters,
+  showOffCampusToast,
+  onDismissOffCampusToast,
+  categoryFilter,
+  hasActiveFilters,
+}: {
+  onClose: () => void;
+  sortedBubbles: MapBubble[];
+  filteredBubbles: MapBubble[];
+  filteredCount: number;
+  mapZoom: number;
+  setMapZoom: (z: number) => void;
+  joinedIds: Set<string>;
+  myBubbleIds: Set<string>;
+  joiningId: string | null;
+  seeding: boolean;
+  viewMode: ViewMode;
+  setViewMode: (m: ViewMode) => void;
+  handleJoin: (id: string) => void;
+  handleOpenChat: (id: string) => void;
+  handleSeedDemo: () => void;
+  scrollToCard: (id: string) => void;
+  cardRefs: React.MutableRefObject<Record<string, HTMLDivElement | null>>;
+  mapRef: React.MutableRefObject<google.maps.Map | null>;
+  mapOptions: google.maps.MapOptions;
+  zoomToCluster: (lat: number, lng: number) => void;
+  withOffCampusCheck: (id: string, action: () => void) => void;
+  sortMode: SortMode;
+  setSortMode: (mode: SortMode) => void;
+  campusFilter: CampusFilterId;
+  onCampusFilterChange: (id: CampusFilterId) => void;
+  onClearFilters: () => void;
+  showOffCampusToast: boolean;
+  onDismissOffCampusToast: () => void;
+  categoryFilter: CategoryFilterId;
+  hasActiveFilters: boolean;
+}) {
+  const {
+    hoveredEventId,
+    activeEventId,
+    lockedEventId,
+    isViewChanged,
+    registerMap,
+    registerMapContainer,
+    setHoveredEventId,
+    focusEvent,
+    clearHover,
+    unlockEvent,
+    resetView,
+  } = useMapDiscovery();
+
+  const { theme, toggleTheme } = useMapTheme();
+  const { campusMode, resetCampusMode } = useCampusMode();
+  const { userLocation, locationStatus } = useUserLocation();
+  const mapId = process.env.NEXT_PUBLIC_GOOGLE_MAPS_MAP_ID ?? undefined;
+  const [mapType, setMapType] = useState<MapTypeId>(readStoredMapType);
+  const [clusters, setClusters] = useState<MapCluster[]>([]);
+  const [mapInstance, setMapInstance] = useState<google.maps.Map | null>(null);
+
+  useEffect(() => {
+    const map = mapRef.current;
+    if (map) applyMapDisplayTheme(map, theme, mapId);
+  }, [theme, mapId, mapRef]);
+
+  const filteredBubbleKey = useMemo(
+    () => filteredBubbles.map((b) => b.id).join(","),
+    [filteredBubbles]
+  );
+
+  useEffect(() => {
+    const map = mapRef.current;
+    if (!map || !campusMode) return;
+
+    if (campusFilter === "off") {
+      applyOffCampusMapView(map, filteredBubbles);
+      return;
+    }
+
+    if (campusFilter === "on") {
+      if (campusMode === "campus") {
+        map.setOptions({
+          restriction: { latLngBounds: getUwBounds(), strictBounds: false },
+          minZoom: 12,
+        });
+      } else {
+        map.setOptions({ restriction: null, minZoom: 11 });
+      }
+      if (filteredBubbles.length > 0) {
+        fitMapToBubbles(map, filteredBubbles, 60);
+      } else {
+        applyCampusModeToMap(map, campusMode);
+      }
+      return;
+    }
+
+    applyCampusModeToMap(map, campusMode);
+  }, [campusFilter, campusMode, filteredBubbleKey, mapRef, filteredBubbles]);
+
+  const toggleMapType = useCallback(() => {
+    const next: MapTypeId = mapType === "roadmap" ? "satellite" : "roadmap";
+    setMapType(next);
+    sessionStorage.setItem(MAP_TYPE_STORAGE_KEY, next);
+    mapRef.current?.setMapTypeId(next);
+  }, [mapType, mapRef]);
+
+  const recomputeClusters = useCallback(() => {
+    const map = mapRef.current;
+    if (map && filteredBubbles.length > 0) {
+      setClusters(clusterMapBubblesByPixels(filteredBubbles, map));
+    } else if (filteredBubbles.length > 0) {
+      setClusters(filteredBubbles.map((bubble) => ({ type: "single" as const, bubble })));
+    } else {
+      setClusters([]);
+    }
+  }, [filteredBubbles, mapRef]);
+
+  useEffect(() => {
+    unlockEvent();
+    recomputeClusters();
+  }, [recomputeClusters, campusFilter, filteredBubbleKey, unlockEvent]);
+
+  useEffect(() => {
+    const map = mapRef.current;
+    if (!map) return;
+    const listener = map.addListener("idle", recomputeClusters);
+    return () => listener.remove();
+  }, [mapRef, recomputeClusters]);
+
+  const themeClass = theme === "light" ? "theme-light" : "theme-dark";
+
+  return (
+    <div
+      className={`fixed inset-0 z-50 flex flex-col ${themeClass}`}
+      style={{ backgroundColor: "var(--bg-page)", color: "var(--text-primary)" }}
+    >
+      {/* Header */}
+      <header
+        className="relative z-30 flex shrink-0 items-center justify-between border-b px-4 h-14"
+        style={{ borderColor: "var(--border-color)", backgroundColor: "var(--bar-bg)" }}
+      >
+        <div className="flex items-center gap-3">
+          <button
+            type="button"
+            onClick={onClose}
+            className="rounded-full p-2 transition hover:opacity-80"
+            style={{ color: "var(--text-muted)" }}
+            aria-label="Go back"
+          >
+            <ArrowLeft className="h-5 w-5" />
+          </button>
+          <h1 className="text-lg font-bold tracking-tight" style={{ color: "var(--text-primary)" }}>
+            Discover
+          </h1>
+        </div>
+
+        <div className="flex items-center gap-2">
+          <button
+            type="button"
+            onClick={resetCampusMode}
+            className="text-[11px] transition hover:opacity-80"
+            style={{ color: "var(--text-muted)" }}
+          >
+            Change
+          </button>
+
+          <div className="flex items-center gap-1.5">
+            <button
+              type="button"
+              onClick={toggleTheme}
+              className="map-header-btn"
+              aria-label={theme === "dark" ? "Switch to light mode" : "Switch to dark mode"}
+            >
+              {theme === "dark" ? <Moon className="h-4 w-4" /> : <Sun className="h-4 w-4" />}
+            </button>
+            <button
+              type="button"
+              onClick={toggleMapType}
+              className={`map-header-btn gap-1.5 px-2.5 text-xs font-medium ${
+                mapType === "satellite" ? "map-header-btn--satellite-active" : ""
+              }`}
+              style={{ width: 90 }}
+              aria-label={mapType === "satellite" ? "Switch to map view" : "Switch to satellite view"}
+            >
+              <Layers className="h-3.5 w-3.5 shrink-0" />
+              {mapType === "satellite" ? "Map" : "Satellite"}
+            </button>
+          </div>
+
+          <div className="mx-0.5 h-5 w-px" style={{ backgroundColor: "var(--border-color)" }} />
+
+          <div className="flex items-center gap-1">
+            <button
+              type="button"
+              onClick={() => setViewMode("map")}
+              className={`map-header-btn ${viewMode === "map" ? "map-header-btn--active" : ""}`}
+              style={{ color: viewMode === "map" ? "var(--text-primary)" : "var(--text-muted)" }}
+              aria-label="Map view"
+            >
+              <MapIcon className="h-4 w-4" />
+            </button>
+            <button
+              type="button"
+              onClick={() => setViewMode("list")}
+              className={`map-header-btn ${viewMode === "list" ? "map-header-btn--active" : ""}`}
+              style={{ color: viewMode === "list" ? "var(--text-primary)" : "var(--text-muted)" }}
+              aria-label="List view"
+            >
+              <LayoutGrid className="h-4 w-4" />
+            </button>
+          </div>
+        </div>
+      </header>
+
+      <MapFilterBar
+        campusFilter={campusFilter}
+        onCampusFilterChange={onCampusFilterChange}
+      />
+
+      <div className="flex min-h-0 flex-1 flex-col lg:flex-row">
+        {/* Map pane */}
+        <div
+          ref={registerMapContainer}
+          className={`relative shrink-0 overflow-hidden map-dark-controls h-[45vh] md:h-[55vh] lg:h-full lg:w-[60%] ${
+            viewMode === "list" ? "hidden lg:block" : "block"
+          }`}
+          style={{ backgroundColor: "var(--bg-page)" }}
+        >
+          <OffCampusFilterToast
+            visible={showOffCampusToast}
+            onDismiss={onDismissOffCampusToast}
+          />
+
+          {campusMode === "explore" && (
+            <div
+              className="absolute inset-x-0 z-20 px-3 pt-2 pointer-events-none"
+              style={{ top: showOffCampusToast ? 36 : 0 }}
+            >
+              <div
+                className="rounded-lg border border-l-[3px] !border-l-amber-400 px-3 py-2 text-xs shadow-sm"
+                style={{
+                  backgroundColor: "var(--bg-card)",
+                  color: "var(--text-muted)",
+                  borderColor: "var(--border-color)",
+                }}
+              >
+                🌍 Exploring beyond campus · Some events may require travel
+              </div>
+            </div>
+          )}
+
+          <AnimatePresence>
+            {isViewChanged && (
+              <motion.button
+                type="button"
+                initial={{ opacity: 0, scale: 0.9 }}
+                animate={{ opacity: 1, scale: 1 }}
+                exit={{ opacity: 0, scale: 0.9 }}
+                onClick={resetView}
+                className="absolute bottom-4 left-4 z-10 flex h-10 w-10 items-center justify-center rounded-full border shadow-lg backdrop-blur-xl transition hover:opacity-90"
+                style={{
+                  borderColor: "var(--border-color)",
+                  backgroundColor: "var(--bar-btn-bg)",
+                  color: "var(--text-muted)",
+                }}
+                aria-label="Reset map view"
+              >
+                <Compass className="h-5 w-5" />
+              </motion.button>
+            )}
+          </AnimatePresence>
+
+          <GoogleMap
+            mapContainerStyle={MAP_CONTAINER_STYLE}
+            center={DEFAULT_MAP_CENTER}
+            zoom={DEFAULT_MAP_ZOOM}
+            mapTypeId={mapType}
+            options={mapOptions}
+            onClick={() => unlockEvent()}
+            onLoad={(map) => {
+              mapRef.current = map;
+              setMapInstance(map);
+              registerMap(map);
+              const stored = sessionStorage.getItem(MAP_TYPE_STORAGE_KEY);
+              if (stored === "satellite") {
+                map.setMapTypeId("satellite");
+              }
+              applyMapDisplayTheme(map, theme, mapId);
+              if (campusMode) {
+                if (campusFilter === "off") {
+                  applyOffCampusMapView(map, filteredBubbles);
+                } else if (campusFilter === "on" && filteredBubbles.length > 0) {
+                  if (campusMode === "campus") {
+                    map.setOptions({
+                      restriction: { latLngBounds: getUwBounds(), strictBounds: false },
+                      minZoom: 12,
+                    });
+                  }
+                  fitMapToBubbles(map, filteredBubbles, 60);
+                } else {
+                  applyCampusModeToMap(map, campusMode);
+                }
+              }
+              google.maps.event.addListenerOnce(map, "idle", () => {
+                map.setTilt(45);
+              });
+              const z = map.getZoom();
+              if (z != null) setMapZoom(z);
+              recomputeClusters();
+            }}
+            onZoomChanged={() => {
+              const z = mapRef.current?.getZoom();
+              if (z != null) setMapZoom(z);
+              recomputeClusters();
+            }}
+          >
+            {clusters.map((item, idx) => {
+              if (item.type === "cluster") {
+                return (
+                  <OverlayView
+                    key={`${campusFilter}-cluster-${idx}-${item.bubbles.map((b) => b.id).join("-")}`}
+                    position={{ lat: item.lat, lng: item.lng }}
+                    mapPaneName={OverlayView.OVERLAY_MOUSE_TARGET}
+                    getPixelPositionOffset={(width, height) => ({
+                      x: -(width / 2),
+                      y: -(height / 2),
+                    })}
+                  >
+                    <div className="map-marker-anchor">
+                      <ClusterPill
+                        count={item.bubbles.length}
+                        onClick={() => zoomToCluster(item.lat, item.lng)}
+                      />
+                    </div>
+                  </OverlayView>
+                );
+              }
+
+              const bubble = item.bubble;
+              const isAlreadyMember = joinedIds.has(bubble.id) || myBubbleIds.has(bubble.id);
+              const isLocked = lockedEventId === bubble.id;
+              const isExpanded = isLocked || hoveredEventId === bubble.id;
+
+              return (
+                <OverlayView
+                  key={`${campusFilter}-${bubble.id}`}
+                  position={{ lat: bubble.lat, lng: bubble.lng }}
+                  mapPaneName={OverlayView.OVERLAY_MOUSE_TARGET}
+                  getPixelPositionOffset={(width, height) => ({
+                    x: -(width / 2),
+                    y: -height,
+                  })}
+                >
+                  <div className="map-marker-anchor">
+                    <EventPill
+                      emoji={bubble.emoji}
+                      title={bubble.title}
+                      category={bubble.category}
+                      zone={bubble.zone ?? "Campus"}
+                      lat={bubble.lat}
+                      lng={bubble.lng}
+                      startingIn={bubble.startingIn}
+                      joined={bubble.joined}
+                      maxPeople={bubble.maxPeople}
+                      floatDelay={(idx % 5) * 0.4}
+                      isExpanded={isExpanded}
+                      isLocked={isLocked}
+                      isHovered={hoveredEventId === bubble.id}
+                      isActive={activeEventId === bubble.id}
+                      isJoining={joiningId === bubble.id}
+                      isAlreadyMember={isAlreadyMember}
+                      onHoverStart={() => setHoveredEventId(bubble.id)}
+                      onHoverEnd={clearHover}
+                      onClose={unlockEvent}
+                      onSelect={() =>
+                        withOffCampusCheck(bubble.id, () => scrollToCard(bubble.id))
+                      }
+                      onJoin={() =>
+                        isAlreadyMember
+                          ? handleOpenChat(bubble.id)
+                          : withOffCampusCheck(bubble.id, () => handleJoin(bubble.id))
+                      }
+                    />
+                  </div>
+                </OverlayView>
+              );
+            })}
+            {locationStatus === "granted" && userLocation && (
+              <UserLocationMarker position={userLocation} />
+            )}
+          </GoogleMap>
+
+          <AnimatePresence>
+            {viewMode === "map" && hasActiveFilters && filteredCount === 0 && (
+              <motion.div
+                initial={{ opacity: 0 }}
+                animate={{ opacity: 1 }}
+                exit={{ opacity: 0 }}
+                className="pointer-events-none absolute inset-x-0 bottom-4 z-10 flex justify-center px-4"
+              >
+                <div
+                  className="rounded-full px-4 py-2 text-xs backdrop-blur-md"
+                  style={{
+                    backgroundColor: "var(--bg-card)",
+                    color: "var(--text-muted)",
+                  }}
+                >
+                  No events match your filters
+                </div>
+              </motion.div>
+            )}
+          </AnimatePresence>
+          {mapInstance && (
+            <CampusBoundaryLayer
+              map={mapInstance}
+              theme={theme}
+              mapType={mapType}
+            />
+          )}
+        </div>
+
+        {/* List pane — always visible below map on mobile; sidebar on desktop */}
+        <div
+          className="flex min-h-0 flex-1 flex-col border-t lg:w-[40%] lg:border-l lg:border-t-0"
+          style={{ borderColor: "var(--border-color)", backgroundColor: "var(--bg-page)" }}
+        >
+          <div className="px-4 pt-3 pb-1">
+            <h2 className="text-sm font-semibold" style={{ color: "var(--text-primary)" }}>
+              Nearby activities
+            </h2>
+            <p className="text-xs" style={{ color: "var(--text-subtle)" }}>
+              {filteredCount} {filteredCount === 1 ? "event" : "events"}
+              {hasActiveFilters ? " matching filters" : " nearby"} ·{" "}
+              <span style={{ color: "var(--text-faint)" }}>Waterloo, ON</span>
+            </p>
+            <ActiveFilterSummary
+              campusFilter={campusFilter}
+              categoryFilter={categoryFilter}
+              onClear={onClearFilters}
+            />
+            <div className="mt-2 flex items-center gap-2">
+              <span className="text-[11px]" style={{ color: "var(--text-muted)" }}>
+                Sort by:
+              </span>
+              <button
+                type="button"
+                onClick={() => setSortMode("soonest")}
+                className="rounded-full border px-2.5 py-1 text-[11px] font-medium transition"
+                style={{
+                  borderColor: "var(--border-color)",
+                  backgroundColor: sortMode === "soonest" ? "var(--btn-active-bg)" : "var(--bg-page)",
+                  color: sortMode === "soonest" ? "var(--text-primary)" : "var(--text-muted)",
+                }}
+              >
+                ⏰ Soonest
+              </button>
+              <button
+                type="button"
+                onClick={() => locationStatus === "granted" && setSortMode("nearest")}
+                title={
+                  locationStatus !== "granted"
+                    ? "Enable location to sort by distance"
+                    : undefined
+                }
+                disabled={locationStatus !== "granted"}
+                className="rounded-full border px-2.5 py-1 text-[11px] font-medium transition disabled:cursor-not-allowed disabled:opacity-40"
+                style={{
+                  borderColor: "var(--border-color)",
+                  backgroundColor: sortMode === "nearest" ? "var(--btn-active-bg)" : "var(--bg-page)",
+                  color: sortMode === "nearest" ? "var(--text-primary)" : "var(--text-muted)",
+                }}
+              >
+                📍 Nearest
+              </button>
+            </div>
+          </div>
+
+          <div className="map-events-scroll min-h-0 flex-1 overflow-y-auto overflow-x-hidden px-4 pb-4 pt-2">
+            {sortedBubbles.length === 0 ? (
+              <div className="flex flex-col items-center justify-center py-12 text-center">
+                <span className="text-4xl">🔍</span>
+                <p
+                  className="mt-3 text-base font-bold"
+                  style={{ color: "var(--text-primary)" }}
+                >
+                  No events found
+                </p>
+                <p className="mt-1 text-[13px]" style={{ color: "var(--text-muted)" }}>
+                  {hasActiveFilters
+                    ? "Try loosening your filters"
+                    : "Check back later for new activities"}
+                </p>
+                {hasActiveFilters && (
+                  <button
+                    type="button"
+                    onClick={onClearFilters}
+                    className="mt-4 rounded-lg border px-4 py-2 text-sm transition hover:opacity-90"
+                    style={{
+                      borderColor: "var(--border-color)",
+                      color: "var(--text-primary)",
+                    }}
+                  >
+                    Clear filters
+                  </button>
+                )}
+              </div>
+            ) : (
+              <div className="grid grid-cols-2 gap-3 pb-2">
+                {sortedBubbles.map((bubble, index) => {
+                  const isAlreadyMember =
+                    joinedIds.has(bubble.id) || myBubbleIds.has(bubble.id);
+                  return (
+                    <ActivityCard
+                      key={bubble.id}
+                      bubble={bubble}
+                      index={index}
+                      layout="vertical"
+                      isHovered={hoveredEventId === bubble.id}
+                      isActive={activeEventId === bubble.id || lockedEventId === bubble.id}
+                      isJoining={joiningId === bubble.id}
+                      isAlreadyMember={isAlreadyMember}
+                      cardRef={(el) => {
+                        cardRefs.current[bubble.id] = el;
+                      }}
+                      onHover={() => setHoveredEventId(bubble.id)}
+                      onLeave={clearHover}
+                      onCardClick={() =>
+                        withOffCampusCheck(bubble.id, () => {
+                          setViewMode("map");
+                          focusEvent(bubble.id, { fromClick: true });
+                        })
+                      }
+                      onViewOnMap={() =>
+                        withOffCampusCheck(bubble.id, () => {
+                          setViewMode("map");
+                          focusEvent(bubble.id, { fromClick: true });
+                        })
+                      }
+                      onJoin={() =>
+                        isAlreadyMember
+                          ? handleOpenChat(bubble.id)
+                          : withOffCampusCheck(bubble.id, () => handleJoin(bubble.id))
+                      }
+                    />
+                  );
+                })}
+              </div>
+            )}
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+function MapDiscoveryUI({ onClose }: MapOverlayProps) {
   const router = useRouter();
-  const [hoveredId, setHoveredId] = useState<string | null>(null);
+  const { filter, setFilter } = useMapFilter();
+  const [campusFilter, setCampusFilter] = useState<CampusFilterId>("all");
+  const [showOffCampusToast, setShowOffCampusToast] = useState(false);
+  const hasShownOffCampusToast = useRef(false);
+  const { theme } = useMapTheme();
+  const { campusMode, setCampusMode, resetCampusMode } = useCampusMode();
+  const { userLocation, locationStatus } = useUserLocation();
+  const [sortMode, setSortMode] = useState<SortMode>("soonest");
+
+  const handleClose = useCallback(() => {
+    resetCampusMode();
+    onClose();
+  }, [resetCampusMode, onClose]);
+  const mapId = process.env.NEXT_PUBLIC_GOOGLE_MAPS_MAP_ID ?? undefined;
+  const [offCampusWarning, setOffCampusWarning] = useState<{
+    title: string;
+    zone: string;
+    onConfirm: () => void;
+  } | null>(null);
   const [joinedIds, setJoinedIds] = useState<Set<string>>(new Set());
   const [apiBubbles, setApiBubbles] = useState<ApiBubble[]>([]);
   const [joiningId, setJoiningId] = useState<string | null>(null);
@@ -165,9 +758,45 @@ export default function MapOverlay({ onClose }: MapOverlayProps) {
   const [refreshList, setRefreshList] = useState(0);
   const [seeding, setSeeding] = useState(false);
   const [listFetched, setListFetched] = useState(false);
+  const [mapZoom, setMapZoom] = useState(DEFAULT_MAP_ZOOM);
+  const [viewMode, setViewMode] = useState<ViewMode>("map");
   const autoSeedDone = useRef(false);
+  const mapRef = useRef<google.maps.Map | null>(null);
+  const cardRefs = useRef<Record<string, HTMLDivElement | null>>({});
 
   const { addBubbleConversation } = useConversations();
+
+  useEffect(() => {
+    setCampusFilter(readCampusFilterFromUrl());
+  }, []);
+
+  const handleCampusFilterChange = useCallback(
+    (id: CampusFilterId) => {
+      setCampusFilter(id);
+      writeMapFiltersToUrl(id, filter);
+
+      if (id === "off") {
+        if (!hasShownOffCampusToast.current) {
+          setShowOffCampusToast(true);
+          hasShownOffCampusToast.current = true;
+        }
+      } else {
+        setShowOffCampusToast(false);
+      }
+    },
+    [filter]
+  );
+
+  const handleClearFilters = useCallback(() => {
+    setCampusFilter("all");
+    setFilter("all");
+    setShowOffCampusToast(false);
+    writeMapFiltersToUrl("all", "all");
+  }, [setFilter]);
+
+  const handleDismissOffCampusToast = useCallback(() => {
+    setShowOffCampusToast(false);
+  }, []);
 
   useEffect(() => {
     setListFetched(false);
@@ -191,7 +820,6 @@ export default function MapOverlay({ onClose }: MapOverlayProps) {
     });
   }, [refreshList]);
 
-  // When list has been fetched and is empty and user is signed in, create sample bubbles once so they can join and open chat
   useEffect(() => {
     if (!listFetched || apiBubbles.length > 0 || autoSeedDone.current) return;
     let cancelled = false;
@@ -207,26 +835,100 @@ export default function MapOverlay({ onClose }: MapOverlayProps) {
         })
         .catch(() => {});
     });
-    return () => { cancelled = true; };
+    return () => {
+      cancelled = true;
+    };
   }, [listFetched, apiBubbles.length]);
+
+  const mapOptions = useMemo(() => {
+    const base = buildMapOptions(mapId);
+    const minZoom =
+      campusFilter === "off" || campusMode === "explore" ? 11 : 12;
+    const withZoom = { ...base, minZoom };
+    if (theme === "light" && !mapId) {
+      return { ...withZoom, styles: [] as google.maps.MapTypeStyle[] };
+    }
+    return withZoom;
+  }, [theme, mapId, campusMode]);
 
   const { isLoaded, loadError } = useJsApiLoader({
     googleMapsApiKey: process.env.NEXT_PUBLIC_GOOGLE_MAPS_API_KEY ?? "",
   });
 
   const bubblesWithCoords = useMemo(() => {
-    const real = apiBubbles.length > 0
-      ? apiBubbles
-          .map((b) => {
-            const coords = ZONE_COORDS[b.zone] ?? CAMPUS_CENTER;
-            return { ...toBubbleForContext(b, coords.lat, coords.lng) };
-          })
-          .filter((b): b is Bubble & { lat: number; lng: number } => b.lat != null && b.lng != null)
-      : [];
-    if (real.length >= 5) return real;
-    const demos = real.length === 0 ? DEMO_BUBBLES : DEMO_BUBBLES.slice(real.length, 5);
-    return [...real, ...demos];
+    const tagOnCampus = (b: MapBubble): MapBubble => ({
+      ...b,
+      onCampus: resolveOnCampus(b.lat, b.lng, b.onCampus),
+    });
+
+    const real =
+      apiBubbles.length > 0
+        ? apiBubbles
+            .map((b) => {
+              const coords = ZONE_COORDS[b.zone] ?? DEFAULT_MAP_CENTER;
+              return toBubbleForContext(b, coords.lat, coords.lng);
+            })
+            .filter((b): b is MapBubble => b.lat != null && b.lng != null)
+            .map(tagOnCampus)
+        : [];
+    if (real.length === 0) return MOCK_MAP_EVENTS.map(tagOnCampus);
+    if (real.length >= 10) return real;
+    const realIds = new Set(real.map((b) => b.id));
+    const extras = MOCK_MAP_EVENTS.filter((m) => !realIds.has(m.id)).map(tagOnCampus);
+    return [...real, ...extras].slice(0, Math.max(10, real.length));
   }, [apiBubbles]);
+
+  const filteredBubbles = useMemo(
+    () =>
+      bubblesWithCoords
+        .filter((b) => categoryMatchesFilter(b.category, filter))
+        .filter((b) => matchesCampusFilter(b.lat, b.lng, campusFilter, b.onCampus)),
+    [bubblesWithCoords, filter, campusFilter]
+  );
+
+  const hasActiveFilters = campusFilter !== "all" || filter !== "all";
+
+  const showOffCampusToastEffective =
+    showOffCampusToast && campusMode !== "explore";
+
+  const sortedBubbles = useMemo(() => {
+    if (sortMode === "nearest" && userLocation && locationStatus === "granted") {
+      return sortBubblesByNearest(filteredBubbles, userLocation);
+    }
+    return sortBubblesBySoonest(filteredBubbles);
+  }, [sortMode, filteredBubbles, userLocation, locationStatus]);
+
+  const withOffCampusCheck = useCallback(
+    (id: string, action: () => void) => {
+      if (campusMode !== "campus") {
+        action();
+        return;
+      }
+      const bubble =
+        filteredBubbles.find((b) => b.id === id) ??
+        bubblesWithCoords.find((b) => b.id === id);
+      if (!bubble || isOnCampus(bubble.lat, bubble.lng)) {
+        action();
+        return;
+      }
+      setOffCampusWarning({
+        title: bubble.title,
+        zone: bubble.zone ?? "Off campus",
+        onConfirm: () => {
+          setOffCampusWarning(null);
+          action();
+        },
+      });
+    },
+    [campusMode, filteredBubbles, bubblesWithCoords]
+  );
+
+  const scrollToCard = useCallback((id: string) => {
+    const el = cardRefs.current[id];
+    if (el) {
+      el.scrollIntoView({ behavior: "smooth", block: "nearest" });
+    }
+  }, []);
 
   const handleJoin = useCallback(
     async (id: string) => {
@@ -238,11 +940,47 @@ export default function MapOverlay({ onClose }: MapOverlayProps) {
       }
 
       let realBubbleId = id;
-      let bubbleForContext: Bubble & { lat: number; lng: number };
+      let bubbleForContext: MapBubble;
+
+      if (MOCK_EVENT_IDS.has(id)) {
+        const mockBubble = getMockEventById(id);
+        if (!mockBubble) return;
+        if (mockBubble.joined >= mockBubble.maxPeople) {
+          toast.error("This bubble is full");
+          return;
+        }
+        setJoiningId(id);
+        try {
+          const seedRes = await fetch("/api/seed-demo-bubbles", {
+            method: "POST",
+            headers: { Authorization: `Bearer ${token}` },
+          });
+          const seedJson = await seedRes.json().catch(() => ({}));
+          if (!seedRes.ok || !seedJson.success || !Array.isArray(seedJson.bubble_ids)) {
+            toast.error(seedJson.error ?? "Could not create bubbles");
+            return;
+          }
+          const mockIndex = MOCK_MAP_EVENTS.findIndex((m) => m.id === id);
+          realBubbleId = (seedJson.bubble_ids[mockIndex] ?? seedJson.bubble_ids[0]) ?? "";
+          if (!realBubbleId || typeof realBubbleId !== "string") {
+            toast.error("Could not create bubble. Try again.");
+            return;
+          }
+          bubbleForContext = { ...mockBubble, id: realBubbleId, joined: mockBubble.joined + 1 };
+          addBubbleConversation(bubbleForContext);
+          onClose();
+          router.push(`/chat/bubble-${realBubbleId}`);
+        } catch {
+          toast.error("Something went wrong");
+        } finally {
+          setJoiningId(null);
+        }
+        return;
+      }
 
       if (id.startsWith("demo-")) {
         const demoIndex = parseInt(id.replace("demo-", ""), 10);
-        if (isNaN(demoIndex) || demoIndex < 0 || demoIndex > 4) return;
+        if (isNaN(demoIndex) || demoIndex < 0 || demoIndex >= DEMO_BUBBLES.length) return;
         const demoBubble = DEMO_BUBBLES[demoIndex];
         if (!demoBubble) return;
         setJoiningId(id);
@@ -261,10 +999,8 @@ export default function MapOverlay({ onClose }: MapOverlayProps) {
             toast.error("Could not create bubble. Try again.");
             return;
           }
-          // Seed already added user as creator (in bubble_members), so no join call needed
           bubbleForContext = { ...demoBubble, id: realBubbleId, joined: 1 };
           addBubbleConversation(bubbleForContext);
-          setHoveredId(null);
           onClose();
           router.push(`/chat/bubble-${realBubbleId}`);
         } catch {
@@ -289,7 +1025,7 @@ export default function MapOverlay({ onClose }: MapOverlayProps) {
           toast.error(data.error ?? "Could not join");
           return;
         }
-        const coords = ZONE_COORDS[bubble.zone] ?? CAMPUS_CENTER;
+        const coords = ZONE_COORDS[bubble.zone] ?? DEFAULT_MAP_CENTER;
         bubbleForContext = toBubbleForContext(
           { ...bubble, members_count: (bubble.members_count ?? 0) + 1 },
           coords.lat,
@@ -297,7 +1033,6 @@ export default function MapOverlay({ onClose }: MapOverlayProps) {
         );
         addBubbleConversation(bubbleForContext);
         setJoinedIds((prev) => new Set(prev).add(id));
-        setHoveredId(null);
         onClose();
         router.push(`/chat/bubble-${id}`);
       } catch {
@@ -311,9 +1046,16 @@ export default function MapOverlay({ onClose }: MapOverlayProps) {
 
   const handleOpenChat = useCallback(
     (id: string) => {
+      const mockBubble = getMockEventById(id);
+      if (mockBubble) {
+        addBubbleConversation(mockBubble);
+        onClose();
+        router.push(`/chat/bubble-${id}`);
+        return;
+      }
       const apiBubble = apiBubbles.find((b) => b.id === id);
       if (!apiBubble) return;
-      const coords = ZONE_COORDS[apiBubble.zone] ?? CAMPUS_CENTER;
+      const coords = ZONE_COORDS[apiBubble.zone] ?? DEFAULT_MAP_CENTER;
       const bubbleForContext = toBubbleForContext(apiBubble, coords.lat, coords.lng);
       addBubbleConversation(bubbleForContext);
       onClose();
@@ -349,146 +1091,123 @@ export default function MapOverlay({ onClose }: MapOverlayProps) {
     }
   }, []);
 
+  const zoomToCluster = useCallback((lat: number, lng: number) => {
+    mapRef.current?.panTo({ lat, lng });
+    const next = Math.min((mapRef.current?.getZoom() ?? mapZoom) + 2, 18);
+    mapRef.current?.setZoom(next);
+    setMapZoom(next);
+  }, [mapZoom]);
+
+  const themeClass = theme === "light" ? "theme-light" : "theme-dark";
+
   if (loadError) {
     return (
-      <div className="fixed inset-0 z-50 flex items-center justify-center p-6 bg-background/80 backdrop-blur-sm">
-        <div className="text-center bg-card rounded-2xl p-8 border border-border">
-          <p className="text-destructive font-medium">Error loading map</p>
-          <p className="text-sm text-muted-foreground mt-2">Please check your connection and try again.</p>
-          <Button onClick={onClose} className="mt-4">
+      <div
+        className={`fixed inset-0 z-50 flex items-center justify-center p-6 ${themeClass}`}
+        style={{ backgroundColor: "var(--bg-page)" }}
+      >
+        <div
+          className="max-w-md rounded-2xl border p-8 text-center backdrop-blur-xl"
+          style={{
+            borderColor: "var(--border-color)",
+            backgroundColor: "var(--bg-card)",
+          }}
+        >
+          <p className="font-medium text-red-400">Error loading map</p>
+          <p className="mt-2 text-sm" style={{ color: "var(--text-muted)" }}>
+            {loadError.message ||
+              "Check NEXT_PUBLIC_GOOGLE_MAPS_API_KEY and enable Maps JavaScript API in Google Cloud."}
+          </p>
+          <button
+            type="button"
+            onClick={handleClose}
+            className="mt-4 rounded-full px-5 py-2 text-sm font-semibold"
+            style={{ backgroundColor: "var(--text-primary)", color: "var(--bg-page)" }}
+          >
             Go back
-          </Button>
+          </button>
         </div>
       </div>
     );
   }
 
+  if (!campusMode) {
+    return <CampusModeModal onSelect={setCampusMode} themeClass={themeClass} />;
+  }
+
   if (!isLoaded) {
     return (
-      <div className="fixed inset-0 z-50 flex items-center justify-center bg-background/80 backdrop-blur-sm">
-        <div className="animate-pulse text-muted-foreground">Loading map…</div>
+      <div
+        className={`fixed inset-0 z-50 flex items-center justify-center ${themeClass}`}
+        style={{ backgroundColor: "var(--bg-page)" }}
+      >
+        <div className="animate-pulse" style={{ color: "var(--text-muted)" }}>
+          Loading map…
+        </div>
       </div>
     );
   }
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 sm:p-6">
-      {/* Light blur - toolbar and nav remain visible in background */}
-      <button
-        type="button"
-        className="absolute inset-0 backdrop-blur-[2px] bg-background/5"
-        onClick={onClose}
-        aria-label="Close map"
+    <MapDiscoveryProvider bubbles={filteredBubbles} onZoomChanged={setMapZoom}>
+      <MapDiscoveryContent
+        onClose={handleClose}
+        sortedBubbles={sortedBubbles}
+        filteredBubbles={filteredBubbles}
+        filteredCount={filteredBubbles.length}
+        mapZoom={mapZoom}
+        setMapZoom={setMapZoom}
+        joinedIds={joinedIds}
+        myBubbleIds={myBubbleIds}
+        joiningId={joiningId}
+        seeding={seeding}
+        viewMode={viewMode}
+        setViewMode={setViewMode}
+        handleJoin={handleJoin}
+        handleOpenChat={handleOpenChat}
+        handleSeedDemo={handleSeedDemo}
+        scrollToCard={scrollToCard}
+        cardRefs={cardRefs}
+        mapRef={mapRef}
+        mapOptions={mapOptions}
+        zoomToCluster={zoomToCluster}
+        withOffCampusCheck={withOffCampusCheck}
+        sortMode={sortMode}
+        setSortMode={setSortMode}
+        campusFilter={campusFilter}
+        onCampusFilterChange={handleCampusFilterChange}
+        onClearFilters={handleClearFilters}
+        showOffCampusToast={showOffCampusToastEffective}
+        onDismissOffCampusToast={handleDismissOffCampusToast}
+        categoryFilter={filter}
+        hasActiveFilters={hasActiveFilters}
       />
+      <OffCampusWarningDialog
+        open={!!offCampusWarning}
+        title={offCampusWarning?.title ?? ""}
+        zone={offCampusWarning?.zone ?? ""}
+        themeClass={themeClass}
+        onConfirm={() => offCampusWarning?.onConfirm()}
+        onCancel={() => setOffCampusWarning(null)}
+      />
+    </MapDiscoveryProvider>
+  );
+}
 
-      {/* Floating card - map + list, rounded, elevated */}
-      <div
-        className="relative z-10 w-full max-w-6xl h-[90vh] max-h-[900px] rounded-3xl overflow-hidden bg-card border border-border/50 shadow-2xl flex flex-col lg:flex-row"
-        onClick={(e) => e.stopPropagation()}
-      >
-        <div className="w-full lg:w-[58%] h-[40vh] lg:h-full shrink-0">
-          <GoogleMap
-            mapContainerStyle={MAP_CONTAINER_STYLE}
-            center={UW_CAMPUS_CENTER}
-            zoom={16}
-            options={MAP_OPTIONS}
-          >
-            {bubblesWithCoords.map((bubble) =>
-              joinedIds.has(bubble.id) ? (
-                <Marker
-                  key={bubble.id}
-                  position={{ lat: bubble.lat, lng: bubble.lng }}
-                  title={bubble.title}
-                />
-              ) : (
-                <MapBubble
-                  key={bubble.id}
-                  bubble={bubble}
-                  isHovered={hoveredId === bubble.id}
-                  onMouseEnter={() => setHoveredId(bubble.id)}
-                  onMouseLeave={() => setHoveredId(null)}
-                  onJoin={() => handleJoin(bubble.id)}
-                />
-              )
-            )}
-          </GoogleMap>
-        </div>
+function MapOverlayInner(props: MapOverlayProps) {
+  return <MapDiscoveryUI {...props} />;
+}
 
-        <div className="flex-1 min-h-0 flex flex-col lg:border-l border-border overflow-hidden">
-          <header className="flex items-center gap-3 px-4 lg:px-6 h-14 border-b border-border shrink-0">
-            <button
-              onClick={onClose}
-              className="text-muted-foreground hover:text-foreground transition-colors"
-              aria-label="Go back"
-            >
-              <ArrowLeft className="w-5 h-5" />
-            </button>
-            <h1 className="text-lg font-bold text-foreground">Activities</h1>
-          </header>
-          <div className="flex-1 min-h-0 overflow-y-auto p-4 lg:p-6 space-y-3">
-            {bubblesWithCoords.length === 0 ? (
-              <div className="space-y-3 py-2">
-                <p className="text-sm text-muted-foreground">No active bubbles. Create one from Home or add samples below.</p>
-                <Button
-                  size="sm"
-                  variant="secondary"
-                  className="w-full rounded-xl"
-                  disabled={seeding}
-                  onClick={handleSeedDemo}
-                >
-                  {seeding ? "Creating…" : "Create sample bubbles"}
-                </Button>
-              </div>
-            ) : (
-              bubblesWithCoords.map((bubble) => {
-                const isJoined = joinedIds.has(bubble.id);
-                const isAlreadyMember = isJoined || myBubbleIds.has(bubble.id);
-                const isJoining = joiningId === bubble.id;
-                return (
-                  <div
-                    key={bubble.id}
-                    className={`w-full text-left bg-card rounded-xl p-4 border transition-colors ${
-                      hoveredId === bubble.id ? "border-primary ring-1 ring-primary/20" : "border-border"
-                    }`}
-                    onMouseEnter={() => setHoveredId(bubble.id)}
-                    onMouseLeave={() => setHoveredId(null)}
-                  >
-                    <div className="flex items-start gap-3">
-                      <span className="text-2xl">{bubble.emoji}</span>
-                      <div className="flex-1 min-w-0">
-                        <h3 className="font-semibold text-foreground">{bubble.title}</h3>
-                        <div className="flex flex-wrap items-center gap-x-3 gap-y-0.5 mt-1 text-xs text-muted-foreground">
-                          <span className="flex items-center gap-1">
-                            <Users className="w-3 h-3" />
-                            0/{bubble.maxPeople}
-                          </span>
-                          <span className="flex items-center gap-1">
-                            <Clock className="w-3 h-3" />
-                            {bubble.startingIn}
-                          </span>
-                          <span className="flex items-center gap-1">
-                            <MapPin className="w-3 h-3" />
-                            {bubble.zone || "—"}
-                          </span>
-                        </div>
-                      <p className="text-sm text-muted-foreground mt-1.5 line-clamp-2">{bubble.description || "—"}</p>
-                      <Button
-                        size="sm"
-                        className="mt-2 rounded-xl"
-                        disabled={isJoining}
-                        onClick={() => (isAlreadyMember ? handleOpenChat(bubble.id) : handleJoin(bubble.id))}
-                      >
-                        {isJoining ? "Joining…" : "Join Bubble"}
-                      </Button>
-                      </div>
-                    </div>
-                  </div>
-                );
-              })
-            )}
-          </div>
-        </div>
-      </div>
-    </div>
+export default function MapOverlay(props: MapOverlayProps) {
+  return (
+    <MapThemeProvider>
+      <CampusModeProvider>
+        <UserLocationProvider>
+          <MapFilterProvider>
+            <MapOverlayInner {...props} />
+          </MapFilterProvider>
+        </UserLocationProvider>
+      </CampusModeProvider>
+    </MapThemeProvider>
   );
 }
