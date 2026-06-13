@@ -1,60 +1,47 @@
 import { NextRequest, NextResponse } from "next/server";
 import { supabase } from "@/lib/supabase";
+import { getSupabaseAdmin } from "@/lib/supabaseAdmin";
 
-const WATERLOO_EMAIL_SUFFIX = "@uwaterloo.ca";
-
-/**
- * POST /api/auth/login
- * Accept { email }. Only @uwaterloo.ca. Send OTP via Supabase.
- */
 export async function POST(request: NextRequest) {
   try {
     const body = await request.json();
-    const { email } = body ?? {};
+    const { email, password, resend } = body ?? {};
+
     if (!email || typeof email !== "string") {
-      return NextResponse.json(
-        { success: false, error: "Email required" },
-        { status: 400 }
-      );
+      return NextResponse.json({ success: false, error: "Email required" }, { status: 400 });
     }
+
     const emailTrimmed = email.trim().toLowerCase();
-    if (!emailTrimmed.endsWith(WATERLOO_EMAIL_SUFFIX)) {
-      return NextResponse.json(
-        { success: false, error: "Only @uwaterloo.ca emails are allowed" },
-        { status: 400 }
-      );
+
+    if (!resend) {
+      if (!password || typeof password !== "string") {
+        return NextResponse.json({ success: false, error: "Password required" }, { status: 400 });
+      }
+
+      // Step 1: verify password
+      const { data, error: signInError } = await supabase.auth.signInWithPassword({
+        email: emailTrimmed,
+        password,
+      });
+
+      if (signInError || !data.session) {
+        return NextResponse.json({ success: false, error: "Invalid email or password" }, { status: 401 });
+      }
+
+      // Step 2: sign out so OTP is the real auth factor
+      await getSupabaseAdmin().auth.admin.signOut(data.session.access_token);
     }
 
-    // Use SITE_URL env, or derive from request so redirect works on Vercel/localhost
-    const host =
-      request.headers.get("x-forwarded-host") ||
-      request.headers.get("host") ||
-      "";
-    const proto = request.headers.get("x-forwarded-proto") || "http";
-    const siteUrl =
-      process.env.NEXT_PUBLIC_SITE_URL ||
-      (host ? `${proto}://${host}` : "http://localhost:3000");
-    const redirectTo = `${siteUrl.replace(/\/$/, "")}/auth/callback`;
+    // Send OTP
+    const { error: otpError } = await supabase.auth.signInWithOtp({ email: emailTrimmed });
 
-    const { error } = await supabase.auth.signInWithOtp({
-      email: emailTrimmed,
-      options: { emailRedirectTo: redirectTo },
-    });
-
-    if (error) {
-      console.error("[auth/login] Supabase signInWithOtp error:", {
-        message: error.message,
-        name: error.name,
-        status: error.status,
-      });
-      // Return full error so client can show it (helps debug Brevo/SMTP)
+    if (otpError) {
+      console.error("[auth/login] OTP send error:", { message: otpError.message, status: otpError.status });
       return NextResponse.json(
         {
           success: false,
-          error: error.message,
-          ...(process.env.NODE_ENV !== "production" && {
-            debug: { name: error.name, status: error.status },
-          }),
+          error: otpError.message,
+          ...(process.env.NODE_ENV !== "production" && { debug: { name: otpError.name, status: otpError.status } }),
         },
         { status: 400 }
       );
@@ -62,9 +49,6 @@ export async function POST(request: NextRequest) {
 
     return NextResponse.json({ success: true });
   } catch {
-    return NextResponse.json(
-      { success: false, error: "Invalid request" },
-      { status: 400 }
-    );
+    return NextResponse.json({ success: false, error: "Invalid request" }, { status: 400 });
   }
 }
