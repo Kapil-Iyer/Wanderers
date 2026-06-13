@@ -19,6 +19,7 @@ import { ProfileOverlayProvider } from "@/contexts/ProfileOverlayContext";
 import { ConnectionsProvider } from "@/contexts/ConnectionsContext";
 import MapOverlayClient from "./MapOverlayClient";
 import ProfileOverlayClient from "./ProfileOverlayClient";
+import CursorGlow from "@/components/motion/CursorGlow";
 
 export function Providers({ children }: { children: React.ReactNode }) {
   const [queryClient] = useState(() => new QueryClient());
@@ -31,6 +32,7 @@ export function Providers({ children }: { children: React.ReactNode }) {
         <ProfileOverlayProvider>
         <MapOverlayProvider>
           {children}
+          <CursorGlow />
           <MapOverlayClient />
           <Toaster />
           <Sonner />

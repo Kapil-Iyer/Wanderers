@@ -1,107 +1,284 @@
-@import url('https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@300;400;500;600;700;800&display=swap');
+@import url('https://fonts.googleapis.com/css2?family=Playfair+Display:ital,wght@0,400;0,600;0,700;0,900;1,400;1,700&family=Inter:wght@300;400;500;600;700&display=swap');
 
 /* 1. TAILWIND DIRECTIVES */
 @tailwind base;
 @tailwind components;
 @tailwind utilities;
 
-/* 2. BASE LAYER */
+/* 2. DESIGN TOKENS */
 @layer base {
   :root {
-    /* --- THE BASE: Deepest Obsidian (Softened) --- */
-    --background: 222 47% 2%; 
-    --foreground: 210 20% 98%;
+    /* ── Core palette ── */
+    --color-bg:             #09090B;
+    --color-surface:        rgba(255, 255, 255, 0.04);
+    --color-surface-hover:  rgba(255, 255, 255, 0.07);
+    --color-border:         rgba(255, 255, 255, 0.07);
+    --color-border-warm:    rgba(249, 115, 22, 0.2);
 
-    /* --- THE TEAL FIX: Shifting from 174 (Muddy) to 185 (Electric Cyan) --- */
-    /* This makes the color feel like a 'Light Source' */
-    --primary: 185 94% 48%; 
-    --primary-foreground: 185 100% 5%;
+    /* ── Amber-orange accent (from logo gradient) ── */
+    --color-accent-start:   #F97316;
+    --color-accent-end:     #FBBF24;
+    --color-accent-mid:     #FB923C;
+    --color-glow:           rgba(249, 115, 22, 0.15);
+    --color-glow-strong:    rgba(249, 115, 22, 0.28);
 
-    --card: 222 47% 4%;
-    --card-foreground: 210 20% 98%;
+    /* ── Text ── */
+    --color-text-primary:   #FAFAFA;
+    --color-text-secondary: #A1A1AA;
+    --color-text-muted:     #52525B;
 
-    --popover: 222 47% 4%;
-    --popover-foreground: 210 20% 98%;
+    /* ── Shadcn tokens (mapped to warm palette) ── */
+    --background:            11 11% 4%;
+    --foreground:            0 0% 98%;
 
-    /* Secondary: Deep navy-teal, very desaturated to stay out of the way */
-    --secondary: 185 30% 10%;
-    --secondary-foreground: 185 10% 90%;
+    --primary:               25 95% 53%;         /* #F97316 orange */
+    --primary-foreground:    25 100% 6%;
 
-    --muted: 215 20% 12%;
-    --muted-foreground: 215 15% 60%;
+    --card:                  240 6% 7%;
+    --card-foreground:       0 0% 98%;
 
-    --accent: 185 80% 12%;
-    --accent-foreground: 185 90% 90%;
+    --popover:               240 6% 7%;
+    --popover-foreground:    0 0% 98%;
 
-    --destructive: 0 84% 60%;
+    --secondary:             240 4% 12%;
+    --secondary-foreground:  0 0% 90%;
+
+    --muted:                 240 4% 14%;
+    --muted-foreground:      240 5% 45%;
+
+    --accent:                25 80% 12%;
+    --accent-foreground:     25 90% 80%;
+
+    --destructive:           0 84% 60%;
     --destructive-foreground: 0 0% 100%;
 
-    /* Border: Very thin and subtle teal-tinted charcoal */
-    --border: 185 50% 12%;
-    --input: 222 47% 3%;
-    --ring: 185 94% 48%;
+    --border:                240 4% 12%;
+    --input:                 240 6% 6%;
+    --ring:                  25 95% 53%;
 
     --radius: 1rem;
+
+    /* ── Typography ── */
+    --font-display: 'Playfair Display', Georgia, serif;
+    --font-body:    'Inter', system-ui, sans-serif;
+
+    /* ── Spacing / shape ── */
+    --radius-card:  16px;
+    --radius-pill:  999px;
+    --blur-glass:   blur(16px);
+    --blur-card:    blur(12px);
+
+    /* ── Shadows ── */
+    --shadow-card:   0 1px 3px rgba(0,0,0,0.4), 0 1px 2px rgba(0,0,0,0.3);
+    --shadow-float:  0 20px 60px -15px rgba(249,115,22,0.18);
+    --shadow-glow:   0 0 32px rgba(249,115,22,0.22);
+    --shadow-inner-warm: inset 0 1px 0 rgba(249,115,22,0.12);
   }
 
   * {
     @apply border-border;
+    box-sizing: border-box;
   }
 
-  /* Hide all scrollbars globally - scroll still works */
+  /* Hide scrollbars globally */
   * {
     scrollbar-width: none;
     -ms-overflow-style: none;
   }
+  *::-webkit-scrollbar { display: none; }
 
-  *::-webkit-scrollbar {
-    display: none;
+  html { font-size: 16px; }
+
+  /* ── Custom Wanderers cursor: the location pin (logo sign) ──
+     Only on fine pointers; text fields keep a caret so editing stays usable. */
+  @media (pointer: fine) {
+    body,
+    button, a, [role="button"], summary, label,
+    .cursor-pin {
+      cursor: url("data:image/svg+xml,%3Csvg%20xmlns='http://www.w3.org/2000/svg'%20width='28'%20height='34'%20viewBox='0%200%2028%2034'%3E%3Cpath%20d='M14%2033C14%2033%203%2019%203%2011.5A11%2011%200%200%201%2025%2011.5C25%2019%2014%2033%2014%2033Z'%20fill='%23F97316'%20stroke='%23FBBF24'%20stroke-width='1.5'/%3E%3Ccircle%20cx='14'%20cy='11.5'%20r='4'%20fill='%23fff'/%3E%3C/svg%3E") 14 33, auto;
+    }
+    input, textarea, select, [contenteditable="true"] {
+      cursor: text;
+    }
   }
 
   body {
+    font-family: var(--font-body);
     @apply min-h-screen text-foreground antialiased;
-    font-family: 'Plus Jakarta Sans', sans-serif;
-
-    /* --- THE ATMOSPHERIC BACKGROUND --- */
-    background: 
-      /* Top Rim: A very faint cyan glow */
-      linear-gradient(to bottom, hsla(185, 94%, 48%, 0.08) 0%, transparent 15%),
-      /* Center Pool: A subtle lift of navy in the middle */
-      radial-gradient(circle at 50% 40%, hsla(222, 47%, 8%, 1) 0%, hsla(222, 47%, 2%, 1) 85%);
-    
+    background-color: var(--color-bg);
+    background-image:
+      radial-gradient(ellipse 80% 50% at 50% -10%, rgba(249,115,22,0.07) 0%, transparent 60%),
+      radial-gradient(ellipse 60% 40% at 80% 80%, rgba(251,191,36,0.04) 0%, transparent 50%);
     background-attachment: fixed;
   }
 }
 
-/* 3. UTILITY LAYER */
+/* 3. COMPONENT UTILITIES */
 @layer utilities {
-  /* THE "GLOWING EDGE" CARD */
-  /* This uses the primary cyan to create a surgical top-light */
-  .lit-card {
-    @apply bg-card/60 backdrop-blur-xl border border-white/[0.03] shadow-2xl transition-all duration-300;
-    box-shadow: 
-      inset 0 1px 0 0 hsla(185, 94%, 48%, 0.1),
-      0 20px 40px -20px rgba(0, 0, 0, 0.8);
+
+  /* Glass card — warm frosted */
+  .glass-card {
+    background: rgba(255,255,255,0.03);
+    backdrop-filter: var(--blur-card);
+    -webkit-backdrop-filter: var(--blur-card);
+    border: 1px solid var(--color-border);
+    box-shadow: var(--shadow-inner-warm), var(--shadow-card);
+    border-radius: var(--radius-card);
+    transition: border-color 0.25s ease, box-shadow 0.25s ease;
   }
 
-  .lit-card:hover {
-    @apply border-primary/20;
-    box-shadow: 
-      inset 0 1px 0 0 hsla(185, 94%, 48%, 0.2),
-      0 0 30px -10px hsla(185, 94%, 48%, 0.1);
+  .glass-card:hover {
+    border-color: var(--color-border-warm);
+    box-shadow: var(--shadow-inner-warm), 0 0 24px var(--color-glow);
   }
 
-  .text-glow {
-    @apply bg-clip-text text-transparent bg-gradient-to-b from-white via-white to-white/50;
+  /* Gradient text — amber to gold */
+  .text-gradient {
+    background: linear-gradient(135deg, var(--color-accent-start) 0%, var(--color-accent-end) 100%);
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+    background-clip: text;
   }
 
-  .btn-primary {
-    @apply bg-primary text-primary-foreground font-semibold px-6 py-2 rounded-lg
-           hover:shadow-[0_0_20px_rgba(14,165,233,0.4)] transition-all active:scale-95;
+  /* Gradient button */
+  .btn-amber {
+    background: linear-gradient(135deg, var(--color-accent-start) 0%, var(--color-accent-end) 100%);
+    color: #1a0a00;
+    font-weight: 700;
+    border-radius: var(--radius-pill);
+    box-shadow: var(--shadow-float);
+    transition: box-shadow 0.25s ease, transform 0.15s ease;
   }
 
-  .card {
-    @apply p-8;
+  .btn-amber:hover {
+    box-shadow: var(--shadow-glow);
   }
 
+  /* Amber glow ring — used on active/selected elements */
+  .ring-amber {
+    box-shadow: 0 0 0 2px rgba(249,115,22,0.45);
+  }
+
+  /* Display font helper */
+  .font-display {
+    font-family: var(--font-display);
+  }
+
+  /* Chip pill — warm */
+  .chip {
+    @apply px-3.5 py-1.5 rounded-full text-xs font-medium whitespace-nowrap transition-all duration-200;
+    border: 1px solid var(--color-border);
+    background: var(--color-surface);
+    color: var(--color-text-secondary);
+  }
+
+  .chip-active {
+    background: linear-gradient(135deg, var(--color-accent-start) 0%, var(--color-accent-end) 100%);
+    color: #1a0a00;
+    border-color: transparent;
+    font-weight: 700;
+    box-shadow: 0 0 12px var(--color-glow);
+  }
+
+  /* Bubble card ambient glow */
+  .bubble-glow {
+    box-shadow:
+      var(--shadow-inner-warm),
+      0 8px 32px -8px rgba(249,115,22,0.12),
+      var(--shadow-card);
+  }
+
+  .bubble-glow:hover {
+    box-shadow:
+      inset 0 1px 0 rgba(249,115,22,0.2),
+      0 16px 48px -12px rgba(249,115,22,0.2),
+      0 0 24px rgba(249,115,22,0.08);
+  }
+
+  /* Lit-from-within card header gradient */
+  .card-header-glow {
+    background: linear-gradient(135deg,
+      rgba(249,115,22,0.25) 0%,
+      rgba(251,191,36,0.15) 50%,
+      rgba(249,115,22,0.08) 100%);
+  }
+
+  /* Animations */
+  @keyframes fade-in {
+    from { opacity: 0; transform: translateY(10px); }
+    to   { opacity: 1; transform: translateY(0); }
+  }
+  @keyframes slide-up {
+    from { opacity: 0; transform: translateY(100%); }
+    to   { opacity: 1; transform: translateY(0); }
+  }
+  @keyframes float-orb {
+    0%,100% { transform: translate(0,0) scale(1); }
+    33%      { transform: translate(28px,-28px) scale(1.04); }
+    66%      { transform: translate(-18px,18px) scale(0.96); }
+  }
+  @keyframes pulse-glow {
+    0%,100% { opacity: 0.4; }
+    50%     { opacity: 0.75; }
+  }
+  @keyframes shimmer {
+    0%   { background-position: -200% 0; }
+    100% { background-position:  200% 0; }
+  }
+  /* breathing glow for "Happening Now" bubbles */
+  @keyframes pulse-amber {
+    0%   { box-shadow: 0 0 0 0 rgba(249,115,22,0.15); }
+    50%  { box-shadow: 0 0 20px 4px rgba(249,115,22,0.08); }
+    100% { box-shadow: 0 0 0 0 rgba(249,115,22,0.15); }
+  }
+  /* presence dot heartbeat (slower) */
+  @keyframes pulse-dot {
+    0%   { box-shadow: 0 0 0 0 rgba(74,222,128,0.45); }
+    50%  { box-shadow: 0 0 8px 2px rgba(74,222,128,0.2); }
+    100% { box-shadow: 0 0 0 0 rgba(74,222,128,0.45); }
+  }
+  /* rising embers for the cozy campfire backdrop */
+  @keyframes ember-rise {
+    0%   { transform: translateY(0) translateX(0) scale(1);   opacity: 0; }
+    15%  { opacity: 0.9; }
+    70%  { opacity: 0.6; }
+    100% { transform: translateY(-220px) translateX(var(--ember-drift, 12px)) scale(0.4); opacity: 0; }
+  }
+  /* fireplace flicker */
+  @keyframes fire-flicker {
+    0%, 100% { opacity: 0.55; transform: scale(1); }
+    25%      { opacity: 0.75; transform: scale(1.04); }
+    50%      { opacity: 0.5;  transform: scale(0.98); }
+    75%      { opacity: 0.7;  transform: scale(1.02); }
+  }
+
+  /* sidebar friend row — amber left border slides in top→bottom on hover */
+  .friend-row { position: relative; }
+  .friend-row::before {
+    content: "";
+    position: absolute;
+    left: 0;
+    top: 6px;
+    bottom: 6px;
+    width: 2px;
+    border-radius: 2px;
+    background: linear-gradient(to bottom, #F97316, #FBBF24);
+    transform: scaleY(0);
+    transform-origin: top;
+    transition: transform 0.25s ease;
+  }
+  .friend-row:hover::before { transform: scaleY(1); }
+
+  .animate-pulse-amber { animation: pulse-amber 2s ease-in-out infinite; }
+  .animate-pulse-dot   { animation: pulse-dot 3s ease-in-out infinite; }
+  .animate-fire-flicker { animation: fire-flicker 3.5s ease-in-out infinite; }
+  @media (prefers-reduced-motion: reduce) {
+    .animate-pulse-amber, .animate-pulse-dot, .animate-fire-flicker,
+    .animate-float-orb, .animate-pulse-glow { animation: none !important; }
+  }
+
+  .animate-fade-in   { animation: fade-in 0.45s ease-out both; }
+  .animate-slide-up  { animation: slide-up 0.4s ease-out both; }
+  .animate-float-orb { animation: float-orb 18s ease-in-out infinite; }
+  .animate-pulse-glow{ animation: pulse-glow 4s ease-in-out infinite; }
 }

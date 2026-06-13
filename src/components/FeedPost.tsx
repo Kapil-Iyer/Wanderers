@@ -9,6 +9,7 @@
  */
 
 import { useState } from "react";
+import { motion, useReducedMotion } from "framer-motion";
 import type { FeedPost as FeedPostType, FeedComment } from "@/lib/mockData";
 import { ProfileLink } from "@/components/ProfileLink";
 import { Heart, MessageCircle, Share2, Send } from "lucide-react";
@@ -18,6 +19,7 @@ type FeedPostProps = {
 };
 
 export default function FeedPost({ post }: FeedPostProps) {
+  const reduce = useReducedMotion();
   const activity = post.activity ?? post.caption?.split("#")[0]?.trim() ?? "Activity";
   const zone = post.zone ?? "—";
   const participants = post.participants ?? [];
@@ -66,14 +68,20 @@ export default function FeedPost({ post }: FeedPostProps) {
           </div>
         </div>
 
-        {/* Photo */}
-        <div className="aspect-[3/4] w-full bg-muted flex items-center justify-center rounded-lg overflow-hidden">
+        {/* Photo — snaps into place with a slight spring overshoot */}
+        <motion.div
+          className="aspect-[3/4] w-full bg-muted flex items-center justify-center rounded-lg overflow-hidden"
+          initial={reduce ? { opacity: 0 } : { scale: 0.92, opacity: 0, filter: "blur(10px)" }}
+          whileInView={reduce ? { opacity: 1 } : { scale: 1, opacity: 1, filter: "blur(0px)" }}
+          viewport={{ once: true, amount: 0.2 }}
+          transition={{ duration: 0.65, ease: [0.34, 1.56, 0.64, 1] }}
+        >
           {post.imageUrl ? (
             <img src={post.imageUrl} alt="" className="w-full h-full object-cover" />
           ) : (
             <span className="text-3xl text-muted-foreground/50">📷</span>
           )}
-        </div>
+        </motion.div>
 
         {/* Caption + participants + timestamp */}
         <div className="py-2 space-y-1">

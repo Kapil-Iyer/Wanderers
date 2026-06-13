@@ -15,16 +15,18 @@ type ProfileLinkProps = {
   avatar?: string;
   children: React.ReactNode;
   className?: string;
+  style?: React.CSSProperties;
 };
 
-export function ProfileLink({ name, avatar, children, className = "" }: ProfileLinkProps) {
+export function ProfileLink({ name, avatar, children, className = "", style }: ProfileLinkProps) {
   const profileOverlay = useProfileOverlay();
   if (!profileOverlay || name === "you" || name === "You") {
-    return <span className={className}>{children}</span>;
+    return <span className={className} style={style}>{children}</span>;
   }
   return (
     <button
       type="button"
+      style={style}
       onClick={(e) => {
         e.preventDefault();
         e.stopPropagation();
