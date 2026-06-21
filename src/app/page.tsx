@@ -21,7 +21,7 @@ export default function LandingPage() {
   }, []);
 
   const finishSplash = () => {
-    try { sessionStorage.setItem(SPLASH_KEY, "1"); } catch {}
+    try { sessionStorage.setItem(SPLASH_KEY, "1"); } catch { /* sessionStorage unavailable */ }
     setShowSplash(false);
   };
 

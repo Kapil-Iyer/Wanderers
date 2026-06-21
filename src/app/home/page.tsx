@@ -518,7 +518,6 @@ function PolaroidStack({ posts, onClick }: { posts: FeedPostType[]; onClick: () 
             style={{ background: "linear-gradient(135deg, rgba(249,115,22,0.25), rgba(120,60,20,0.5))" }}
           >
             {post.imageUrl ? (
-              // eslint-disable-next-line @next/next/no-img-element
               <img src={post.imageUrl} alt={post.caption} className="w-full h-full object-cover" />
             ) : (
               <span className="text-3xl">{post.userAvatar.length <= 2 ? "📸" : post.userAvatar}</span>
