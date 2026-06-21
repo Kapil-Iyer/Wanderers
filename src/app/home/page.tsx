@@ -52,7 +52,20 @@ export default function HomePage() {
   const [createOpen, setCreateOpen] = useState(false);
   const [endEventBubble, setEndEventBubble] = useState<BubbleConversation | null>(null);
   const [feedPosts, setFeedPosts] = useState<FeedPostType[]>(mockFeedPosts);
-  const [upcomingForYou, setUpcomingForYou] = useState<UpcomingBubble[]>(mockBubbles.slice(0, 6).map((b) => ({ ...b, recommendationReason: "Loading..." })));
+  const defaultUpcoming = useMemo(
+    () =>
+      mockBubbles.slice(0, 6).map((b) => ({
+        id: b.id,
+        emoji: b.emoji,
+        title: b.title,
+        startingIn: b.startingIn,
+        joined: b.joined,
+        maxPeople: b.maxPeople,
+        recommendationReason: "For you",
+      })),
+    []
+  );
+  const [upcomingForYou, setUpcomingForYou] = useState<UpcomingBubble[]>(defaultUpcoming);
 
   useEffect(() => {
     fetch("/api/moments")
@@ -85,7 +98,10 @@ export default function HomePage() {
       .then(({ data }) => {
         const userId = data?.session?.user?.id;
         const url = userId ? `/api/recommendations?user_id=${encodeURIComponent(userId)}` : "/api/recommendations";
-        return fetch(url).then((r) => r.json());
+        return fetch(url).then((r) => {
+          if (!r.ok) throw new Error("recommendations failed");
+          return r.json();
+        });
       })
       .then((data: { recommended_bubbles?: Array<{ id: string; title?: string; emoji?: string; startingIn?: string; joined?: number; maxPeople?: number; recommendationReason?: string }> }) => {
         const list = data?.recommended_bubbles;
@@ -101,10 +117,12 @@ export default function HomePage() {
               recommendationReason: b.recommendationReason ?? "For you",
             }))
           );
+        } else {
+          setUpcomingForYou(defaultUpcoming);
         }
       })
-      .catch(() => {});
-  }, []);
+      .catch(() => setUpcomingForYou(defaultUpcoming));
+  }, [defaultUpcoming]);
   const router = useRouter();
 
   const addPost = (post: Omit<FeedPostType, "id" | "timestamp"> & { imageUrl?: string }) => {

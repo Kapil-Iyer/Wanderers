@@ -15,7 +15,7 @@ export default function MapPage() {
   useEffect(() => {
     if (mapOverlay) {
       mapOverlay.openMap();
-      router.replace("/home");
+      router.replace(`/home${window.location.search}`);
     }
   }, [router, mapOverlay]);
 
