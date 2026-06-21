@@ -1,45 +1,94 @@
 "use client";
 
-/**
- * LANDING PAGE - Auth (login/signup)
- * -----------------------------------------------------------------------------
- * AuthModal handles login/signup. API: /api/auth/login, /api/auth/signup
- * Supabase Auth recommended. Redirect to /home or /onboarding after auth.
- * -----------------------------------------------------------------------------
- */
-
+import { useEffect, useState } from "react";
+import { motion, AnimatePresence } from "framer-motion";
 import AuthModal from "@/components/ui/AuthModal";
+import SplashIntro, { SPLASH_KEY } from "@/components/ui/SplashIntro";
+import CozyCampfireBackdrop from "@/components/ui/CozyCampfireBackdrop";
+
+const ease = [0.25, 0.46, 0.45, 0.94] as const;
 
 export default function LandingPage() {
+  // null = undecided (avoids hydration mismatch); true = play splash; false = skip
+  const [showSplash, setShowSplash] = useState<boolean | null>(null);
+
+  useEffect(() => {
+    try {
+      setShowSplash(!sessionStorage.getItem(SPLASH_KEY));
+    } catch {
+      setShowSplash(false);
+    }
+  }, []);
+
+  const finishSplash = () => {
+    try { sessionStorage.setItem(SPLASH_KEY, "1"); } catch { /* sessionStorage unavailable */ }
+    setShowSplash(false);
+  };
+
   return (
-    <div className="min-h-screen bg-[#050a0f] relative overflow-hidden flex items-center justify-center">
-      {/* Animated gradient orbs */}
-      <div className="absolute inset-0 overflow-hidden">
-        <div className="absolute top-1/4 -left-32 w-96 h-96 rounded-full bg-cyan-500/20 blur-[128px] animate-float" />
-        <div className="absolute bottom-1/4 -right-32 w-[28rem] h-[28rem] rounded-full bg-teal-500/15 blur-[120px] animate-float" style={{ animationDelay: "-7s" }} />
-        <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[32rem] h-[32rem] rounded-full bg-cyan-400/5 blur-[150px] animate-pulse-glow" />
-        {/* Subtle grid */}
-        <div
-          className="absolute inset-0 opacity-[0.03]"
-          style={{
-            backgroundImage: `linear-gradient(rgba(255,255,255,0.1) 1px, transparent 1px),
-                             linear-gradient(90deg, rgba(255,255,255,0.1) 1px, transparent 1px)`,
-            backgroundSize: "60px 60px",
-          }}
-        />
-      </div>
+    <div className="min-h-screen relative overflow-hidden flex flex-col items-center justify-center px-4 py-12"
+      style={{ background: "var(--color-bg)" }}>
 
-      {/* Center gradient vignette */}
-      <div
-        className="absolute inset-0 z-[1] pointer-events-none"
-        style={{
-          background: "radial-gradient(ellipse 80% 60% at 50% 50%, transparent 0%, rgba(5,10,15,0.6) 100%)",
-        }}
-      />
+      {/* One-time cinematic intro */}
+      {showSplash && <SplashIntro onComplete={finishSplash} />}
 
-      <div className="relative z-20 w-full flex items-center justify-center px-4 py-12">
-        <AuthModal />
-      </div>
+      {/* Cozy campfire backdrop — blurred warm room behind the glass card */}
+      <CozyCampfireBackdrop />
+
+      {/* Page content — slides up after the splash hands off */}
+      <AnimatePresence>
+        {showSplash === false && (
+          <motion.div
+            key="landing-content"
+            className="relative z-10 w-full flex flex-col items-center"
+            initial={{ opacity: 0, y: 48 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ duration: 0.7, ease }}
+          >
+            {/* Hero text above card */}
+            <motion.div
+              className="text-center mb-10"
+              initial={{ opacity: 0, filter: "blur(12px)", y: 28 }}
+              animate={{ opacity: 1, filter: "blur(0px)", y: 0 }}
+              transition={{ duration: 0.7, ease }}
+            >
+              <p className="text-xs font-semibold tracking-[0.2em] uppercase mb-3"
+                style={{ color: "var(--color-accent-start)" }}>
+                University of Waterloo — exclusive
+              </p>
+              <h1 className="font-display text-5xl sm:text-6xl font-bold leading-tight mb-4"
+                style={{ color: "var(--color-text-primary)" }}>
+                Campus is{" "}
+                <span className="text-gradient">alive.</span>
+              </h1>
+              <p className="text-base max-w-xs mx-auto" style={{ color: "var(--color-text-secondary)" }}>
+                Real students, real moments — happening right now near you.
+              </p>
+            </motion.div>
+
+            {/* Auth card */}
+            <motion.div
+              className="w-full flex justify-center"
+              initial={{ opacity: 0, filter: "blur(12px)", y: 36 }}
+              animate={{ opacity: 1, filter: "blur(0px)", y: 0 }}
+              transition={{ duration: 0.7, delay: 0.15, ease }}
+            >
+              <AuthModal />
+            </motion.div>
+
+            {/* Bottom tagline */}
+            <motion.p
+              className="mt-8 text-xs"
+              style={{ color: "var(--color-text-muted)" }}
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              transition={{ delay: 0.5, duration: 0.6 }}
+            >
+              Your next memory is one tap away.
+            </motion.p>
+          </motion.div>
+        )}
+      </AnimatePresence>
     </div>
   );
 }

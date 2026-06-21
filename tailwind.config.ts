@@ -15,7 +15,8 @@ export default {
     },
     extend: {
       fontFamily: {
-        sans: ["Plus Jakarta Sans", "system-ui", "sans-serif"],
+        sans:    ["Inter", "system-ui", "sans-serif"],
+        display: ["Playfair Display", "Georgia", "serif"],
       },
       colors: {
         border: "hsl(var(--border))",
@@ -78,10 +79,11 @@ export default {
         "2xl": "calc(var(--radius) + 8px)",
       },
       boxShadow: {
-        "card": "0 1px 3px 0 hsl(var(--foreground) / 0.04), 0 1px 2px -1px hsl(var(--foreground) / 0.04)",
-        "card-hover": "0 10px 25px -5px hsl(var(--foreground) / 0.08), 0 4px 6px -2px hsl(var(--foreground) / 0.04)",
-        "float": "0 20px 60px -15px hsl(var(--primary) / 0.15)",
-        "glow": "0 0 30px hsl(var(--primary) / 0.2)",
+        "card":       "0 1px 3px rgba(0,0,0,0.4), 0 1px 2px rgba(0,0,0,0.3)",
+        "card-hover": "0 8px 32px -8px rgba(249,115,22,0.18), 0 0 24px rgba(249,115,22,0.08)",
+        "float":      "0 20px 60px -15px rgba(249,115,22,0.18)",
+        "glow":       "0 0 32px rgba(249,115,22,0.22)",
+        "glow-sm":    "0 0 14px rgba(249,115,22,0.18)",
       },
       keyframes: {
         "accordion-down": {

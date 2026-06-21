@@ -1,14 +1,37 @@
 "use client";
 
+/**
+ * AUTH MODAL — Wanderers Warmth visuals (amber glass + Framer Motion)
+ * wrapping the password + 2FA-OTP + forgot-password auth logic from
+ * jivesh/auth.
+ *
+ * Flow:
+ *   signup  → POST /api/auth/signup {name,email,password} → back to login
+ *   login   → POST /api/auth/login  {email,password}      → OTP "verify" step
+ *   verify  → POST /api/auth/verify {email,token}         → setSession → /home
+ *   forgot  → POST /api/auth/forgot-password {email}      → reset email
+ *
+ * NOTE: campus (@uwaterloo.ca) enforcement is intentionally not re-added here —
+ * tracked as a post-merge follow-up to gate it server-side.
+ */
+
 import { useState, useEffect } from "react";
-import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
+import { motion, AnimatePresence } from "framer-motion";
 import { useRouter } from "next/navigation";
-import { Mail, User, Lock, Eye, EyeOff } from "lucide-react";
+import { Mail, User, Lock, Eye, EyeOff, ArrowLeft } from "lucide-react";
+
+const ease = [0.25, 0.46, 0.45, 0.94] as const;
+
+const panelVariants = {
+  enter:  { opacity: 0, filter: "blur(8px)", y: 16, scale: 0.97 },
+  center: { opacity: 1, filter: "blur(0px)", y: 0,  scale: 1 },
+  exit:   { opacity: 0, filter: "blur(4px)", y: -10, scale: 0.98 },
+};
+
+type Mode = "choice" | "signup" | "login" | "verify" | "forgot";
 
 export default function AuthModal() {
-  const [mode, setMode] = useState<"choice" | "signup" | "login" | "verify" | "forgot">("choice");
+  const [mode, setMode] = useState<Mode>("choice");
   const [pendingEmail, setPendingEmail] = useState("");
   const [otp, setOtp] = useState("");
   const [loading, setLoading] = useState(false);
@@ -16,14 +39,15 @@ export default function AuthModal() {
   const [success, setSuccess] = useState<string | null>(null);
   const [resendCooldown, setResendCooldown] = useState(0);
 
-  // show/hide password toggles
   const [showSignupPwd, setShowSignupPwd] = useState(false);
   const [showSignupConfirm, setShowSignupConfirm] = useState(false);
   const [showLoginPwd, setShowLoginPwd] = useState(false);
 
   const router = useRouter();
 
-  // auto-dismiss success after 3s
+  const go = (m: Mode) => { setError(null); setMode(m); };
+
+  // auto-dismiss success toast
   useEffect(() => {
     if (!success) return;
     const t = setTimeout(() => setSuccess(null), 3000);
@@ -34,8 +58,8 @@ export default function AuthModal() {
     e.preventDefault();
     setError(null);
     const form = e.currentTarget;
-    const email = (form.elements.namedItem("email") as HTMLInputElement)?.value?.trim().toLowerCase();
     const name = (form.elements.namedItem("name") as HTMLInputElement)?.value?.trim();
+    const email = (form.elements.namedItem("email") as HTMLInputElement)?.value?.trim().toLowerCase();
     const password = (form.elements.namedItem("password") as HTMLInputElement)?.value;
     const confirmPassword = (form.elements.namedItem("confirmPassword") as HTMLInputElement)?.value;
 
@@ -93,8 +117,7 @@ export default function AuthModal() {
   const handleForgot = async (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
     setError(null);
-    const form = e.currentTarget;
-    const email = (form.elements.namedItem("forgotEmail") as HTMLInputElement)?.value?.trim().toLowerCase();
+    const email = (e.currentTarget.elements.namedItem("forgotEmail") as HTMLInputElement)?.value?.trim().toLowerCase();
     if (!email) { setError("Email required"); return; }
     setLoading(true);
     try {
@@ -161,197 +184,246 @@ export default function AuthModal() {
     }
   };
 
-  const inputClass = "pl-10 h-11 rounded-xl bg-white/5 border-white/10 text-white placeholder:text-white/30 focus:border-cyan-500/50 focus:ring-cyan-500/20";
-  const pwdInputClass = "pl-10 pr-10 h-11 rounded-xl bg-white/5 border-white/10 text-white placeholder:text-white/30 focus:border-cyan-500/50 focus:ring-cyan-500/20";
+  return (
+    <div className="w-full max-w-sm relative">
+      <div
+        className="relative overflow-hidden rounded-3xl p-8"
+        style={{
+          background: "rgba(255,255,255,0.03)",
+          border: "1px solid rgba(249,115,22,0.15)",
+          backdropFilter: "blur(24px)",
+          boxShadow: "inset 0 1px 0 rgba(249,115,22,0.1), 0 32px 80px -20px rgba(0,0,0,0.7)",
+        }}
+      >
+        <div
+          className="absolute -top-10 -right-10 w-40 h-40 rounded-full pointer-events-none"
+          style={{ background: "radial-gradient(circle, rgba(249,115,22,0.12) 0%, transparent 70%)" }}
+        />
 
-  const EyeToggle = ({ show, onToggle }: { show: boolean; onToggle: () => void }) => (
-    <button
-      type="button"
-      onClick={onToggle}
-      className="absolute right-3 top-1/2 -translate-y-1/2 text-white/40 hover:text-white/70 transition-colors"
-      tabIndex={-1}
-    >
+        {/* Wordmark */}
+        <div className="text-center mb-8">
+          <motion.h1
+            className="text-4xl font-display font-bold"
+            initial={{ opacity: 0, y: -12 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ duration: 0.6, ease }}
+            style={{
+              background: "linear-gradient(135deg, #F97316 0%, #FBBF24 100%)",
+              WebkitBackgroundClip: "text",
+              WebkitTextFillColor: "transparent",
+              backgroundClip: "text",
+            }}
+          >
+            Wanderers
+          </motion.h1>
+          <motion.p
+            className="text-sm mt-2"
+            style={{ color: "var(--color-text-secondary)" }}
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            transition={{ delay: 0.2, duration: 0.5 }}
+          >
+            Find your people. Start something.
+          </motion.p>
+        </div>
+
+        {/* Banners */}
+        <AnimatePresence>
+          {success && (
+            <motion.div
+              key="success"
+              className="mb-5 p-3 rounded-xl text-sm"
+              style={{ background: "rgba(34,197,94,0.1)", border: "1px solid rgba(34,197,94,0.25)", color: "#4ade80" }}
+              initial={{ opacity: 0, y: -6 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0 }}
+            >
+              {success}
+            </motion.div>
+          )}
+          {error && (
+            <motion.div
+              key="error"
+              className="mb-5 p-3 rounded-xl text-sm"
+              style={{ background: "rgba(239,68,68,0.1)", border: "1px solid rgba(239,68,68,0.2)", color: "#f87171" }}
+              initial={{ opacity: 0, y: -6 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0 }}
+            >
+              {error}
+            </motion.div>
+          )}
+        </AnimatePresence>
+
+        {/* Panels */}
+        <AnimatePresence mode="wait">
+          {mode === "choice" && (
+            <motion.div key="choice" variants={panelVariants} initial="enter" animate="center" exit="exit"
+              transition={{ duration: 0.3, ease }} className="space-y-3">
+              <AmberButton onClick={() => go("signup")}>Sign Up</AmberButton>
+              <GhostButton onClick={() => go("login")}>Log In</GhostButton>
+              <p className="text-xs text-center pt-1" style={{ color: "var(--color-text-muted)" }}>
+                University of Waterloo students only
+              </p>
+            </motion.div>
+          )}
+
+          {mode === "signup" && (
+            <motion.form key="signup" variants={panelVariants} initial="enter" animate="center" exit="exit"
+              transition={{ duration: 0.3, ease }} className="space-y-4" onSubmit={handleSignUp} autoComplete="off">
+              <Field id="name" name="name" icon={<User className="w-4 h-4" />} placeholder="Your full name" label="Full Name" required autoComplete="off" />
+              <Field id="email" name="email" type="email" icon={<Mail className="w-4 h-4" />} placeholder="you@uwaterloo.ca" label="Waterloo Email" required autoComplete="off" />
+              <Field id="password" name="password" type={showSignupPwd ? "text" : "password"} icon={<Lock className="w-4 h-4" />} placeholder="Min. 8 characters" label="Password" required autoComplete="new-password"
+                trailing={<EyeToggle show={showSignupPwd} onToggle={() => setShowSignupPwd((p) => !p)} />} />
+              <Field id="confirmPassword" name="confirmPassword" type={showSignupConfirm ? "text" : "password"} icon={<Lock className="w-4 h-4" />} placeholder="Re-enter your password" label="Confirm Password" required autoComplete="new-password"
+                trailing={<EyeToggle show={showSignupConfirm} onToggle={() => setShowSignupConfirm((p) => !p)} />} />
+              <AmberButton type="submit" loading={loading}>{loading ? "Creating account…" : "Create Account"}</AmberButton>
+              <BackButton onClick={() => go("choice")} />
+            </motion.form>
+          )}
+
+          {mode === "login" && (
+            <motion.form key="login" variants={panelVariants} initial="enter" animate="center" exit="exit"
+              transition={{ duration: 0.3, ease }} className="space-y-4" onSubmit={handleLogin} autoComplete="off">
+              <Field id="loginEmail" name="loginEmail" type="email" icon={<Mail className="w-4 h-4" />} placeholder="you@uwaterloo.ca" label="Waterloo Email" required autoComplete="off" />
+              <Field id="loginPassword" name="loginPassword" type={showLoginPwd ? "text" : "password"} icon={<Lock className="w-4 h-4" />} placeholder="Your password" label="Password" required autoComplete="new-password"
+                trailing={<EyeToggle show={showLoginPwd} onToggle={() => setShowLoginPwd((p) => !p)} />} />
+              <div className="flex justify-end -mt-1">
+                <button type="button" onClick={() => go("forgot")} className="text-xs transition-colors" style={{ color: "#F97316" }}>
+                  Forgot password?
+                </button>
+              </div>
+              <p className="text-xs" style={{ color: "var(--color-text-muted)" }}>We&apos;ll send a 6-digit code to verify it&apos;s you.</p>
+              <AmberButton type="submit" loading={loading}>{loading ? "Sending code…" : "Log In"}</AmberButton>
+              <BackButton onClick={() => go("choice")} />
+            </motion.form>
+          )}
+
+          {mode === "forgot" && (
+            <motion.form key="forgot" variants={panelVariants} initial="enter" animate="center" exit="exit"
+              transition={{ duration: 0.3, ease }} className="space-y-4" onSubmit={handleForgot} autoComplete="off">
+              <Field id="forgotEmail" name="forgotEmail" type="email" icon={<Mail className="w-4 h-4" />} placeholder="you@uwaterloo.ca" label="Waterloo Email" required autoComplete="off" />
+              <p className="text-xs" style={{ color: "var(--color-text-muted)" }}>We&apos;ll send you a link to reset your password.</p>
+              <AmberButton type="submit" loading={loading}>{loading ? "Sending…" : "Send Reset Link"}</AmberButton>
+              <BackButton onClick={() => go("login")} label="Back to Login" />
+            </motion.form>
+          )}
+
+          {mode === "verify" && (
+            <motion.form key="verify" variants={panelVariants} initial="enter" animate="center" exit="exit"
+              transition={{ duration: 0.3, ease }} className="space-y-5 text-center" onSubmit={handleVerify}>
+              <div className="w-16 h-16 rounded-full mx-auto flex items-center justify-center"
+                style={{ background: "rgba(249,115,22,0.15)", border: "1px solid rgba(249,115,22,0.3)" }}>
+                <Mail className="w-7 h-7" style={{ color: "#F97316" }} />
+              </div>
+              <div>
+                <h2 className="text-xl font-semibold" style={{ color: "var(--color-text-primary)" }}>Check your email</h2>
+                <p className="text-sm mt-1" style={{ color: "var(--color-text-secondary)" }}>
+                  Sent a 6-digit code to <span style={{ color: "var(--color-text-primary)" }}>{pendingEmail}</span>
+                </p>
+              </div>
+              <input
+                value={otp}
+                onChange={(e) => { setOtp(e.target.value.replace(/\D/g, "").slice(0, 6)); setError(null); }}
+                placeholder="000000"
+                maxLength={6}
+                inputMode="numeric"
+                className="w-full text-center text-2xl tracking-[0.5em] h-14 rounded-2xl font-mono outline-none"
+                style={{ background: "rgba(255,255,255,0.04)", border: "1px solid rgba(249,115,22,0.2)", color: "var(--color-text-primary)" }}
+              />
+              <AmberButton type="submit" loading={loading} disabled={otp.length < 6}>{loading ? "Verifying…" : "Verify Code"}</AmberButton>
+              <button type="button" onClick={handleResendOtp} disabled={resendCooldown > 0}
+                className="block w-full text-sm transition-colors disabled:opacity-40"
+                style={{ color: "#F97316" }}>
+                {resendCooldown > 0 ? `Resend code in ${resendCooldown}s` : "Resend code"}
+              </button>
+              <BackButton onClick={() => { go("choice"); setOtp(""); setPendingEmail(""); setResendCooldown(0); }} />
+            </motion.form>
+          )}
+        </AnimatePresence>
+      </div>
+    </div>
+  );
+}
+
+/* ── Sub-components ── */
+
+function Field({
+  id, name, type = "text", icon, placeholder, label, required, autoComplete, trailing,
+}: {
+  id: string; name: string; type?: string; icon: React.ReactNode;
+  placeholder: string; label: string; required?: boolean; autoComplete?: string;
+  trailing?: React.ReactNode;
+}) {
+  return (
+    <div className="space-y-1.5">
+      <label htmlFor={id} className="text-xs font-medium" style={{ color: "var(--color-text-secondary)" }}>{label}</label>
+      <div className="relative">
+        <span className="absolute left-3 top-1/2 -translate-y-1/2" style={{ color: "var(--color-text-muted)" }}>{icon}</span>
+        <input
+          id={id} name={name} type={type} placeholder={placeholder} required={required} autoComplete={autoComplete}
+          className={`w-full pl-10 ${trailing ? "pr-10" : "pr-4"} h-11 rounded-xl outline-none text-sm transition-all`}
+          style={{ background: "rgba(255,255,255,0.04)", border: "1px solid rgba(255,255,255,0.08)", color: "var(--color-text-primary)" }}
+          onFocus={(e) => (e.target.style.borderColor = "rgba(249,115,22,0.5)")}
+          onBlur={(e) => (e.target.style.borderColor = "rgba(255,255,255,0.08)")}
+        />
+        {trailing}
+      </div>
+    </div>
+  );
+}
+
+function EyeToggle({ show, onToggle }: { show: boolean; onToggle: () => void }) {
+  return (
+    <button type="button" onClick={onToggle} tabIndex={-1}
+      aria-label={show ? "Hide password" : "Show password"}
+      className="absolute right-3 top-1/2 -translate-y-1/2 transition-colors"
+      style={{ color: "var(--color-text-muted)" }}>
       {show ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
     </button>
   );
+}
 
+function AmberButton({ children, onClick, type = "button", loading = false, disabled = false }: {
+  children: React.ReactNode; onClick?: () => void; type?: "button" | "submit";
+  loading?: boolean; disabled?: boolean;
+}) {
   return (
-    <div
-      className="w-full max-w-md animate-fade-in"
+    <motion.button
+      type={type} onClick={onClick} disabled={loading || disabled}
+      className="w-full h-12 rounded-full font-bold text-sm relative overflow-hidden"
       style={{
-        background: "linear-gradient(135deg, rgba(255,255,255,0.08) 0%, rgba(255,255,255,0.02) 100%)",
-        borderRadius: "1.5rem",
-        border: "1px solid rgba(255,255,255,0.08)",
-        boxShadow: "0 25px 50px -12px rgba(0,0,0,0.5), inset 0 1px 0 0 rgba(255,255,255,0.05)",
-        backdropFilter: "blur(24px)",
-        padding: "2rem",
+        background: "linear-gradient(135deg, #F97316 0%, #FBBF24 100%)",
+        color: "#1a0a00",
+        boxShadow: "0 0 24px rgba(249,115,22,0.25)",
+        opacity: loading || disabled ? 0.6 : 1,
       }}
+      whileHover={{ scale: 1.03, boxShadow: "0 0 32px rgba(249,115,22,0.4)" }}
+      whileTap={{ scale: 0.97 }}
+      transition={{ type: "spring", stiffness: 400, damping: 20 }}
     >
-      <div className="text-center mb-8">
-        <h1
-          className="text-4xl font-extrabold tracking-tight"
-          style={{
-            background: "linear-gradient(135deg, #22d3ee 0%, #06b6d4 50%, #0891b2 100%)",
-            WebkitBackgroundClip: "text",
-            WebkitTextFillColor: "transparent",
-            backgroundClip: "text",
-          }}
-        >
-          Wanderers
-        </h1>
-        <p className="text-white/50 text-sm mt-2 font-medium">Find your people. Start something.</p>
-      </div>
+      {children}
+    </motion.button>
+  );
+}
 
-      {success && (
-        <div className="mb-5 p-3 rounded-xl bg-green-500/10 border border-green-500/20 text-green-400 text-sm">
-          {success}
-        </div>
-      )}
-      {error && (
-        <div className="mb-5 p-3 rounded-xl bg-red-500/10 border border-red-500/20 text-red-400 text-sm">
-          {error}
-        </div>
-      )}
+function GhostButton({ children, onClick }: { children: React.ReactNode; onClick?: () => void }) {
+  return (
+    <motion.button
+      type="button" onClick={onClick}
+      className="w-full h-12 rounded-full font-semibold text-sm"
+      style={{ background: "rgba(255,255,255,0.04)", border: "1px solid rgba(255,255,255,0.1)", color: "var(--color-text-primary)" }}
+      whileHover={{ scale: 1.02, background: "rgba(255,255,255,0.07)" }}
+      whileTap={{ scale: 0.97 }}
+      transition={{ type: "spring", stiffness: 400, damping: 20 }}
+    >
+      {children}
+    </motion.button>
+  );
+}
 
-      {mode === "choice" && (
-        <div className="space-y-3">
-          <Button
-            onClick={() => { setMode("signup"); setError(null); setSuccess(null); }}
-            className="w-full h-12 text-base font-semibold rounded-xl bg-cyan-500 hover:bg-cyan-400 text-cyan-950 shadow-lg shadow-cyan-500/25 transition-all hover:shadow-cyan-500/40 hover:scale-[1.02] active:scale-[0.98]"
-          >
-            Sign Up
-          </Button>
-          <Button
-            onClick={() => { setMode("login"); setError(null); setSuccess(null); }}
-            variant="outline"
-            className="w-full h-12 text-base font-semibold rounded-xl border-white/20 bg-white/5 hover:bg-white/10 text-white transition-all hover:scale-[1.02] active:scale-[0.98]"
-          >
-            Log In
-          </Button>
-          <p className="text-xs text-center text-white/30 pt-1">University of Waterloo students only</p>
-        </div>
-      )}
-
-      {mode === "signup" && (
-        <form onSubmit={handleSignUp} className="space-y-4 animate-fade-in" autoComplete="off">
-          <div className="space-y-2">
-            <Label htmlFor="name" className="text-white/70 text-sm font-medium">Full Name</Label>
-            <div className="relative">
-              <User className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-white/40" />
-              <Input id="name" name="name" placeholder="Your full name" required autoComplete="off" className={inputClass} />
-            </div>
-          </div>
-          <div className="space-y-2">
-            <Label htmlFor="email" className="text-white/70 text-sm font-medium">Waterloo Email</Label>
-            <div className="relative">
-              <Mail className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-white/40" />
-              <Input id="email" name="email" type="email" placeholder="you@uwaterloo.ca" required autoComplete="off" className={inputClass} />
-            </div>
-          </div>
-          <div className="space-y-2">
-            <Label htmlFor="password" className="text-white/70 text-sm font-medium">Password</Label>
-            <div className="relative">
-              <Lock className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-white/40" />
-              <Input id="password" name="password" type={showSignupPwd ? "text" : "password"} placeholder="Min. 8 characters" required autoComplete="new-password" className={pwdInputClass} />
-              <EyeToggle show={showSignupPwd} onToggle={() => setShowSignupPwd(p => !p)} />
-            </div>
-          </div>
-          <div className="space-y-2">
-            <Label htmlFor="confirmPassword" className="text-white/70 text-sm font-medium">Confirm Password</Label>
-            <div className="relative">
-              <Lock className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-white/40" />
-              <Input id="confirmPassword" name="confirmPassword" type={showSignupConfirm ? "text" : "password"} placeholder="Re-enter your password" required autoComplete="new-password" className={pwdInputClass} />
-              <EyeToggle show={showSignupConfirm} onToggle={() => setShowSignupConfirm(p => !p)} />
-            </div>
-          </div>
-          <Button type="submit" disabled={loading} className="w-full h-12 rounded-xl text-base font-semibold bg-cyan-500 hover:bg-cyan-400 text-cyan-950 shadow-lg shadow-cyan-500/25 disabled:opacity-50">
-            {loading ? "Creating account…" : "Create Account"}
-          </Button>
-          <button type="button" onClick={() => { setMode("choice"); setError(null); }} className="w-full text-sm text-white/50 hover:text-white transition-colors">← Back</button>
-        </form>
-      )}
-
-      {mode === "login" && (
-        <form onSubmit={handleLogin} className="space-y-4 animate-fade-in" autoComplete="off">
-          <div className="space-y-2">
-            <Label htmlFor="loginEmail" className="text-white/70 text-sm font-medium">Waterloo Email</Label>
-            <div className="relative">
-              <Mail className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-white/40" />
-              <Input id="loginEmail" name="loginEmail" type="email" placeholder="you@uwaterloo.ca" required autoComplete="off" className={inputClass} />
-            </div>
-          </div>
-          <div className="space-y-2">
-            <Label htmlFor="loginPassword" className="text-white/70 text-sm font-medium">Password</Label>
-            <div className="relative">
-              <Lock className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-white/40" />
-              <Input id="loginPassword" name="loginPassword" type={showLoginPwd ? "text" : "password"} placeholder="Your password" required autoComplete="new-password" className={pwdInputClass} />
-              <EyeToggle show={showLoginPwd} onToggle={() => setShowLoginPwd(p => !p)} />
-            </div>
-          </div>
-          <div className="flex justify-end">
-            <button type="button" onClick={() => { setMode("forgot"); setError(null); setSuccess(null); }} className="text-xs text-cyan-400 hover:text-cyan-300 transition-colors">
-              Forgot password?
-            </button>
-          </div>
-          <p className="text-xs text-white/40">We&apos;ll send a 6-digit code to your inbox to verify it&apos;s you.</p>
-          <Button type="submit" disabled={loading} className="w-full h-12 rounded-xl text-base font-semibold bg-cyan-500 hover:bg-cyan-400 text-cyan-950 shadow-lg shadow-cyan-500/25 disabled:opacity-50">
-            {loading ? "Sending code…" : "Log In"}
-          </Button>
-          <button type="button" onClick={() => { setMode("choice"); setError(null); }} className="w-full text-sm text-white/50 hover:text-white transition-colors">← Back</button>
-        </form>
-      )}
-
-      {mode === "forgot" && (
-        <form onSubmit={handleForgot} className="space-y-4 animate-fade-in" autoComplete="off">
-          <div className="space-y-2">
-            <Label htmlFor="forgotEmail" className="text-white/70 text-sm font-medium">Waterloo Email</Label>
-            <div className="relative">
-              <Mail className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-white/40" />
-              <Input id="forgotEmail" name="forgotEmail" type="email" placeholder="you@uwaterloo.ca" required autoComplete="off" className={inputClass} />
-            </div>
-          </div>
-          <p className="text-xs text-white/40">We&apos;ll send you a link to reset your password.</p>
-          <Button type="submit" disabled={loading} className="w-full h-12 rounded-xl text-base font-semibold bg-cyan-500 hover:bg-cyan-400 text-cyan-950 shadow-lg shadow-cyan-500/25 disabled:opacity-50">
-            {loading ? "Sending…" : "Send Reset Link"}
-          </Button>
-          <button type="button" onClick={() => { setMode("login"); setError(null); }} className="w-full text-sm text-white/50 hover:text-white transition-colors">← Back to Login</button>
-        </form>
-      )}
-
-      {mode === "verify" && (
-        <form onSubmit={handleVerify} className="space-y-5 text-center animate-fade-in">
-          <div className="w-16 h-16 rounded-full bg-cyan-500/20 border border-cyan-500/30 flex items-center justify-center mx-auto">
-            <Mail className="w-8 h-8 text-cyan-400" />
-          </div>
-          <h2 className="text-xl font-bold text-white">Check your email</h2>
-          <p className="text-sm text-white/50">
-            We sent a 6-digit code to <span className="text-white/80">{pendingEmail}</span>
-          </p>
-          <Input
-            value={otp}
-            onChange={(e) => { setOtp(e.target.value.replace(/\D/g, "").slice(0, 6)); setError(null); }}
-            placeholder="000000"
-            maxLength={6}
-            inputMode="numeric"
-            className="text-center text-2xl tracking-[0.5em] h-14 rounded-xl font-mono bg-white/5 border-white/10 text-white placeholder:text-white/20"
-          />
-          <Button
-            type="submit"
-            className="w-full h-12 rounded-xl text-base font-semibold bg-cyan-500 hover:bg-cyan-400 text-cyan-950 disabled:opacity-50"
-            disabled={loading || otp.length < 6}
-          >
-            {loading ? "Verifying…" : "Verify"}
-          </Button>
-          <button type="button" onClick={handleResendOtp} disabled={resendCooldown > 0}
-            className="block w-full text-sm text-cyan-400 hover:text-cyan-300 disabled:text-white/30 disabled:cursor-not-allowed transition-colors">
-            {resendCooldown > 0 ? `Resend code in ${resendCooldown}s` : "Resend code"}
-          </button>
-          <button type="button" onClick={() => { setMode("choice"); setOtp(""); setPendingEmail(""); setError(null); setResendCooldown(0); }}
-            className="block w-full text-sm text-white/50 hover:text-white transition-colors">
-            ← Back
-          </button>
-        </form>
-      )}
-    </div>
+function BackButton({ onClick, label = "Back" }: { onClick: () => void; label?: string }) {
+  return (
+    <button type="button" onClick={onClick}
+      className="flex items-center gap-1.5 mx-auto text-sm transition-colors"
+      style={{ color: "var(--color-text-secondary)" }}>
+      <ArrowLeft className="w-3.5 h-3.5" /> {label}
+    </button>
   );
 }
