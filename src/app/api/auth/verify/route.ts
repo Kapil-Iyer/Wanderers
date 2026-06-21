@@ -9,7 +9,7 @@ import { getSupabaseAdmin } from "@/lib/supabaseAdmin";
 export async function POST(request: NextRequest) {
   try {
     const body = await request.json();
-    const { email, token } = body ?? {};
+    const { email, token, name } = body ?? {};
     if (!email || !token) {
       return NextResponse.json(
         { success: false, error: "Email and token required" },
@@ -37,15 +37,14 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    await getSupabaseAdmin().from("users").upsert(
-      {
-        id: data.user.id,
-        email: data.user.email ?? email,
-        name: null,
-        campus_verified: true,
-      },
-      { onConflict: "id" }
-    );
+    const upsertData: Record<string, unknown> = {
+      id: data.user.id,
+      email: data.user.email ?? email,
+      campus_verified: true,
+    };
+    if (name) upsertData.name = name;
+
+    await getSupabaseAdmin().from("users").upsert(upsertData, { onConflict: "id" });
 
     return NextResponse.json({
       session: data.session,

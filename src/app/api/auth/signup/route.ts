@@ -1,62 +1,44 @@
 import { NextRequest, NextResponse } from "next/server";
 import { supabase } from "@/lib/supabase";
+import { getSupabaseAdmin } from "@/lib/supabaseAdmin";
 
-const WATERLOO_EMAIL_SUFFIX = "@uwaterloo.ca";
-
-/**
- * POST /api/auth/signup
- * Accept { email }. Only @uwaterloo.ca. Send OTP via Supabase.
- */
 export async function POST(request: NextRequest) {
   try {
     const body = await request.json();
-    const { email } = body ?? {};
+    const { email, password, name } = body ?? {};
+
     if (!email || typeof email !== "string") {
-      return NextResponse.json(
-        { success: false, error: "Email required" },
-        { status: 400 }
-      );
+      return NextResponse.json({ success: false, error: "Email required" }, { status: 400 });
     }
+    if (!password || typeof password !== "string" || password.length < 8) {
+      return NextResponse.json({ success: false, error: "Password must be at least 8 characters" }, { status: 400 });
+    }
+
     const emailTrimmed = email.trim().toLowerCase();
-    if (!emailTrimmed.endsWith(WATERLOO_EMAIL_SUFFIX)) {
-      return NextResponse.json(
-        { success: false, error: "Only @uwaterloo.ca emails are allowed" },
-        { status: 400 }
-      );
-    }
 
-    const host =
-      request.headers.get("x-forwarded-host") ||
-      request.headers.get("host") ||
-      "";
-    const proto = request.headers.get("x-forwarded-proto") || "http";
-    const siteUrl =
-      process.env.NEXT_PUBLIC_SITE_URL ||
-      (host ? `${proto}://${host}` : "http://localhost:3000");
-    const redirectTo = `${siteUrl.replace(/\/$/, "")}/auth/callback`;
-
-    const { error } = await supabase.auth.signInWithOtp({
-      email: emailTrimmed,
-      options: { emailRedirectTo: redirectTo },
-    });
+    const { data, error } = await supabase.auth.signUp({ email: emailTrimmed, password });
 
     if (error) {
-      console.error("[auth/signup] Supabase signInWithOtp error:", {
-        message: error.message,
-        name: error.name,
-        status: error.status,
-      });
-      return NextResponse.json(
-        { success: false, error: error.message },
-        { status: 400 }
-      );
+      console.error("[auth/signup] Supabase signUp error:", { message: error.message, status: error.status });
+      return NextResponse.json({ success: false, error: error.message }, { status: 400 });
     }
 
-    return NextResponse.json({ success: true });
-  } catch {
-    return NextResponse.json(
-      { success: false, error: "Invalid request" },
-      { status: 400 }
+    if (!data.user) {
+      return NextResponse.json({ success: false, error: "Signup failed" }, { status: 400 });
+    }
+
+    await getSupabaseAdmin().from("users").upsert(
+      {
+        id: data.user.id,
+        email: data.user.email ?? emailTrimmed,
+        name: name?.trim() || null,
+        campus_verified: false,
+      },
+      { onConflict: "id" }
     );
+
+    return NextResponse.json({ success: true, session: data.session });
+  } catch {
+    return NextResponse.json({ success: false, error: "Invalid request" }, { status: 400 });
   }
 }

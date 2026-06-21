@@ -282,3 +282,172 @@
   .animate-float-orb { animation: float-orb 18s ease-in-out infinite; }
   .animate-pulse-glow{ animation: pulse-glow 4s ease-in-out infinite; }
 }
+
+/* ===========================================================================
+ * MAP DISCOVERY UTILITIES (from guransh/map-discovery)
+ * Map-specific helpers kept additive; they coexist with the amber token system.
+ * =========================================================================== */
+@layer utilities {
+  .scrollbar-none {
+    scrollbar-width: none;
+    -ms-overflow-style: none;
+  }
+  .scrollbar-none::-webkit-scrollbar { display: none; }
+
+  /* Visible scrollbar for map events list */
+  .map-events-scroll {
+    scrollbar-width: thin;
+    scrollbar-color: rgba(255, 255, 255, 0.25) rgba(255, 255, 255, 0.05);
+  }
+  .map-events-scroll::-webkit-scrollbar { display: block; width: 6px; }
+  .map-events-scroll::-webkit-scrollbar-track { background: rgba(255, 255, 255, 0.05); border-radius: 999px; }
+  .map-events-scroll::-webkit-scrollbar-thumb { background: rgba(255, 255, 255, 0.25); border-radius: 999px; }
+  .map-events-scroll::-webkit-scrollbar-thumb:hover { background: rgba(255, 255, 255, 0.35); }
+
+  /* Google Maps zoom controls — dark glass */
+  .gm-style .gm-control-active,
+  .gm-style .gm-bundled-control .gm-bundled-control-on-bottom {
+    border-radius: 12px !important;
+    overflow: hidden;
+  }
+  .gm-style .gm-bundled-control-on-bottom > div {
+    background: rgba(15, 17, 23, 0.85) !important;
+    backdrop-filter: blur(12px);
+    border: 1px solid rgba(255, 255, 255, 0.1) !important;
+    border-radius: 12px !important;
+    box-shadow: 0 4px 24px rgba(0, 0, 0, 0.4) !important;
+  }
+  .gm-style button.gm-control-active img { filter: invert(1) opacity(0.85); }
+
+  /* Event pill hover — pulsing location pin cursor (warm to match brand) */
+  .event-pill-cursor {
+    cursor: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='24' height='24' viewBox='0 0 24 24' fill='none'%3E%3Ccircle cx='12' cy='12' r='4' fill='%23F97316' opacity='0.9'/%3E%3Ccircle cx='12' cy='12' r='8' stroke='%23FBBF24' stroke-width='1.5' opacity='0.5'/%3E%3C/svg%3E") 12 12, crosshair;
+  }
+
+  /* Dark Google Maps zoom controls */
+  .map-dark-controls .gm-bundled-control-on-bottom { z-index: 30 !important; pointer-events: auto !important; }
+  .map-dark-controls .gm-control-active,
+  .map-dark-controls .gm-bundled-control .gm-bundled-control-on-bottom {
+    background: rgba(15, 17, 35, 0.9) !important;
+    border-radius: 8px !important;
+    box-shadow: 0 4px 20px rgba(0, 0, 0, 0.4) !important;
+  }
+  .map-dark-controls button.gm-control-active img { filter: invert(1); }
+  .map-dark-controls .gm-style-cc { display: none; }
+  .map-dark-controls .gm-style a,
+  .map-dark-controls .gm-style button,
+  .map-dark-controls .gm-style div[title],
+  .map-dark-controls .gm-style label { outline: none !important; box-shadow: none !important; }
+  .map-dark-controls .gm-style .gm-style-iw,
+  .map-dark-controls .gm-style .gm-style-iw-c,
+  .map-dark-controls .gm-style .gm-style-iw-d { display: none !important; }
+
+  /* OverlayView markers — prevent collapsed 0-width rendering */
+  .map-marker-anchor {
+    position: absolute;
+    left: 0;
+    top: 0;
+    width: max-content;
+    min-width: max-content;
+    transform: translateZ(0);
+    will-change: transform;
+  }
+  .map-marker-anchor * { outline: none !important; }
+
+  /* Map overlay theme — dark (default) */
+  .theme-dark {
+    --bg-page: #0a0a15;
+    --bg-card: #12121f;
+    --text-primary: #ffffff;
+    --text-muted: rgba(255, 255, 255, 0.5);
+    --border-color: rgba(255, 255, 255, 0.08);
+    --bar-bg: rgba(15, 17, 35, 0.9);
+    --bar-btn-bg: rgba(15, 17, 35, 0.85);
+    --bg-filter-pill-inactive: rgba(15, 17, 35, 0.85);
+    --text-filter-pill-inactive: rgba(255, 255, 255, 0.5);
+    --border-filter-pill-inactive: rgba(255, 255, 255, 0.1);
+    --text-subtle: rgba(255, 255, 255, 0.4);
+    --text-faint: rgba(255, 255, 255, 0.3);
+    --btn-hover-bg: rgba(255, 255, 255, 0.05);
+    --btn-active-bg: rgba(255, 255, 255, 0.15);
+    --scrollbar-thumb: rgba(255, 255, 255, 0.25);
+    --scrollbar-track: rgba(255, 255, 255, 0.05);
+  }
+  .theme-light {
+    --bg-page: #f1f5f9;
+    --bg-card: #ffffff;
+    --text-primary: #0f172a;
+    --text-muted: #64748b;
+    --border-color: #e2e8f0;
+    --bar-bg: rgba(255, 255, 255, 0.92);
+    --bar-btn-bg: rgba(255, 255, 255, 0.9);
+    --bg-filter-pill-inactive: #cbd5e1;
+    --text-filter-pill-inactive: #334155;
+    --border-filter-pill-inactive: #e2e8f0;
+    --text-subtle: #64748b;
+    --text-faint: #94a3b8;
+    --btn-hover-bg: rgba(0, 0, 0, 0.05);
+    --btn-active-bg: rgba(0, 0, 0, 0.08);
+    --scrollbar-thumb: rgba(0, 0, 0, 0.2);
+    --scrollbar-track: rgba(0, 0, 0, 0.05);
+  }
+  .theme-light .map-events-scroll { scrollbar-color: var(--scrollbar-thumb) var(--scrollbar-track); }
+  .theme-light .map-events-scroll::-webkit-scrollbar-track { background: var(--scrollbar-track); }
+  .theme-light .map-events-scroll::-webkit-scrollbar-thumb { background: var(--scrollbar-thumb); }
+  .theme-light .map-dark-controls .gm-bundled-control-on-bottom > div {
+    background: rgba(255, 255, 255, 0.92) !important;
+    border: 1px solid #e2e8f0 !important;
+    box-shadow: 0 4px 20px rgba(0, 0, 0, 0.12) !important;
+  }
+  .theme-light .map-dark-controls button.gm-control-active img { filter: none; }
+
+  .map-header-btn {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    height: 36px;
+    min-width: 36px;
+    border-radius: 8px;
+    border: 1px solid var(--border-color);
+    background: var(--bar-btn-bg);
+    color: var(--text-primary);
+    backdrop-filter: blur(12px);
+    transition: background 0.2s, border-color 0.2s, box-shadow 0.2s, color 0.2s;
+  }
+  .map-header-btn:hover { background: var(--btn-hover-bg); }
+  .map-header-btn--active { background: var(--btn-active-bg); }
+  .map-header-btn--satellite-active {
+    border-color: rgba(99, 102, 241, 0.7);
+    box-shadow: 0 0 12px rgba(99, 102, 241, 0.35);
+    background: rgba(99, 102, 241, 0.15);
+  }
+
+  @keyframes user-ping {
+    0%   { transform: scale(1); opacity: 0.6; }
+    100% { transform: scale(2); opacity: 0; }
+  }
+  .user-location-marker { position: relative; width: 24px; height: 24px; }
+  .user-location-marker__dot {
+    position: absolute;
+    left: 50%;
+    top: 50%;
+    width: 16px;
+    height: 16px;
+    margin: -8px 0 0 -8px;
+    border-radius: 50%;
+    background: #3b82f6;
+    border: 2px solid white;
+    box-shadow: 0 1px 4px rgba(0, 0, 0, 0.35);
+  }
+  .user-location-marker__ping {
+    position: absolute;
+    left: 50%;
+    top: 50%;
+    width: 28px;
+    height: 28px;
+    margin: -14px 0 0 -14px;
+    border-radius: 50%;
+    background: #3b82f640;
+    animation: user-ping 1.8s ease-out infinite;
+  }
+}
