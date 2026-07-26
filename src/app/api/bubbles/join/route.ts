@@ -55,6 +55,13 @@ export async function POST(request: NextRequest) {
       );
     }
 
+    if (bubble.status === "expired") {
+      return NextResponse.json(
+        { success: false, error: "Bubble is no longer open" },
+        { status: 400 }
+      );
+    }
+
     const { data: existing } = await admin
       .from("bubble_members")
       .select("user_id")

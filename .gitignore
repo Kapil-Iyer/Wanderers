@@ -29,6 +29,9 @@ dist-ssr
 # TypeScript build cache
 tsconfig.tsbuildinfo
 
+# Local MCP server config (contains access token)
+.mcp.json
+
 # Python
 __pycache__
 *.pyc
