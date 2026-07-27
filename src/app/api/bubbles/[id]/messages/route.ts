@@ -32,7 +32,7 @@ export async function GET(
 
     const admin = getSupabaseAdmin();
     const membership = await ensureBubbleMembership(admin, user, bubbleId);
-    if (!membership.ok) {
+    if (membership.ok === false) {
       return NextResponse.json(
         { success: false, error: membership.error },
         { status: membership.status }
@@ -132,7 +132,7 @@ export async function POST(
 
     const admin = getSupabaseAdmin();
     const membership = await ensureBubbleMembership(admin, user, bubbleId);
-    if (!membership.ok) {
+    if (membership.ok === false) {
       return NextResponse.json(
         { success: false, error: membership.error },
         { status: membership.status }
