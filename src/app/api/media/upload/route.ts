@@ -77,31 +77,31 @@ export async function POST(request: NextRequest) {
         // 1. Base transform (crop + optional filter)
         baseTransform,
         
-        // 2. Add a 20px solid white border
-        { border: '20px_solid_white' },
-        
-        // 3. Pad the bottom with white space to a total height of 750px
+        // 2. Add a 20px solid dark border (matches the app's dark theme)
+        { border: '20px_solid_rgb:140f0a' },
+
+        // 3. Pad the bottom with dark space to a total height of 750px
         // Since image was 500x500, adding a 20px border makes it 540x540.
         // We set height to 750, crop to pad, and gravity to north so padding goes to the bottom.
-        { width: 540, height: 750, crop: 'pad', background: 'white', gravity: 'north' },
-        
+        { width: 540, height: 750, crop: 'pad', background: 'rgb:140f0a', gravity: 'north' },
+
         // 4. Overlay the 4 lines of text in the bottom padded area perfectly centered
         // We stack them using gravity: 'north' with an offset (y)
         {
           overlay: { font_family: 'Montserrat', font_size: 38, font_weight: 'bold', text: `${activity} %40 ${location}` },
-          color: 'black',
+          color: 'white',
           gravity: 'north',
           y: 560
         },
         {
           overlay: { font_family: 'Roboto', font_size: 20, font_weight: 'normal', text: date },
-          color: 'darkgray',
+          color: 'lightgray',
           gravity: 'north',
           y: 615
         },
         {
           overlay: { font_family: 'Montserrat', font_size: 22, font_weight: 'bold', text: `${memberCount} wanderers joined here` },
-          color: 'black',
+          color: 'white',
           gravity: 'north',
           y: 655
         },

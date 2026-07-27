@@ -6,8 +6,10 @@ import BottomNav from "@/components/ui/BottomNav";
 import BubbleCard from "@/components/ui/BubbleCard";
 import { mockBubbles, filterChips } from "@/lib/mockData";
 import { Reveal, StaggerContainer, StaggerItem, AnimatedHeadline, EASE } from "@/components/motion/Reveal";
+import { useSidebar } from "@/contexts/SidebarContext";
 
 export default function MyBubblesPage() {
+  const { expanded: sidebarExpanded } = useSidebar();
   const [activeFilter, setActiveFilter] = useState("All");
   const myBubbles = useMemo(() => mockBubbles.filter((_, i) => i % 2 === 0), []);
 
@@ -19,23 +21,23 @@ export default function MyBubblesPage() {
   }, [activeFilter, myBubbles]);
 
   return (
-    <div className="min-h-screen pb-40" style={{ background: "var(--color-bg)" }}>
+    <div className="min-h-screen pb-40">
       {/* Top bar */}
       <header
-        className="sticky top-0 z-40"
-        style={{ background: "rgba(9,9,11,0.8)", borderBottom: "1px solid rgba(249,115,22,0.07)", backdropFilter: "blur(16px)" }}
+        className={`sticky top-0 z-50 transition-[margin] duration-300 ease-out ${sidebarExpanded ? "lg:ml-64" : "lg:ml-3"}`}
+        style={{ background: "rgba(20,15,10,0.8)", borderBottom: "1px solid rgba(255,122,26,0.07)", backdropFilter: "blur(16px)" }}
       >
-        <div className="px-5 sm:px-8 h-14 flex items-center lg:pl-72 max-w-[1400px] mx-auto">
+        <div className="px-5 sm:px-8 h-14 flex items-center max-w-[1400px] mx-auto">
           <span className="text-sm font-semibold" style={{ color: "var(--color-text-secondary)" }}>My Bubbles</span>
         </div>
       </header>
 
-      <div className="lg:pl-64">
+      <div className={`transition-[padding] duration-300 ease-out ${sidebarExpanded ? "lg:pl-64" : "lg:pl-3"}`}>
         <div className="max-w-[1100px] mx-auto px-5 sm:px-8">
 
           {/* Editorial title */}
           <section className="pt-12 pb-8">
-            <p className="text-[11px] font-bold uppercase tracking-[0.18em] mb-2" style={{ color: "#F97316" }}>
+            <p className="text-[11px] font-bold uppercase tracking-[0.18em] mb-2" style={{ color: "var(--color-text-primary)" }}>
               Your nights out
             </p>
             <AnimatedHeadline
@@ -57,10 +59,10 @@ export default function MyBubblesPage() {
                     onClick={() => setActiveFilter(chip)}
                     className="relative px-4 py-2 rounded-full text-xs whitespace-nowrap"
                     style={{
-                      background: active ? "transparent" : "rgba(255,255,255,0.04)",
-                      border: active ? "1px solid transparent" : "1px solid rgba(255,255,255,0.08)",
-                      color: active ? "#1a0a00" : "var(--color-text-secondary)",
-                      fontWeight: active ? 700 : 500,
+                      background: active ? "transparent" : "rgba(10,7,5,0.6)",
+                      border: active ? "1px solid transparent" : "1px solid rgba(255,255,255,0.14)",
+                      color: active ? "#2a1206" : "var(--color-text-primary)",
+                      fontWeight: active ? 700 : 600,
                     }}
                     whileHover={{ scale: 1.05 }}
                     whileTap={{ scale: 0.96 }}
@@ -70,7 +72,7 @@ export default function MyBubblesPage() {
                       <motion.div
                         layoutId="active-chip-indicator"
                         className="absolute inset-0 rounded-full"
-                        style={{ background: "linear-gradient(135deg, #F97316, #FBBF24)", boxShadow: "0 0 14px rgba(249,115,22,0.28)" }}
+                        style={{ background: "linear-gradient(135deg, #ff7a1a, #ffb56b)", boxShadow: "0 0 14px rgba(255,122,26,0.28)" }}
                         transition={{ type: "spring", stiffness: 350, damping: 30 }}
                       />
                     )}

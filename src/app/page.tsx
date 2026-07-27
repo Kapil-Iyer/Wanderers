@@ -26,8 +26,7 @@ export default function LandingPage() {
   };
 
   return (
-    <div className="min-h-screen relative overflow-hidden flex flex-col items-center justify-center px-4 py-12"
-      style={{ background: "var(--color-bg)" }}>
+    <div className="min-h-screen relative overflow-hidden flex flex-col items-center justify-center px-4 py-12">
 
       {/* One-time cinematic intro */}
       {showSplash && <SplashIntro onComplete={finishSplash} />}

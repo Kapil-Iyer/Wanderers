@@ -62,7 +62,7 @@ export default function NotificationDrawer({
             className="fixed top-0 right-0 bottom-0 z-[61] w-full max-w-sm overflow-y-auto"
             style={{
               background: "rgba(12,12,14,0.97)",
-              borderLeft: "1px solid rgba(249,115,22,0.15)",
+              borderLeft: "1px solid rgba(255,122,26,0.15)",
               backdropFilter: "blur(24px)",
               boxShadow: "-32px 0 80px rgba(0,0,0,0.6)",
             }}
@@ -107,7 +107,7 @@ export default function NotificationDrawer({
                   className="text-xs font-bold uppercase tracking-[0.15em] mb-3 flex items-center gap-2"
                   style={{ color: "var(--color-text-muted)" }}
                 >
-                  <UserPlus className="w-3.5 h-3.5" style={{ color: "#F97316" }} />
+                  <UserPlus className="w-3.5 h-3.5" style={{ color: "#ff7a1a" }} />
                   Connection Requests
                 </h3>
                 {filteredConnectionRequests.length === 0 ? (
@@ -128,7 +128,7 @@ export default function NotificationDrawer({
                         >
                           <div
                             className="w-10 h-10 rounded-full flex items-center justify-center text-xs font-bold shrink-0"
-                            style={{ background: "rgba(249,115,22,0.15)", color: "#F97316", border: "1px solid rgba(249,115,22,0.25)" }}
+                            style={{ background: "rgba(255,122,26,0.15)", color: "var(--color-text-primary)", border: "1px solid rgba(255,122,26,0.25)" }}
                           >
                             {req.avatar}
                           </div>
@@ -149,7 +149,7 @@ export default function NotificationDrawer({
                               onClick={() => acceptRequest(req.id)}
                               aria-label={`Accept ${req.name}`}
                               className="w-8 h-8 rounded-full flex items-center justify-center"
-                              style={{ background: "linear-gradient(135deg, #F97316, #FBBF24)", color: "#1a0a00" }}
+                              style={{ background: "linear-gradient(135deg, #ff7a1a, #ffb56b)", color: "#2a1206" }}
                               whileHover={{ scale: 1.12 }}
                               whileTap={{ scale: 0.9 }}
                               transition={{ type: "spring", stiffness: 400, damping: 20 }}
@@ -182,7 +182,7 @@ export default function NotificationDrawer({
                   className="text-xs font-bold uppercase tracking-[0.15em] mb-3 flex items-center gap-2"
                   style={{ color: "var(--color-text-muted)" }}
                 >
-                  <Calendar className="w-3.5 h-3.5" style={{ color: "#F97316" }} />
+                  <Calendar className="w-3.5 h-3.5" style={{ color: "#ff7a1a" }} />
                   Confirmed to Attend
                 </h3>
                 {joinedBubbles.length === 0 ? (
