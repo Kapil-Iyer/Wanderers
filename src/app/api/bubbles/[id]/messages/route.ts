@@ -59,10 +59,32 @@ export async function GET(
       );
     }
 
-    return NextResponse.json({
-      success: true,
-      data: messages ?? [],
-    });
+    const rows = messages ?? [];
+
+    // Join sender name + avatar initial (batched — one query for all senders).
+    const senderIds = [...new Set(rows.map((m) => m.user_id).filter(Boolean))];
+    const nameById = new Map<string, string | null>();
+    if (senderIds.length > 0) {
+      const { data: senders } = await admin.from("users").select("id, name").in("id", senderIds);
+      for (const s of senders ?? []) nameById.set(s.id, s.name);
+    }
+
+    const avatarInitial = (name: string | null | undefined, id: string): string => {
+      const base = (name ?? "").trim();
+      if (base) {
+        const parts = base.split(/\s+/);
+        return (parts[0][0] + (parts[1]?.[0] ?? "")).toUpperCase();
+      }
+      return id.slice(0, 2).toUpperCase();
+    };
+
+    const enriched = rows.map((m) => ({
+      ...m,
+      sender_name: nameById.get(m.user_id) ?? "Wanderer",
+      sender_avatar: avatarInitial(nameById.get(m.user_id), m.user_id),
+    }));
+
+    return NextResponse.json({ success: true, data: enriched });
   } catch {
     return NextResponse.json(
       { success: false, error: "Invalid request" },
