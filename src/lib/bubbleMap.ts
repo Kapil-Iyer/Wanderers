@@ -74,7 +74,7 @@ export function apiBubbleToUi(b: ApiBubble): Bubble {
   return {
     id: b.id,
     emoji: deriveEmoji(activity, b.emoji),
-    title: b.zone ? `${activity} at ${b.zone}` : activity,
+    title: activity,
     category,
     zone: b.zone ?? undefined,
     joined: b.members_count ?? 1,

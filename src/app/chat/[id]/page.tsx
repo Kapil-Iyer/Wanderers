@@ -9,6 +9,7 @@ import { useRouter } from "next/navigation";
 import { ArrowLeft, Send, Smile } from "lucide-react";
 import { toast } from "sonner";
 import { Input } from "@/components/ui/input";
+import AppHeader from "@/components/ui/AppHeader";
 import { mockMessages } from "@/lib/mockData";
 import { useConversations } from "@/contexts/ConversationsContext";
 import { ProfileLink } from "@/components/ProfileLink";
@@ -16,6 +17,7 @@ import { supabase } from "@/lib/supabase";
 import { MessageContent } from "@/components/chat/MessageContent";
 import EmotePicker from "@/components/chat/EmotePicker";
 import { deriveEmoji } from "@/lib/bubbleMap";
+import { useSidebar } from "@/contexts/SidebarContext";
 
 type ApiMessage = {
   id: string;
@@ -41,6 +43,7 @@ function isMissingName(name?: string | null): boolean {
 export default function ChatPage({ params }: { params: Promise<{ id: string }> }) {
   const { id } = use(params);
   const router = useRouter();
+  const { expanded: sidebarExpanded } = useSidebar();
   const [message, setMessage] = useState("");
   const [apiMessages, setApiMessages] = useState<ApiMessage[]>([]);
   const [currentUserId, setCurrentUserId] = useState<string | null>(null);
@@ -180,7 +183,12 @@ export default function ChatPage({ params }: { params: Promise<{ id: string }> }
 
         if (!joinRes.ok || !joinData?.success) {
           setIsMember(false);
-          setMessagesError(joinData?.error ?? "Couldn't join this bubble");
+          const raw = (joinData?.error ?? "Couldn't join this bubble") as string;
+          setMessagesError(
+            /unauth/i.test(raw) || joinRes.status === 401
+              ? "Sign in to chat"
+              : raw
+          );
           setApiMessages([]);
           return;
         }
@@ -230,9 +238,11 @@ export default function ChatPage({ params }: { params: Promise<{ id: string }> }
         const result = await fetchMessages(token);
         if (!result || !result.ok) {
           setMessagesError(
-            result?.status === 403
-              ? "Join this bubble to see messages"
-              : (result?.error ?? "Couldn't load messages")
+            result?.status === 401 || /unauth/i.test(result?.error ?? "")
+              ? "Sign in to chat"
+              : result?.status === 403
+                ? "Join this bubble to see messages"
+                : (result?.error ?? "Couldn't load messages")
           );
           setApiMessages([]);
           return;
@@ -268,11 +278,20 @@ export default function ChatPage({ params }: { params: Promise<{ id: string }> }
     setBootstrapping(true);
     (async () => {
       await refreshBubbleMeta();
-      const { data } = await supabase.auth.getSession();
+
+      // Prefer a validated/refreshed session — getSession() alone can return
+      // a stale access token that the API rejects as Unauthenticated.
+      const { data: refreshed, error: refreshError } = await supabase.auth.refreshSession();
+      let session = refreshed.session;
+      if (!session || refreshError) {
+        const { data } = await supabase.auth.getSession();
+        session = data.session;
+      }
       if (cancelled) return;
-      const uid = data.session?.user?.id ?? null;
-      const token = data.session?.access_token;
-      const user = data.session?.user;
+
+      const uid = session?.user?.id ?? null;
+      const token = session?.access_token;
+      const user = session?.user;
       if (!uid || !token) {
         setIsMember(false);
         setMessagesError("Sign in to chat");
@@ -496,9 +515,18 @@ export default function ChatPage({ params }: { params: Promise<{ id: string }> }
 
   return (
     <div
-      className="h-dvh flex flex-col overflow-hidden p-3 sm:p-5"
+      className="h-dvh flex flex-col overflow-hidden"
       style={{ background: "linear-gradient(180deg, #0e0a07 0%, #16110c 50%, #0c0907 100%)" }}
     >
+      <AppHeader
+        title={convo?.name ?? bubbleInfo?.activity ?? "Chat"}
+      />
+
+      <div
+        className={`flex-1 min-h-0 flex flex-col overflow-hidden p-3 sm:p-5 transition-[padding] duration-300 ease-out ${
+          sidebarExpanded ? "lg:pl-64" : "lg:pl-3"
+        }`}
+      >
       {/* 3D chat window frame */}
       <div
         className="flex-1 min-h-0 w-full max-w-3xl mx-auto flex flex-col relative rounded-[18px]"
@@ -692,21 +720,27 @@ export default function ChatPage({ params }: { params: Promise<{ id: string }> }
                               >
                                 {msg.name}
                               </p>
-                              <div
-                                className={`px-3.5 py-2.5 text-sm leading-relaxed rounded-2xl ${
+              <div
+                                className={`px-3.5 py-2.5 text-sm leading-relaxed rounded-2xl max-w-full ${
                                   mine ? "rounded-br-md" : "rounded-bl-md"
                                 }`}
                                 style={
                                   mine
                                     ? {
-                                        background: "linear-gradient(135deg, #ff7a1a, #e86a10)",
+                                        background:
+                                          "linear-gradient(145deg, #ff9a4a 0%, #ff7a1a 45%, #e56a0f 100%)",
                                         color: "#2a1206",
-                                        boxShadow: "0 4px 14px rgba(255,122,26,0.28)",
+                                        border: "1px solid rgba(255,210,160,0.35)",
+                                        boxShadow:
+                                          "0 1px 0 rgba(255,255,255,0.35) inset, 0 6px 16px -4px rgba(255,122,26,0.4), 0 2px 0 rgba(0,0,0,0.12)",
                                       }
                                     : {
-                                        background: "rgba(255,255,255,0.07)",
-                                        border: "1px solid rgba(255,255,255,0.08)",
+                                        background:
+                                          "linear-gradient(165deg, rgba(42,34,28,0.95) 0%, rgba(22,17,13,0.98) 100%)",
+                                        border: "1px solid rgba(255,181,107,0.14)",
                                         color: "var(--color-text-primary)",
+                                        boxShadow:
+                                          "0 1px 0 rgba(255,255,255,0.06) inset, 0 6px 18px -8px rgba(0,0,0,0.55)",
                                       }
                                 }
                               >
@@ -809,6 +843,7 @@ export default function ChatPage({ params }: { params: Promise<{ id: string }> }
             </div>
           )}
         </div>
+      </div>
       </div>
     </div>
   );

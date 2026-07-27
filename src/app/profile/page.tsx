@@ -3,8 +3,9 @@
 import { useEffect, useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
 import { motion } from "framer-motion";
-import { ArrowLeft, Camera, Edit2, Plus, LogOut, BadgeCheck, Star, Quote } from "lucide-react";
+import { Camera, Edit2, Plus, LogOut, BadgeCheck, Star, Quote } from "lucide-react";
 import BottomNav from "@/components/ui/BottomNav";
+import AppHeader from "@/components/ui/AppHeader";
 import { ProfileLink } from "@/components/ProfileLink";
 import { personalityTraits, mockBubbles, interestOptions } from "@/lib/mockData";
 import { useConnections } from "@/contexts/ConnectionsContext";
@@ -119,26 +120,10 @@ export default function ProfilePage() {
 
   return (
     <div className="min-h-screen pb-24">
-      {/* Header */}
-      <header className={`sticky top-0 z-50 transition-[margin] duration-300 ease-out ${sidebarExpanded ? "lg:ml-64" : "lg:ml-3"}`}
-        style={{
-          background: "rgba(20,15,10,0.85)",
-          borderBottom: "1px solid rgba(255,122,26,0.08)",
-          backdropFilter: "blur(16px)",
-        }}>
-        <div className="max-w-3xl mx-auto flex items-center gap-3 px-4 h-14">
-          <motion.button type="button" onClick={() => router.back()}
-            aria-label="Go back"
-            style={{ color: "var(--color-text-secondary)" }}
-            whileHover={{ x: -2 }} transition={{ type: "spring", stiffness: 300, damping: 22 }}>
-            <ArrowLeft className="w-5 h-5" />
-          </motion.button>
-          <h1 className="font-display text-xl font-bold" style={{ color: "var(--color-text-primary)" }}>Profile</h1>
-        </div>
-      </header>
+      <AppHeader title="Profile" profileInitials={initials} />
 
       {/* Hero band with warm glow */}
-      <div className="relative">
+      <div className={`relative transition-[padding] duration-300 ease-out ${sidebarExpanded ? "lg:pl-64" : "lg:pl-3"}`}>
         <div className="absolute inset-x-0 top-0 h-56 pointer-events-none"
           style={{ background: "radial-gradient(ellipse 70% 100% at 50% 0%, rgba(255,122,26,0.12) 0%, transparent 70%)" }} />
 

@@ -44,7 +44,7 @@ The app supports **email OTP** (magic link / code) via Supabase Auth and optiona
 | **Backend** | Next.js API Routes (serverless) |
 | **Database & Auth** | Supabase (PostgreSQL, Auth, Realtime) |
 | **Email (OTP)** | Supabase Auth + custom SMTP (e.g. Resend) |
-| **Media** | Cloudinary (Wander Moments: upload, transforms, storage) |
+| **Media** | Local device save only (remote moment upload disabled) |
 | **AI** | Google Gemini (intent parsing for “coffee near SLC tonight” → structured bubble fields) |
 | **ML** | Optional FastAPI service (K-means recommender for “Recommended for you”) |
 | **Maps** | Google Maps JavaScript API (@react-google-maps/api) |
@@ -56,7 +56,7 @@ The app supports **email OTP** (magic link / code) via Supabase Auth and optiona
 - **Node.js** 18+ and **npm** (or yarn/pnpm)
 - **Supabase** account
 - **Google Cloud** project (for Maps API key)
-- Optional: **Cloudinary** account, **Resend** account (for custom SMTP), **Google AI** API key (Gemini), **Render** or similar (for ML service)
+- Optional: **Resend** account (for custom SMTP), **Google AI** API key (Gemini), **Render** or similar (for ML service)
 
 ---
 
@@ -87,14 +87,6 @@ Supabase sends OTP/magic link emails. With **built-in** SMTP you get a low rate 
 |----------|-------------|
 | *(none)* | SMTP is configured in Supabase Dashboard → Project Settings → Auth → SMTP |
 
-### Cloudinary (Wander Moments)
-
-| Variable | Description |
-|----------|-------------|
-| `NEXT_PUBLIC_CLOUDINARY_CLOUD_NAME` or `CLOUDINARY_CLOUD_NAME` | Cloudinary cloud name |
-| `CLOUDINARY_API_KEY` | Cloudinary API key (server-only) |
-| `CLOUDINARY_API_SECRET` | Cloudinary API secret (server-only) |
-
 ### Gemini (intent parsing)
 
 | Variable | Description |
@@ -112,7 +104,7 @@ Supabase sends OTP/magic link emails. With **built-in** SMTP you get a low rate 
 
 | Variable | Description |
 |----------|-------------|
-| `ALLOW_UPLOAD_WITHOUT_AUTH` | Set to `true` to allow moment uploads without auth (dev only). |
+| *(none currently)* | — |
 
 ---
 
@@ -205,11 +197,11 @@ Fahh/
 ## Features
 
 - **Landing & auth** – Email OTP (magic link or 6-digit code) via Supabase; optional anonymous sign-in. After verify, user is upserted into `public.users`.
-- **Home** – “Upcoming for you” (ML recommendations or DB fallback), filter chips, “Active Nearby” bubbles, Recent Moments feed (Cloudinary).
+- **Home** – “Upcoming for you” (ML recommendations or DB fallback), filter chips, “Active Nearby” bubbles, Recent Moments feed.
 - **Map** – Google Map with bubbles by zone; list of activities with “Join Bubble”; join creates/uses real bubbles and opens group chat.
 - **Create bubble** – Manual form or natural language (Gemini) → activity, zone, time, duration, max members.
 - **Bubble chat** – Messages per bubble; Realtime subscription for new messages; chat unlocks at 2 members.
-- **End event / Wander Moment** – Photo upload to Cloudinary (filters), optional caption, stored in `meetup_photos`, shown in feed.
+- **End event** – Confirm bubble as ended; optional local photo preview/save (remote upload disabled).
 - **Connections** – “Wanna Wander?” requests and list (ConversationsContext / ConnectionsContext).
 - **Profile & onboarding** – Onboarding preferences; profile stats and links.
 
@@ -225,7 +217,7 @@ All auth-protected routes expect `Authorization: Bearer <access_token>` (Supabas
 | **Bubbles** | POST `/api/bubbles`, POST `/api/bubbles/join`, GET `/api/bubbles/list`, GET `/api/bubbles/mine`, GET `/api/bubbles/[id]` | Create, join, list, single bubble |
 | **Messages** | GET/POST `/api/bubbles/[id]/messages` | List/send messages (member-only) |
 | **Bubble lifecycle** | POST `/api/bubbles/[id]/confirm` | Mark bubble as expired (end event) |
-| **Media** | POST `/api/media/upload` | Upload moment image → Cloudinary + `meetup_photos` |
+| **Media** | POST `/api/media/upload` | Disabled (410) — remote moment upload removed |
 | **Moments** | GET `/api/moments` | List Wander Moments for feed |
 | **AI** | POST `/api/ai/parse-intent` | Gemini: natural language → structured bubble fields |
 | **Recommendations** | GET `/api/recommendations?user_id=...` | Recommended bubbles (ML or DB fallback) |
@@ -244,7 +236,7 @@ Main tables:
 - **bubble_members** – bubble_id, user_id (both FKs); creator is auto-added.
 - **messages** – bubble_id, user_id, content, created_at.
 - **connections** – requester_id, receiver_id, status (e.g. pending).
-- **meetup_photos** – bubble_id, user_id, cloudinary_url, created_at.
+- **meetup_photos** – bubble_id, user_id, image URL column, created_at (legacy column name may still be `cloudinary_url`).
 
 Row Level Security (RLS) is enabled; the app uses the **service role** client in API routes for admin-style access. Realtime: add `messages` (and optionally `meetup_photos`) to the `supabase_realtime` publication so the client can subscribe to new messages.
 
@@ -272,7 +264,7 @@ See `ml-service/README.md` for endpoints and details.
 
 ## Deployment
 
-- **Frontend + API** – Deploy the Next.js app to **Vercel** (or similar). Add all required env vars in the project settings; use the same Supabase, Cloudinary, and optional Gemini/ML keys as in local.
+- **Frontend + API** – Deploy the Next.js app to **Vercel** (or similar). Add all required env vars in the project settings; use the same Supabase and optional Gemini/ML keys as in local.
 - **Maps** – In Google Cloud Console, restrict the Maps API key to your production domain (e.g. `https://yourapp.vercel.app/*`) and enable Maps JavaScript API (and billing if required).
 - **Auth** – In Supabase, set Site URL and redirect URLs to your production URL. If using custom SMTP (Resend), ensure the sender domain is verified and SMTP is saved in Supabase.
 - **ML** – Deploy the FastAPI service (e.g. Render), set `RECOMMENDATIONS_API_URL`, and ensure CORS allows your frontend origin.

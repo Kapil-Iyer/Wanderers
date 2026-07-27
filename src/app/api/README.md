@@ -14,7 +14,7 @@
 | GET | `/api/bubbles/[id]/messages` | List messages (auth + bubble member required) |
 | POST | `/api/bubbles/[id]/messages` | Send message (auth + member); body: `{ content }` (max 500 chars) |
 | POST | `/api/bubbles/[id]/confirm` | End event: set bubble status to expired (auth + member) |
-| POST | `/api/media/upload` | Upload moment image → Cloudinary, insert meetup_photos (auth + member); body: `bubble_id`, image, activity, location, date, memberCount, filterStyle |
+| POST | `/api/media/upload` | Disabled (410) — remote photo upload removed |
 | GET | `/api/moments` | List Wander Moments (meetup_photos) for feed |
 | POST | `/api/ai/parse-intent` | Gemini: parse natural language → activity, zone, start_time, duration_minutes, etc. Body: `{ text }`. Env: GEMINI_API_KEY |
 | GET | `/api/recommendations` | Recommended bubbles. Optional `?user_id=` for Flask. If RECOMMENDATIONS_API_URL set, calls Flask; else fallback from DB (open/active bubbles). Returns `{ recommended_bubbles: [...] }`. |

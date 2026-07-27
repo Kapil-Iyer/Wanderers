@@ -6,6 +6,7 @@ import { useRouter } from "next/navigation";
 import { motion } from "framer-motion";
 import { MessageCircle, MapPin, ChevronRight, Users } from "lucide-react";
 import BottomNav from "@/components/ui/BottomNav";
+import AppHeader from "@/components/ui/AppHeader";
 import { ProfileLink } from "@/components/ProfileLink";
 import { useConversations } from "@/contexts/ConversationsContext";
 import { useConnections } from "@/contexts/ConnectionsContext";
@@ -44,26 +45,17 @@ export default function MessagesPage() {
         aria-hidden
       />
 
-      <header
-        className={`sticky top-0 z-50 transition-[margin] duration-300 ease-out ${sidebarExpanded ? "lg:ml-64" : "lg:ml-3"}`}
-        style={{
-          background: "rgba(14,10,7,0.82)",
-          borderBottom: "1px solid rgba(255,122,26,0.1)",
-          backdropFilter: "blur(18px)",
-        }}
-      >
-        <div className="px-5 sm:px-8 h-14 flex items-center justify-between max-w-[1400px] mx-auto">
-          <span className="text-sm font-semibold tracking-wide" style={{ color: "var(--color-text-primary)" }}>
-            Messages
-          </span>
-          {conversations.length > 0 && (
+      <AppHeader
+        title="Messages"
+        center={
+          conversations.length > 0 ? (
             <span className="text-[11px] font-medium tabular-nums" style={{ color: "var(--color-text-muted)" }}>
               {activeChats.length} active
               {endedChats.length > 0 ? ` · ${endedChats.length} ended` : ""}
             </span>
-          )}
-        </div>
-      </header>
+          ) : null
+        }
+      />
 
       <div
         className={`relative z-10 transition-[padding] duration-300 ease-out ${sidebarExpanded ? "lg:pl-64" : "lg:pl-3"}`}
