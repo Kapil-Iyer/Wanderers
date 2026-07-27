@@ -70,10 +70,14 @@ export async function POST(request: NextRequest) {
       .maybeSingle();
 
     if (existing) {
-      return NextResponse.json(
-        { success: false, error: "Already joined this bubble" },
-        { status: 400 }
-      );
+      const { count } = await admin
+        .from("bubble_members")
+        .select("user_id", { count: "exact", head: true })
+        .eq("bubble_id", bubble_id);
+      return NextResponse.json({
+        success: true,
+        data: { members_count: count ?? 1, already_member: true },
+      });
     }
 
     const { count, error: countError } = await admin
