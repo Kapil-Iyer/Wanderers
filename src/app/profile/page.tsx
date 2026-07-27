@@ -8,6 +8,7 @@ import BottomNav from "@/components/ui/BottomNav";
 import { ProfileLink } from "@/components/ProfileLink";
 import { personalityTraits, mockBubbles, interestOptions } from "@/lib/mockData";
 import { useConnections } from "@/contexts/ConnectionsContext";
+import { useSidebar } from "@/contexts/SidebarContext";
 import { supabase } from "@/lib/supabase";
 
 const ease = [0.25, 0.46, 0.45, 0.94] as const;
@@ -40,6 +41,7 @@ const journeyTimes = ["2 days ago", "5 days ago", "1 week ago", "2 weeks ago"];
 
 export default function ProfilePage() {
   const router = useRouter();
+  const { expanded: sidebarExpanded } = useSidebar();
   const { connectionsCount, getConnectedFriends } = useConnections();
   const connectedFriends = getConnectedFriends();
   const [editingInterests, setEditingInterests] = useState(false);
@@ -116,15 +118,15 @@ export default function ProfilePage() {
   ];
 
   return (
-    <div className="min-h-screen pb-24" style={{ background: "var(--color-bg)" }}>
+    <div className="min-h-screen pb-24">
       {/* Header */}
-      <header className="sticky top-0 z-40"
+      <header className={`sticky top-0 z-50 transition-[margin] duration-300 ease-out ${sidebarExpanded ? "lg:ml-64" : "lg:ml-3"}`}
         style={{
-          background: "rgba(9,9,11,0.85)",
-          borderBottom: "1px solid rgba(249,115,22,0.08)",
+          background: "rgba(20,15,10,0.85)",
+          borderBottom: "1px solid rgba(255,122,26,0.08)",
           backdropFilter: "blur(16px)",
         }}>
-        <div className="max-w-3xl mx-auto flex items-center gap-3 px-4 h-14 lg:pl-4">
+        <div className="max-w-3xl mx-auto flex items-center gap-3 px-4 h-14">
           <motion.button type="button" onClick={() => router.back()}
             aria-label="Go back"
             style={{ color: "var(--color-text-secondary)" }}
@@ -138,7 +140,7 @@ export default function ProfilePage() {
       {/* Hero band with warm glow */}
       <div className="relative">
         <div className="absolute inset-x-0 top-0 h-56 pointer-events-none"
-          style={{ background: "radial-gradient(ellipse 70% 100% at 50% 0%, rgba(249,115,22,0.12) 0%, transparent 70%)" }} />
+          style={{ background: "radial-gradient(ellipse 70% 100% at 50% 0%, rgba(255,122,26,0.12) 0%, transparent 70%)" }} />
 
         <div className="relative max-w-3xl mx-auto px-4 py-8">
 
@@ -150,24 +152,24 @@ export default function ProfilePage() {
             <div className="relative">
               {/* glowing ring */}
               <div className="absolute -inset-1.5 rounded-full animate-pulse-glow pointer-events-none"
-                style={{ background: "conic-gradient(from 180deg, #F97316, #FBBF24, #F97316)", filter: "blur(6px)", opacity: 0.6 }} />
+                style={{ background: "conic-gradient(from 180deg, #ff7a1a, #ffb56b, #ff7a1a)", filter: "blur(6px)", opacity: 0.6 }} />
               <div className="relative w-28 h-28 rounded-full flex items-center justify-center text-3xl font-bold"
                 style={{
-                  background: "linear-gradient(135deg, #F97316, #FBBF24)",
-                  color: "#1a0a00",
-                  boxShadow: "0 0 36px rgba(249,115,22,0.45)",
-                  border: "3px solid #09090B",
+                  background: "linear-gradient(135deg, #ff7a1a, #ffb56b)",
+                  color: "#2a1206",
+                  boxShadow: "0 0 36px rgba(255,122,26,0.45)",
+                  border: "3px solid #140F0A",
                 }}>
                 {initials}
               </div>
               {/* verified badge */}
               <div className="absolute bottom-1 right-1 w-7 h-7 rounded-full flex items-center justify-center"
-                style={{ background: "#09090B", border: "2px solid rgba(249,115,22,0.4)" }}>
-                <BadgeCheck className="w-4 h-4" style={{ color: "#FBBF24" }} />
+                style={{ background: "#140F0A", border: "2px solid rgba(255,122,26,0.4)" }}>
+                <BadgeCheck className="w-4 h-4" style={{ color: "#ffb56b" }} />
               </div>
               <motion.button type="button" aria-label="Change photo"
                 className="absolute -bottom-1 left-1 w-7 h-7 rounded-full flex items-center justify-center"
-                style={{ background: "rgba(9,9,11,0.92)", border: "2px solid rgba(249,115,22,0.3)", color: "var(--color-text-secondary)" }}
+                style={{ background: "rgba(20,15,10,0.92)", border: "2px solid rgba(255,122,26,0.3)", color: "var(--color-text-secondary)" }}
                 whileHover={{ scale: 1.15 }} whileTap={{ scale: 0.9 }}
                 transition={{ type: "spring", stiffness: 400, damping: 20 }}>
                 <Camera className="w-3 h-3" />
@@ -181,7 +183,7 @@ export default function ProfilePage() {
 
             {/* bio quote */}
             <p className="flex items-center gap-1.5 text-sm italic mt-3 max-w-sm" style={{ color: "var(--color-text-secondary)" }}>
-              <Quote className="w-3.5 h-3.5 shrink-0" style={{ color: "#F97316" }} />
+              <Quote className="w-3.5 h-3.5 shrink-0" style={{ color: "#ff7a1a" }} />
               Seeking the quiet corners and the loud laughter.
             </p>
 
@@ -190,7 +192,7 @@ export default function ProfilePage() {
               {vibeTags.map((tag, i) => (
                 <motion.span key={tag}
                   className="px-3 py-1.5 rounded-full text-xs font-semibold"
-                  style={{ background: "rgba(249,115,22,0.12)", border: "1px solid rgba(249,115,22,0.25)", color: "#FBBF24" }}
+                  style={{ background: "rgba(255,122,26,0.12)", border: "1px solid rgba(255,122,26,0.25)", color: "var(--color-text-primary)" }}
                   initial={{ opacity: 0, scale: 0.85 }}
                   animate={{ opacity: 1, scale: 1 }}
                   transition={{ duration: 0.3, delay: 0.25 + i * 0.06, ease }}>
@@ -208,19 +210,19 @@ export default function ProfilePage() {
               <motion.div key={stat.label}
                 className="rounded-2xl p-4 text-center"
                 style={{
-                  background: "rgba(255,255,255,0.025)",
-                  border: "1px solid rgba(249,115,22,0.1)",
+                  background: "rgba(10,7,5,0.55)",
+                  border: "1px solid rgba(255,122,26,0.14)",
                   backdropFilter: "blur(8px)",
-                  boxShadow: "inset 0 1px 0 rgba(249,115,22,0.07)",
+                  boxShadow: "inset 0 1px 0 rgba(255,122,26,0.07)",
                 }}
                 initial={{ opacity: 0, scale: 0.92 }}
                 animate={{ opacity: 1, scale: 1 }}
                 transition={{ duration: 0.4, delay: 0.2 + i * 0.08, ease }}
-                whileHover={{ scale: 1.04, borderColor: "rgba(249,115,22,0.25)" }}
+                whileHover={{ scale: 1.04, borderColor: "rgba(255,122,26,0.25)" }}
               >
                 <p className="text-2xl font-display font-bold text-gradient flex items-center justify-center gap-1">
                   {stat.value}
-                  {stat.star && <Star className="w-4 h-4 fill-current" style={{ color: "#FBBF24" }} />}
+                  {stat.star && <Star className="w-4 h-4 fill-current" style={{ color: "var(--color-text-primary)" }} />}
                 </p>
                 <p className="text-[10px] font-medium uppercase tracking-wider mt-0.5"
                   style={{ color: "var(--color-text-muted)" }}>
@@ -245,14 +247,14 @@ export default function ProfilePage() {
                     <ProfileLink name={friend.name} avatar={friend.avatar} className="block">
                       <motion.div
                         className="relative w-14 h-14 rounded-full flex items-center justify-center text-sm font-bold"
-                        style={{ background: "rgba(249,115,22,0.12)", color: "#F97316", border: "1px solid rgba(249,115,22,0.25)" }}
-                        whileHover={{ scale: 1.08, boxShadow: "0 0 18px rgba(249,115,22,0.35)" }}
+                        style={{ background: "rgba(255,122,26,0.12)", color: "var(--color-text-primary)", border: "1px solid rgba(255,122,26,0.25)" }}
+                        whileHover={{ scale: 1.08, boxShadow: "0 0 18px rgba(255,122,26,0.35)" }}
                         transition={{ type: "spring", stiffness: 400, damping: 20 }}
                       >
                         {friend.avatar}
                         {friend.currentEvent && (
                           <span className="animate-pulse-dot absolute bottom-0 right-0 w-3.5 h-3.5 rounded-full"
-                            style={{ background: "#4ade80", border: "2px solid #09090B" }} />
+                            style={{ background: "#4ade80", border: "2px solid #140F0A" }} />
                         )}
                       </motion.div>
                     </ProfileLink>
@@ -271,7 +273,7 @@ export default function ProfilePage() {
               <motion.button type="button"
                 onClick={() => setEditingInterests(!editingInterests)}
                 className="text-xs font-medium flex items-center gap-1"
-                style={{ color: "#F97316" }}
+                style={{ color: "var(--color-text-primary)" }}
                 whileHover={{ x: 2 }}
                 transition={{ type: "spring", stiffness: 300, damping: 22 }}>
                 <Edit2 className="w-3 h-3" />
@@ -284,8 +286,8 @@ export default function ProfilePage() {
                   onClick={() => editingInterests && toggleInterest(interest)}
                   className="px-3 py-1.5 rounded-full text-xs font-bold"
                   style={{
-                    background: "linear-gradient(135deg, #F97316, #FBBF24)",
-                    color: "#1a0a00",
+                    background: "linear-gradient(135deg, #ff7a1a, #ffb56b)",
+                    color: "#2a1206",
                     cursor: editingInterests ? "pointer" : "default",
                   }}
                   whileHover={editingInterests ? { scale: 1.05 } : {}}>
@@ -302,12 +304,12 @@ export default function ProfilePage() {
                       onKeyDown={e => e.key === "Enter" && (e.preventDefault(), addCustomInterest())}
                       placeholder="Add your own…"
                       className="h-8 flex-1 max-w-[180px] text-xs px-3 rounded-full outline-none"
-                      style={{ background: "rgba(255,255,255,0.04)", border: "1px solid rgba(249,115,22,0.2)", color: "var(--color-text-primary)" }}
+                      style={{ background: "rgba(10,7,5,0.55)", border: "1px solid rgba(255,122,26,0.2)", color: "var(--color-text-primary)" }}
                     />
                     <motion.button type="button" onClick={addCustomInterest}
                       aria-label="Add interest"
                       className="w-8 h-8 rounded-full flex items-center justify-center shrink-0"
-                      style={{ background: "rgba(249,115,22,0.15)", color: "#F97316" }}
+                      style={{ background: "rgba(255,122,26,0.15)", color: "var(--color-text-primary)" }}
                       whileHover={{ scale: 1.1 }} whileTap={{ scale: 0.9 }}
                       transition={{ type: "spring", stiffness: 400, damping: 20 }}>
                       <Plus className="w-3.5 h-3.5" />
@@ -318,8 +320,8 @@ export default function ProfilePage() {
                       <motion.button key={interest} type="button"
                         onClick={() => toggleInterest(interest)}
                         className="px-3 py-1.5 rounded-full text-xs font-medium"
-                        style={{ background: "rgba(255,255,255,0.04)", border: "1px solid rgba(255,255,255,0.08)", color: "var(--color-text-secondary)" }}
-                        whileHover={{ scale: 1.05, background: "rgba(249,115,22,0.1)", borderColor: "rgba(249,115,22,0.25)", color: "#F97316" }}
+                        style={{ background: "rgba(10,7,5,0.55)", border: "1px solid rgba(255,255,255,0.1)", color: "var(--color-text-secondary)" }}
+                        whileHover={{ scale: 1.05, background: "rgba(255,122,26,0.1)", borderColor: "rgba(255,122,26,0.25)", color: "var(--color-text-primary)" }}
                         whileTap={{ scale: 0.97 }}>
                         {interest}
                       </motion.button>
@@ -336,7 +338,7 @@ export default function ProfilePage() {
               {personalityTraits.map((trait) => (
                 <span key={trait}
                   className="px-3 py-1.5 rounded-full text-xs font-medium"
-                  style={{ background: "rgba(255,255,255,0.04)", border: "1px solid rgba(255,255,255,0.08)", color: "var(--color-text-secondary)" }}>
+                  style={{ background: "rgba(10,7,5,0.55)", border: "1px solid rgba(255,255,255,0.1)", color: "var(--color-text-secondary)" }}>
                   {trait}
                 </span>
               ))}
@@ -348,7 +350,7 @@ export default function ProfilePage() {
             action={<span className="text-xs font-medium" style={{ color: "var(--color-text-muted)" }}>{mockBubbles.length} bubbles</span>}>
             <div className="relative pl-6">
               {/* vertical line */}
-              <div className="absolute left-[7px] top-2 bottom-2 w-px" style={{ background: "linear-gradient(to bottom, rgba(249,115,22,0.5), rgba(249,115,22,0.05))" }} />
+              <div className="absolute left-[7px] top-2 bottom-2 w-px" style={{ background: "linear-gradient(to bottom, rgba(255,122,26,0.5), rgba(255,122,26,0.05))" }} />
               <div className="space-y-3">
                 {mockBubbles.slice(0, 4).map((b, i) => (
                   <motion.div key={b.id}
@@ -358,11 +360,11 @@ export default function ProfilePage() {
                     transition={{ duration: 0.4, delay: 0.4 + i * 0.08, ease }}>
                     {/* node */}
                     <span className="absolute -left-[22px] top-4 w-3.5 h-3.5 rounded-full"
-                      style={{ background: "linear-gradient(135deg, #F97316, #FBBF24)", boxShadow: "0 0 10px rgba(249,115,22,0.5)", border: "2px solid #09090B" }} />
+                      style={{ background: "linear-gradient(135deg, #ff7a1a, #ffb56b)", boxShadow: "0 0 10px rgba(255,122,26,0.5)", border: "2px solid #140F0A" }} />
                     <motion.div
                       className="flex items-center gap-3 p-3.5 rounded-2xl"
-                      style={{ background: "rgba(255,255,255,0.025)", border: "1px solid rgba(255,255,255,0.06)" }}
-                      whileHover={{ x: 4, borderColor: "rgba(249,115,22,0.2)" }}
+                      style={{ background: "rgba(10,7,5,0.55)", border: "1px solid rgba(255,255,255,0.08)" }}
+                      whileHover={{ x: 4, borderColor: "rgba(255,122,26,0.2)" }}
                       transition={{ type: "spring", stiffness: 300, damping: 22 }}>
                       <span className="text-2xl shrink-0">{b.emoji}</span>
                       <div className="flex-1 min-w-0">

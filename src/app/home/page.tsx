@@ -4,7 +4,7 @@ import { useEffect, useMemo, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
 import { motion, AnimatePresence, useReducedMotion } from "framer-motion";
-import { ChevronDown, MapPin, Bell, ChevronsDown, Clock, Users, ArrowRight } from "lucide-react";
+import { ChevronDown, MapPin, Bell, ChevronsDown, Clock, Users, Instagram, ArrowRight } from "lucide-react";
 import BottomNav from "@/components/ui/BottomNav";
 import BubbleCard from "@/components/ui/BubbleCard";
 import CreateBubbleModal from "@/components/ui/CreateBubbleModal";
@@ -18,6 +18,7 @@ import EndEventModal from "@/components/EndEventModal";
 import type { BubbleConversation } from "@/contexts/ConversationsContext";
 import { Reveal, StaggerContainer, StaggerItem, AnimatedHeadline, CountUp, LineReveal, EASE } from "@/components/motion/Reveal";
 import { getCategoryTheme } from "@/lib/categoryThemes";
+import { useSidebar } from "@/contexts/SidebarContext";
 import { supabase } from "@/lib/supabase";
 import { apiBubbleToUi, type ApiBubble } from "@/lib/bubbleMap";
 
@@ -73,6 +74,8 @@ export default function HomePage() {
     []
   );
   const [upcomingForYou, setUpcomingForYou] = useState<UpcomingBubble[]>(defaultUpcoming);
+  const [momentIndex, setMomentIndex] = useState(0);
+  const [momentsPaused, setMomentsPaused] = useState(false);
   const [liveBubbles, setLiveBubbles] = useState<Bubble[]>([]);
   const [campusEvents, setCampusEvents] = useState<CampusEvent[]>([]);
   const [prefill, setPrefill] = useState<{ activity?: string; zone?: string } | undefined>();
@@ -107,7 +110,11 @@ export default function HomePage() {
   }, []);
 
   const router = useRouter();
+  const { expanded: sidebarExpanded } = useSidebar();
+  const upcomingRef = useRef<HTMLDivElement>(null);
+  const nearbyRef = useRef<HTMLElement>(null);
   const momentsRef = useRef<HTMLDivElement>(null);
+  const aboutRef = useRef<HTMLDivElement>(null);
   const { filteredConnectionRequests } = useConnections();
   const { joinedBubbles, removeBubbleFromJoined } = useConversations();
   const pendingCount = filteredConnectionRequests.length;
@@ -131,6 +138,12 @@ export default function HomePage() {
       })
       .catch(() => setFeedPosts(mockFeedPosts));
   }, []);
+
+  useEffect(() => {
+    if (feedPosts.length <= 1 || momentsPaused) return;
+    const id = setInterval(() => setMomentIndex((i) => (i + 1) % feedPosts.length), 3000);
+    return () => clearInterval(id);
+  }, [feedPosts.length, momentsPaused]);
 
   useEffect(() => {
     import("@/lib/supabase")
@@ -215,30 +228,55 @@ export default function HomePage() {
   }, [activeFilter, liveBubbles]);
 
   const scrollToMoments = () => momentsRef.current?.scrollIntoView({ behavior: "smooth", block: "start" });
+  const scrollToRef = (ref: React.RefObject<HTMLElement | null>) =>
+    ref.current?.scrollIntoView({ behavior: "smooth", block: "start" });
+  const scrollToTop = () => window.scrollTo({ top: 0, behavior: "smooth" });
+
+  const quickNavLinks = [
+    { label: "Home", onClick: scrollToTop },
+    { label: "Upcoming for you", onClick: () => scrollToRef(upcomingRef) },
+    { label: "Active nearby", onClick: () => scrollToRef(nearbyRef) },
+    { label: "Recent moments", onClick: () => scrollToRef(momentsRef) },
+    { label: "About us", onClick: () => scrollToRef(aboutRef) },
+  ];
 
   return (
-    <div className="min-h-screen pb-40" style={{ background: "var(--color-bg)" }}>
+    <div className="min-h-screen pb-40">
 
       {/* ── Top bar ── */}
       <header
-        className="sticky top-0 z-40"
-        style={{ background: "rgba(9,9,11,0.8)", borderBottom: "1px solid rgba(249,115,22,0.07)", backdropFilter: "blur(16px)" }}
+        className={`sticky top-0 z-50 transition-[margin] duration-300 ease-out ${sidebarExpanded ? "lg:ml-64" : "lg:ml-3"}`}
+        style={{ background: "rgba(20,15,10,0.8)", borderBottom: "1px solid rgba(255,122,26,0.07)", backdropFilter: "blur(16px)" }}
       >
-        <div className="flex items-center justify-between px-4 sm:px-6 h-14 lg:pl-72 max-w-[1400px] mx-auto">
-          <button className="flex items-center gap-1.5 text-sm font-medium" style={{ color: "var(--color-text-primary)" }}>
-            <MapPin className="w-3.5 h-3.5" style={{ color: "#F97316" }} />
+        <div className="flex items-center justify-between gap-3 px-4 sm:px-6 h-14 max-w-[1400px] mx-auto">
+          <button className="flex items-center gap-1.5 text-sm font-medium whitespace-nowrap shrink-0" style={{ color: "var(--color-text-primary)" }}>
+            <MapPin className="w-3.5 h-3.5 shrink-0" style={{ color: "#ff7a1a" }} />
             University of Waterloo
-            <ChevronDown className="w-3 h-3" style={{ color: "var(--color-text-muted)" }} />
+            <ChevronDown className="w-3 h-3 shrink-0" style={{ color: "var(--color-text-muted)" }} />
           </button>
 
-          <div className="flex items-center gap-2">
+          <div className="hidden md:flex items-center gap-2 overflow-x-auto min-w-0">
+            {quickNavLinks.map((item) => (
+              <button
+                key={item.label}
+                type="button"
+                onClick={item.onClick}
+                className="px-3 py-1.5 rounded-full text-xs font-semibold whitespace-nowrap"
+                style={{ background: "rgba(255,255,255,0.05)", border: "1px solid rgba(255,255,255,0.1)", color: "var(--color-text-primary)" }}
+              >
+                {item.label}
+              </button>
+            ))}
+          </div>
+
+          <div className="flex items-center gap-2 shrink-0">
             <motion.button
               type="button"
               onClick={() => setDrawerOpen(true)}
               aria-label={`Notifications${pendingCount ? `, ${pendingCount} pending` : ""}`}
               className="relative w-9 h-9 rounded-full flex items-center justify-center"
               style={{ background: "rgba(255,255,255,0.04)", border: "1px solid rgba(255,255,255,0.08)", color: "var(--color-text-secondary)" }}
-              whileHover={{ scale: 1.08, color: "#F97316" }}
+              whileHover={{ scale: 1.08, color: "var(--color-text-primary)" }}
               whileTap={{ scale: 0.92 }}
               transition={{ type: "spring", stiffness: 400, damping: 20 }}
             >
@@ -246,7 +284,7 @@ export default function HomePage() {
               {pendingCount > 0 && (
                 <span
                   className="absolute -top-0.5 -right-0.5 min-w-4 h-4 px-1 rounded-full flex items-center justify-center text-[9px] font-bold"
-                  style={{ background: "linear-gradient(135deg, #F97316, #FBBF24)", color: "#1a0a00", boxShadow: "0 0 8px rgba(249,115,22,0.5)" }}
+                  style={{ background: "linear-gradient(135deg, #ff7a1a, #ffb56b)", color: "#2a1206", boxShadow: "0 0 8px rgba(255,122,26,0.5)" }}
                 >
                   {pendingCount}
                 </span>
@@ -258,7 +296,7 @@ export default function HomePage() {
               onClick={() => router.push("/profile")}
               aria-label="Your profile"
               className="w-9 h-9 rounded-full flex items-center justify-center text-xs font-bold"
-              style={{ background: "linear-gradient(135deg, #F97316, #FBBF24)", color: "#1a0a00", boxShadow: "0 0 12px rgba(249,115,22,0.3)" }}
+              style={{ background: "linear-gradient(135deg, #ff7a1a, #ffb56b)", color: "#2a1206", boxShadow: "0 0 12px rgba(255,122,26,0.3)" }}
               whileHover={{ scale: 1.1 }}
               whileTap={{ scale: 0.92 }}
               transition={{ type: "spring", stiffness: 400, damping: 20 }}
@@ -269,7 +307,7 @@ export default function HomePage() {
         </div>
       </header>
 
-      <div className="lg:pl-64">
+      <div className={`transition-[padding] duration-300 ease-out ${sidebarExpanded ? "lg:pl-64" : "lg:pl-3"}`}>
         <div className="max-w-[1100px] mx-auto px-5 sm:px-8">
 
           {/* ── CINEMATIC HERO — two-column ── */}
@@ -277,9 +315,9 @@ export default function HomePage() {
             {/* hero orbs */}
             <div className="absolute inset-0 -z-0 pointer-events-none overflow-hidden">
               <div className="absolute top-0 left-[15%] w-80 h-80 rounded-full animate-float-orb"
-                style={{ background: "radial-gradient(circle, rgba(249,115,22,0.1) 0%, transparent 65%)" }} />
+                style={{ background: "radial-gradient(circle, rgba(255,122,26,0.1) 0%, transparent 65%)" }} />
               <div className="absolute top-10 right-[5%] w-72 h-72 rounded-full animate-float-orb"
-                style={{ background: "radial-gradient(circle, rgba(251,191,36,0.06) 0%, transparent 65%)", animationDelay: "-6s" }} />
+                style={{ background: "radial-gradient(circle, rgba(255,181,107,0.06) 0%, transparent 65%)", animationDelay: "-6s" }} />
             </div>
 
             <div className="relative z-10 grid grid-cols-1 lg:grid-cols-5 gap-10 lg:gap-12 items-start">
@@ -288,7 +326,7 @@ export default function HomePage() {
               <div className="lg:col-span-3">
                 <motion.div
                   className="inline-flex items-center gap-2 px-3 py-1.5 rounded-full mb-6"
-                  style={{ background: "rgba(249,115,22,0.1)", border: "1px solid rgba(249,115,22,0.2)" }}
+                  style={{ background: "rgba(10,7,5,0.7)", border: "1px solid rgba(255,122,26,0.3)", backdropFilter: "blur(8px)" }}
                   initial={{ opacity: 0, y: -8 }}
                   animate={{ opacity: 1, y: 0 }}
                   transition={{ duration: 0.5, ease: EASE }}
@@ -297,26 +335,31 @@ export default function HomePage() {
                     <span className="absolute inline-flex h-full w-full rounded-full animate-ping" style={{ background: "#4ade80", opacity: 0.6 }} />
                     <span className="relative inline-flex h-2 w-2 rounded-full" style={{ background: "#4ade80" }} />
                   </span>
-                  <span className="text-xs font-bold tracking-[0.15em] uppercase" style={{ color: "#FBBF24" }}>
-                    University of Waterloo — Live
+                  <span className="text-xs font-bold tracking-[0.15em] uppercase" style={{ color: "var(--color-text-primary)" }}>
+                    University of Waterloo
+                  </span>
+                  <span className="w-1 h-1 rounded-full" style={{ background: "var(--color-text-primary)", opacity: 0.5 }} />
+                  <span className="text-xs font-bold tracking-[0.15em] uppercase" style={{ color: "#4ade80" }}>
+                    Live
                   </span>
                 </motion.div>
 
                 <AnimatedHeadline
                   text="Campus is alive."
                   accentWords={["alive."]}
+                  accentClassName="text-gradient-3d"
                   className="font-display text-5xl sm:text-7xl font-bold leading-[1.02] tracking-tight"
                   delay={0.1}
                 />
 
                 <motion.p
                   className="mt-5 text-base sm:text-lg max-w-md leading-relaxed"
-                  style={{ color: "var(--color-text-secondary)" }}
+                  style={{ color: "var(--color-text-secondary)", textShadow: "0 2px 10px rgba(0,0,0,0.7)" }}
                   initial={{ opacity: 0, y: 12 }}
                   animate={{ opacity: 1, y: 0 }}
                   transition={{ duration: 0.6, delay: 0.5, ease: EASE }}
                 >
-                  Real students, real moments — happening within walking distance. Find your people, start something.
+                  Real students, real moments happening within walking distance. Find your people, start something.
                 </motion.p>
 
                 {/* live stat counters */}
@@ -338,7 +381,7 @@ export default function HomePage() {
                   animate={{ opacity: 1, y: 0 }}
                   transition={{ duration: 0.6, delay: 0.9, ease: EASE }}
                 >
-                  <p className="text-[10px] font-bold uppercase tracking-[0.18em] mb-4" style={{ color: "#F97316" }}>
+                  <p className="text-[10px] font-bold uppercase tracking-[0.18em] mb-4" style={{ color: "var(--color-text-primary)" }}>
                     Recent moments from your campus
                   </p>
                   <PolaroidStack posts={feedPosts.slice(0, 3)} onClick={scrollToMoments} />
@@ -352,10 +395,10 @@ export default function HomePage() {
                   animate={{ opacity: 1, y: 0 }}
                   transition={{ duration: 0.5, delay: 0.4, ease: EASE }}
                 >
-                  <p className="text-[10px] font-bold uppercase tracking-[0.18em] mb-4 flex items-center gap-2" style={{ color: "#F97316" }}>
+                  <p className="text-[10px] font-bold uppercase tracking-[0.18em] mb-4 flex items-center gap-2" style={{ color: "var(--color-text-primary)" }}>
                     <span className="relative flex h-1.5 w-1.5">
-                      <span className="absolute inline-flex h-full w-full rounded-full animate-ping" style={{ background: "#F97316", opacity: 0.5 }} />
-                      <span className="relative inline-flex h-1.5 w-1.5 rounded-full" style={{ background: "#F97316" }} />
+                      <span className="absolute inline-flex h-full w-full rounded-full animate-ping" style={{ background: "#ff7a1a", opacity: 0.5 }} />
+                      <span className="relative inline-flex h-1.5 w-1.5 rounded-full" style={{ background: "#ff7a1a" }} />
                     </span>
                     What's happening
                   </p>
@@ -377,7 +420,7 @@ export default function HomePage() {
               transition={{ delay: 1.3, duration: 0.6 }}
             >
               <motion.span animate={{ y: [0, 5, 0] }} transition={{ duration: 1.8, repeat: Infinity, ease: "easeInOut" }}>
-                <ChevronsDown className="w-4 h-4" style={{ color: "#F97316" }} />
+                <ChevronsDown className="w-4 h-4" style={{ color: "#ff7a1a" }} />
               </motion.span>
               Scroll to explore what's happening
             </motion.div>
@@ -386,6 +429,7 @@ export default function HomePage() {
           <LineReveal className="h-px w-full mb-12" />
 
           {/* ── UPCOMING FOR YOU ── */}
+          <div ref={upcomingRef}>
           <Reveal className="mb-14" as="section">
             <SectionHeader kicker="Picked for you" title="Upcoming for you" />
             <div className="flex gap-4 overflow-x-auto pb-3 -mx-5 px-5 sm:-mx-8 sm:px-8">
@@ -393,28 +437,29 @@ export default function HomePage() {
                 <motion.div
                   key={b.id}
                   className="flex-shrink-0 w-52 rounded-3xl overflow-hidden cursor-pointer"
-                  style={{ background: "rgba(255,255,255,0.025)", border: "1px solid rgba(255,255,255,0.07)", backdropFilter: "blur(12px)" }}
-                  whileHover={{ y: -6, scale: 1.02, boxShadow: "0 20px 48px -16px rgba(249,115,22,0.3)" }}
+                  style={{ background: "rgba(10,7,5,0.95)", border: "1px solid rgba(255,255,255,0.07)", backdropFilter: "blur(12px)" }}
+                  whileHover={{ y: -6, scale: 1.02, boxShadow: "0 20px 48px -16px rgba(255,122,26,0.3)" }}
                   transition={{ type: "spring", stiffness: 300, damping: 22 }}
                 >
                   <Link href={`/chat/bubble-${b.id}`} className="block">
                     <div className="h-24 flex items-center justify-center relative"
-                      style={{ background: "linear-gradient(135deg, rgba(249,115,22,0.22), rgba(251,191,36,0.1))" }}>
+                      style={{ background: "linear-gradient(135deg, rgba(255,122,26,0.22), rgba(255,181,107,0.1)), rgba(8,6,4,0.97)" }}>
                       <span className="text-4xl">{b.emoji}</span>
                     </div>
                     <div className="p-4">
                       <p className="text-sm font-semibold line-clamp-1" style={{ color: "var(--color-text-primary)" }}>{b.title}</p>
-                      <p className="text-[11px] mt-1 line-clamp-2 leading-snug" style={{ color: "var(--color-text-secondary)" }}>{b.recommendationReason || "For you"}</p>
-                      <p className="text-[11px] mt-2 font-medium" style={{ color: "#F97316" }}>{b.startingIn} · {b.joined}/{b.maxPeople}</p>
+                      <p className="text-[11px] mt-1 line-clamp-2 leading-snug font-medium" style={{ color: "var(--color-text-secondary)" }}>{b.recommendationReason || "For you"}</p>
+                      <p className="text-[11px] mt-2 font-medium" style={{ color: "var(--color-text-primary)" }}>{b.startingIn} · {b.joined}/{b.maxPeople}</p>
                     </div>
                   </Link>
                 </motion.div>
               ))}
             </div>
           </Reveal>
+          </div>
 
           {/* ── ACTIVE NEARBY ── */}
-          <section className="mb-16">
+          <section className="mb-16" ref={nearbyRef}>
             <Reveal>
               <SectionHeader kicker="Within walking distance" title="Active nearby" />
             </Reveal>
@@ -431,10 +476,10 @@ export default function HomePage() {
                       onClick={() => setActiveFilter(chip)}
                       className="relative px-4 py-2 rounded-full text-xs whitespace-nowrap"
                       style={{
-                        background: active ? "transparent" : "rgba(255,255,255,0.04)",
-                        border: active ? "1px solid transparent" : "1px solid rgba(255,255,255,0.08)",
-                        color: active ? "#1a0a00" : "var(--color-text-secondary)",
-                        fontWeight: active ? 700 : 500,
+                        background: active ? "transparent" : "rgba(10,7,5,0.6)",
+                        border: active ? "1px solid transparent" : "1px solid rgba(255,255,255,0.14)",
+                        color: active ? "#2a1206" : "var(--color-text-primary)",
+                        fontWeight: active ? 700 : 600,
                       }}
                       whileHover={{ scale: 1.05 }}
                       whileTap={{ scale: 0.96 }}
@@ -444,7 +489,7 @@ export default function HomePage() {
                         <motion.div
                           layoutId="active-chip-indicator"
                           className="absolute inset-0 rounded-full"
-                          style={{ background: "linear-gradient(135deg, #F97316, #FBBF24)", boxShadow: "0 0 14px rgba(249,115,22,0.28)" }}
+                          style={{ background: "linear-gradient(135deg, #ff7a1a, #ffb56b)", boxShadow: "0 0 14px rgba(255,122,26,0.28)" }}
                           transition={{ type: "spring", stiffness: 350, damping: 30 }}
                         />
                       )}
@@ -532,22 +577,83 @@ export default function HomePage() {
             <Reveal delay={0.05}>
               <MomentsTicker base={1247} />
             </Reveal>
-            <div className="max-w-xl mx-auto mt-8">
+            <div
+              className="max-w-xl mx-auto mt-8"
+              onMouseEnter={() => setMomentsPaused(true)}
+              onMouseLeave={() => setMomentsPaused(false)}
+            >
               {feedPosts.length === 0 ? (
                 <p className="text-sm py-6 text-center" style={{ color: "var(--color-text-secondary)" }}>
                   No moments yet. End an event and post one!
                 </p>
               ) : (
-                <StaggerContainer className="space-y-6">
-                  {feedPosts.map((post) => (
-                    <StaggerItem key={post.id}>
-                      <FeedPost post={post} />
-                    </StaggerItem>
-                  ))}
-                </StaggerContainer>
+                <>
+                  <AnimatePresence mode="wait">
+                    <motion.div
+                      key={feedPosts[momentIndex % feedPosts.length].id}
+                      initial={{ opacity: 0, x: 80 }}
+                      animate={{ opacity: 1, x: 0 }}
+                      exit={{ opacity: 0, x: -80 }}
+                      transition={{ duration: 0.5, ease: EASE }}
+                    >
+                      <FeedPost post={feedPosts[momentIndex % feedPosts.length]} />
+                    </motion.div>
+                  </AnimatePresence>
+
+                  {feedPosts.length > 1 && (
+                    <div className="flex items-center justify-center gap-1.5 mt-4">
+                      {feedPosts.map((post, i) => (
+                        <button
+                          key={post.id}
+                          type="button"
+                          onClick={() => setMomentIndex(i)}
+                          aria-label={`Show moment ${i + 1}`}
+                          className="h-1.5 rounded-full transition-all"
+                          style={{
+                            width: i === momentIndex % feedPosts.length ? 20 : 6,
+                            background: i === momentIndex % feedPosts.length ? "#ff7a1a" : "rgba(255,255,255,0.2)",
+                          }}
+                        />
+                      ))}
+                    </div>
+                  )}
+                </>
               )}
             </div>
           </section>
+
+          <LineReveal className="h-px w-full mb-12" />
+
+          {/* ── ABOUT US ── */}
+          <div ref={aboutRef}>
+          <Reveal as="section" className="mb-16 pb-4">
+            <div
+              className="rounded-3xl px-6 py-10 sm:px-12 sm:py-12 text-center"
+              style={{ background: "rgba(10,7,5,0.6)", border: "1px solid rgba(255,122,26,0.12)" }}
+            >
+              <p className="text-[11px] font-bold uppercase tracking-[0.18em] mb-2" style={{ color: "var(--color-accent-start)" }}>
+                Who we are
+              </p>
+              <h2 className="font-display text-3xl sm:text-4xl font-bold mb-4" style={{ color: "var(--color-text-primary)" }}>
+                About Wanderers
+              </h2>
+              <p className="text-sm sm:text-base max-w-lg mx-auto leading-relaxed mb-8" style={{ color: "var(--color-text-secondary)" }}>
+                Wanderers is built by students, for students — a way to turn empty pockets of time on campus
+                into real hangouts with real people. Start something, or find a bubble already happening near you.
+              </p>
+              <a
+                href="https://instagram.com/uw_wanderers"
+                target="_blank"
+                rel="noopener noreferrer"
+                className="inline-flex items-center gap-2 px-5 py-2.5 rounded-full text-sm font-bold"
+                style={{ background: "linear-gradient(135deg, #ff7a1a, #ffb56b)", color: "#2a1206", boxShadow: "0 0 16px rgba(255,122,26,0.3)" }}
+              >
+                <Instagram className="w-4 h-4" />
+                @uw_wanderers
+              </a>
+            </div>
+          </Reveal>
+          </div>
         </div>
       </div>
 
@@ -583,10 +689,10 @@ export default function HomePage() {
 function HeroStat({ value, label }: { value: number; label: string }) {
   return (
     <div>
-      <div className="font-display text-3xl sm:text-4xl font-bold text-gradient leading-none">
+      <div className="text-3xl sm:text-4xl font-bold leading-none" style={{ color: "var(--color-text-primary)" }}>
         <CountUp to={value} />
       </div>
-      <p className="text-xs mt-1.5 uppercase tracking-wider" style={{ color: "var(--color-text-muted)" }}>{label}</p>
+      <p className="text-xs mt-1.5 uppercase tracking-wider" style={{ color: "var(--color-text-secondary)" }}>{label}</p>
     </div>
   );
 }
@@ -594,7 +700,7 @@ function HeroStat({ value, label }: { value: number; label: string }) {
 function SectionHeader({ kicker, title }: { kicker: string; title: string }) {
   return (
     <div className="mb-6">
-      <p className="text-[11px] font-bold uppercase tracking-[0.18em] mb-1.5" style={{ color: "#F97316" }}>{kicker}</p>
+      <p className="text-[11px] font-bold uppercase tracking-[0.18em] mb-1.5" style={{ color: "var(--color-text-primary)" }}>{kicker}</p>
       <h2 className="font-display text-2xl sm:text-3xl font-bold" style={{ color: "var(--color-text-primary)" }}>{title}</h2>
     </div>
   );
@@ -615,11 +721,11 @@ function LiveTickerCard({ bubble, index }: { bubble: (typeof mockBubbles)[number
         href={`/chat/bubble-${bubble.id}`}
         className="flex items-center gap-3.5 p-3.5 rounded-2xl relative overflow-hidden"
         style={{
-          background: "rgba(255,255,255,0.025)",
-          border: "1px solid rgba(255,255,255,0.06)",
+          background: "rgba(10,9,8,0.72)",
+          border: "1px solid rgba(255,255,255,0.07)",
           borderLeft: `3px solid ${theme.from}`,
           boxShadow: `inset 4px 0 16px -8px ${theme.from}50`,
-          backdropFilter: "blur(8px)",
+          backdropFilter: "blur(10px)",
           display: "flex",
         }}
       >
@@ -645,51 +751,75 @@ function LiveTickerCard({ bubble, index }: { bubble: (typeof mockBubbles)[number
 
 /* Polaroid stack — 222.place inspired, warm photo borders, slight rotation */
 function PolaroidStack({ posts, onClick }: { posts: FeedPostType[]; onClick: () => void }) {
-  const rotations = [-6, 3, -2];
+  const [index, setIndex] = useState(0);
+  const reduce = useReducedMotion();
+
+  useEffect(() => {
+    if (posts.length <= 1 || reduce) return;
+    const id = setInterval(() => setIndex((i) => (i + 1) % posts.length), 3000);
+    return () => clearInterval(id);
+  }, [posts.length, reduce]);
+
+  if (posts.length === 0) return null;
+  const post = posts[index % posts.length];
+
   return (
-    <button
-      type="button"
-      onClick={onClick}
-      aria-label="See recent moments"
-      className="relative flex items-end h-36 pl-2"
-      style={{ width: 3 * 86 + 40 }}
-    >
-      {posts.map((post, i) => (
-        <motion.div
-          key={post.id}
-          className="absolute rounded-md overflow-hidden"
-          style={{
-            left: i * 78,
-            bottom: 0,
-            width: 104,
-            height: 128,
-            background: "#FAF7F2",
-            padding: "6px 6px 22px 6px",
-            boxShadow: "0 12px 32px -8px rgba(0,0,0,0.6)",
-            rotate: `${rotations[i % rotations.length]}deg`,
-            zIndex: i,
-          }}
-          initial={{ opacity: 0, y: 24, rotate: rotations[i % rotations.length] - 8 }}
-          animate={{ opacity: 1, y: 0, rotate: rotations[i % rotations.length] }}
-          transition={{ duration: 0.6, delay: 1.0 + i * 0.12, ease: [0.34, 1.56, 0.64, 1] }}
-          whileHover={{ y: -8, rotate: 0, zIndex: 10, scale: 1.05 }}
-        >
-          <div
-            className="w-full h-full rounded-sm overflow-hidden flex items-center justify-center"
-            style={{ background: "linear-gradient(135deg, rgba(249,115,22,0.25), rgba(120,60,20,0.5))" }}
+    <div style={{ width: 104 }}>
+      <button
+        type="button"
+        onClick={onClick}
+        aria-label="See recent moments"
+        className="relative block w-full overflow-hidden rounded-md"
+        style={{ height: 128 }}
+      >
+        <AnimatePresence mode="popLayout" initial={false}>
+          <motion.div
+            key={post.id}
+            className="absolute inset-0"
+            style={{
+              background: "#FAF7F2",
+              padding: "6px 6px 22px 6px",
+              boxShadow: "0 12px 32px -8px rgba(0,0,0,0.6)",
+            }}
+            initial={{ opacity: 0, x: 60 }}
+            animate={{ opacity: 1, x: 0 }}
+            exit={{ opacity: 0, x: -60 }}
+            transition={{ duration: 0.5, ease: EASE }}
+            whileHover={{ scale: 1.05 }}
           >
-            {post.imageUrl ? (
-              <img src={post.imageUrl} alt={post.caption} className="w-full h-full object-cover" />
-            ) : (
-              <span className="text-3xl">{post.userAvatar.length <= 2 ? "📸" : post.userAvatar}</span>
-            )}
-          </div>
-          <p className="absolute bottom-1 left-0 right-0 text-center text-[8px] font-medium" style={{ color: "#52525B" }}>
-            {post.zone ?? "—"} · {post.timestamp.toLowerCase()}
-          </p>
-        </motion.div>
-      ))}
-    </button>
+            <div
+              className="w-full h-full rounded-sm overflow-hidden flex items-center justify-center"
+              style={{ background: "linear-gradient(135deg, rgba(255,122,26,0.25), rgba(120,60,20,0.5))" }}
+            >
+              {post.imageUrl ? (
+                <img src={post.imageUrl} alt={post.caption} className="w-full h-full object-cover" />
+              ) : (
+                <span className="text-3xl">{post.userAvatar.length <= 2 ? "📸" : post.userAvatar}</span>
+              )}
+            </div>
+            <p className="absolute bottom-1 left-0 right-0 text-center text-[8px] font-medium" style={{ color: "#52525B" }}>
+              {post.zone ?? "—"} · {post.timestamp.toLowerCase()}
+            </p>
+          </motion.div>
+        </AnimatePresence>
+      </button>
+
+      {/* progress dots */}
+      {posts.length > 1 && (
+        <div className="mt-2 flex items-center justify-center gap-1">
+          {posts.map((p, i) => (
+            <span
+              key={p.id}
+              className="h-1 rounded-full transition-all"
+              style={{
+                width: i === index ? 12 : 4,
+                background: i === index ? "#ff7a1a" : "rgba(255,255,255,0.2)",
+              }}
+            />
+          ))}
+        </div>
+      )}
+    </div>
   );
 }
 
@@ -705,7 +835,8 @@ function MomentsTicker({ base }: { base: number }) {
       <AnimatePresence mode="popLayout">
         <motion.span
           key={count}
-          className="font-display text-xl font-bold text-gradient inline-block tabular-nums"
+          className="text-xl font-bold inline-block tabular-nums"
+          style={{ color: "var(--color-text-primary)" }}
           initial={{ opacity: 0, y: 10 }}
           animate={{ opacity: 1, y: 0 }}
           exit={{ opacity: 0, y: -10 }}

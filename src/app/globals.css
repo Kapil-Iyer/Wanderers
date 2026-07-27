@@ -8,53 +8,53 @@
 /* 2. DESIGN TOKENS */
 @layer base {
   :root {
-    /* ── Core palette ── */
-    --color-bg:             #09090B;
-    --color-surface:        rgba(255, 255, 255, 0.04);
-    --color-surface-hover:  rgba(255, 255, 255, 0.07);
-    --color-border:         rgba(255, 255, 255, 0.07);
-    --color-border-warm:    rgba(249, 115, 22, 0.2);
+    /* ── Core palette (Network Plexus — warm espresso base) ── */
+    --color-bg:             #16100a;
+    --color-surface:        rgba(255, 255, 255, 0.045);
+    --color-surface-hover:  rgba(255, 255, 255, 0.08);
+    --color-border:         rgba(255, 150, 80, 0.16);
+    --color-border-warm:    rgba(255,122,26, 0.2);
 
-    /* ── Amber-orange accent (from logo gradient) ── */
-    --color-accent-start:   #F97316;
-    --color-accent-end:     #FBBF24;
-    --color-accent-mid:     #FB923C;
-    --color-glow:           rgba(249, 115, 22, 0.15);
-    --color-glow-strong:    rgba(249, 115, 22, 0.28);
+    /* ── Orange brand accent (Network Plexus) ── */
+    --color-accent-start:   #ff7a1a;
+    --color-accent-end:     #ffb56b;
+    --color-accent-mid:     #ff8a3d;
+    --color-glow:           rgba(255,122,26, 0.15);
+    --color-glow-strong:    rgba(255,122,26, 0.28);
 
     /* ── Text ── */
     --color-text-primary:   #FAFAFA;
     --color-text-secondary: #A1A1AA;
     --color-text-muted:     #52525B;
 
-    /* ── Shadcn tokens (mapped to warm palette) ── */
-    --background:            11 11% 4%;
+    /* ── Shadcn tokens (mapped to Network Plexus warm espresso) ── */
+    --background:            30 37% 6%;           /* #16100a */
     --foreground:            0 0% 98%;
 
-    --primary:               25 95% 53%;         /* #F97316 orange */
-    --primary-foreground:    25 100% 6%;
+    --primary:               24 100% 62%;         /* #ff8a3d */
+    --primary-foreground:    24 90% 8%;
 
-    --card:                  240 6% 7%;
+    --card:                  27 33% 11%;          /* #241a12 elevated surface */
     --card-foreground:       0 0% 98%;
 
-    --popover:               240 6% 7%;
+    --popover:               27 33% 11%;
     --popover-foreground:    0 0% 98%;
 
-    --secondary:             240 4% 12%;
+    --secondary:             30 10% 12%;
     --secondary-foreground:  0 0% 90%;
 
-    --muted:                 240 4% 14%;
-    --muted-foreground:      240 5% 45%;
+    --muted:                 30 8% 14%;
+    --muted-foreground:      30 12% 55%;
 
-    --accent:                25 80% 12%;
-    --accent-foreground:     25 90% 80%;
+    --accent:                24 70% 14%;
+    --accent-foreground:     24 90% 78%;
 
     --destructive:           0 84% 60%;
     --destructive-foreground: 0 0% 100%;
 
-    --border:                240 4% 12%;
-    --input:                 240 6% 6%;
-    --ring:                  25 95% 53%;
+    --border:                24 30% 14%;
+    --input:                 24 20% 8%;
+    --ring:                  24 100% 62%;
 
     --radius: 1rem;
 
@@ -70,9 +70,9 @@
 
     /* ── Shadows ── */
     --shadow-card:   0 1px 3px rgba(0,0,0,0.4), 0 1px 2px rgba(0,0,0,0.3);
-    --shadow-float:  0 20px 60px -15px rgba(249,115,22,0.18);
-    --shadow-glow:   0 0 32px rgba(249,115,22,0.22);
-    --shadow-inner-warm: inset 0 1px 0 rgba(249,115,22,0.12);
+    --shadow-float:  0 20px 60px -15px rgba(255,122,26,0.18);
+    --shadow-glow:   0 0 32px rgba(255,122,26,0.22);
+    --shadow-inner-warm: inset 0 1px 0 rgba(255,122,26,0.12);
   }
 
   * {
@@ -106,9 +106,7 @@
     font-family: var(--font-body);
     @apply min-h-screen text-foreground antialiased;
     background-color: var(--color-bg);
-    background-image:
-      radial-gradient(ellipse 80% 50% at 50% -10%, rgba(249,115,22,0.07) 0%, transparent 60%),
-      radial-gradient(ellipse 60% 40% at 80% 80%, rgba(251,191,36,0.04) 0%, transparent 50%);
+    background-image: radial-gradient(1200px 760px at 20% 30%, #241a12 0%, #16100a 55%, #0e0a06 100%);
     background-attachment: fixed;
   }
 }
@@ -118,7 +116,7 @@
 
   /* Glass card — warm frosted */
   .glass-card {
-    background: rgba(255,255,255,0.03);
+    background: rgba(10,9,8,0.7);
     backdrop-filter: var(--blur-card);
     -webkit-backdrop-filter: var(--blur-card);
     border: 1px solid var(--color-border);
@@ -140,10 +138,27 @@
     background-clip: text;
   }
 
+  /* Extruded 3D text — solid diagonal step-shadow builds a visible carved side,
+     not a soft glow. Fill stays flat/bright so the stepped shadow reads clearly. */
+  .text-gradient-3d {
+    color: #f0c896;
+    text-shadow:
+      1px 1px 0 #d9a668,
+      2px 2px 0 #d9a668,
+      3px 3px 0 #b8823f,
+      4px 4px 0 #b8823f,
+      5px 5px 0 #8a5a26,
+      6px 6px 0 #8a5a26,
+      7px 7px 0 #5c3814,
+      8px 8px 0 #5c3814,
+      10px 10px 16px rgba(0, 0, 0, 0.6);
+    display: inline-block;
+  }
+
   /* Gradient button */
   .btn-amber {
     background: linear-gradient(135deg, var(--color-accent-start) 0%, var(--color-accent-end) 100%);
-    color: #1a0a00;
+    color: #2a1206;
     font-weight: 700;
     border-radius: var(--radius-pill);
     box-shadow: var(--shadow-float);
@@ -156,7 +171,7 @@
 
   /* Amber glow ring — used on active/selected elements */
   .ring-amber {
-    box-shadow: 0 0 0 2px rgba(249,115,22,0.45);
+    box-shadow: 0 0 0 2px rgba(255,122,26,0.45);
   }
 
   /* Display font helper */
@@ -174,7 +189,7 @@
 
   .chip-active {
     background: linear-gradient(135deg, var(--color-accent-start) 0%, var(--color-accent-end) 100%);
-    color: #1a0a00;
+    color: #2a1206;
     border-color: transparent;
     font-weight: 700;
     box-shadow: 0 0 12px var(--color-glow);
@@ -184,23 +199,23 @@
   .bubble-glow {
     box-shadow:
       var(--shadow-inner-warm),
-      0 8px 32px -8px rgba(249,115,22,0.12),
+      0 8px 32px -8px rgba(255,122,26,0.12),
       var(--shadow-card);
   }
 
   .bubble-glow:hover {
     box-shadow:
-      inset 0 1px 0 rgba(249,115,22,0.2),
-      0 16px 48px -12px rgba(249,115,22,0.2),
-      0 0 24px rgba(249,115,22,0.08);
+      inset 0 1px 0 rgba(255,122,26,0.2),
+      0 16px 48px -12px rgba(255,122,26,0.2),
+      0 0 24px rgba(255,122,26,0.08);
   }
 
   /* Lit-from-within card header gradient */
   .card-header-glow {
     background: linear-gradient(135deg,
-      rgba(249,115,22,0.25) 0%,
-      rgba(251,191,36,0.15) 50%,
-      rgba(249,115,22,0.08) 100%);
+      rgba(255,122,26,0.25) 0%,
+      rgba(255,181,107,0.15) 50%,
+      rgba(255,122,26,0.08) 100%);
   }
 
   /* Animations */
@@ -227,9 +242,9 @@
   }
   /* breathing glow for "Happening Now" bubbles */
   @keyframes pulse-amber {
-    0%   { box-shadow: 0 0 0 0 rgba(249,115,22,0.15); }
-    50%  { box-shadow: 0 0 20px 4px rgba(249,115,22,0.08); }
-    100% { box-shadow: 0 0 0 0 rgba(249,115,22,0.15); }
+    0%   { box-shadow: 0 0 0 0 rgba(255,122,26,0.15); }
+    50%  { box-shadow: 0 0 20px 4px rgba(255,122,26,0.08); }
+    100% { box-shadow: 0 0 0 0 rgba(255,122,26,0.15); }
   }
   /* presence dot heartbeat (slower) */
   @keyframes pulse-dot {
@@ -262,7 +277,7 @@
     bottom: 6px;
     width: 2px;
     border-radius: 2px;
-    background: linear-gradient(to bottom, #F97316, #FBBF24);
+    background: linear-gradient(to bottom, #ff7a1a, #ffb56b);
     transform: scaleY(0);
     transform-origin: top;
     transition: transform 0.25s ease;

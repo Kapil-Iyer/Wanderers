@@ -190,14 +190,14 @@ export default function AuthModal() {
         className="relative overflow-hidden rounded-3xl p-8"
         style={{
           background: "rgba(255,255,255,0.03)",
-          border: "1px solid rgba(249,115,22,0.15)",
+          border: "1px solid rgba(255,122,26,0.15)",
           backdropFilter: "blur(24px)",
-          boxShadow: "inset 0 1px 0 rgba(249,115,22,0.1), 0 32px 80px -20px rgba(0,0,0,0.7)",
+          boxShadow: "inset 0 1px 0 rgba(255,122,26,0.1), 0 32px 80px -20px rgba(0,0,0,0.7)",
         }}
       >
         <div
           className="absolute -top-10 -right-10 w-40 h-40 rounded-full pointer-events-none"
-          style={{ background: "radial-gradient(circle, rgba(249,115,22,0.12) 0%, transparent 70%)" }}
+          style={{ background: "radial-gradient(circle, rgba(255,122,26,0.12) 0%, transparent 70%)" }}
         />
 
         {/* Wordmark */}
@@ -208,7 +208,7 @@ export default function AuthModal() {
             animate={{ opacity: 1, y: 0 }}
             transition={{ duration: 0.6, ease }}
             style={{
-              background: "linear-gradient(135deg, #F97316 0%, #FBBF24 100%)",
+              background: "linear-gradient(135deg, #ff7a1a 0%, #ffb56b 100%)",
               WebkitBackgroundClip: "text",
               WebkitTextFillColor: "transparent",
               backgroundClip: "text",
@@ -285,7 +285,7 @@ export default function AuthModal() {
               <Field id="loginPassword" name="loginPassword" type={showLoginPwd ? "text" : "password"} icon={<Lock className="w-4 h-4" />} placeholder="Your password" label="Password" required autoComplete="new-password"
                 trailing={<EyeToggle show={showLoginPwd} onToggle={() => setShowLoginPwd((p) => !p)} />} />
               <div className="flex justify-end -mt-1">
-                <button type="button" onClick={() => go("forgot")} className="text-xs transition-colors" style={{ color: "#F97316" }}>
+                <button type="button" onClick={() => go("forgot")} className="text-xs transition-colors" style={{ color: "var(--color-text-primary)" }}>
                   Forgot password?
                 </button>
               </div>
@@ -309,8 +309,8 @@ export default function AuthModal() {
             <motion.form key="verify" variants={panelVariants} initial="enter" animate="center" exit="exit"
               transition={{ duration: 0.3, ease }} className="space-y-5 text-center" onSubmit={handleVerify}>
               <div className="w-16 h-16 rounded-full mx-auto flex items-center justify-center"
-                style={{ background: "rgba(249,115,22,0.15)", border: "1px solid rgba(249,115,22,0.3)" }}>
-                <Mail className="w-7 h-7" style={{ color: "#F97316" }} />
+                style={{ background: "rgba(255,122,26,0.15)", border: "1px solid rgba(255,122,26,0.3)" }}>
+                <Mail className="w-7 h-7" style={{ color: "#ff7a1a" }} />
               </div>
               <div>
                 <h2 className="text-xl font-semibold" style={{ color: "var(--color-text-primary)" }}>Check your email</h2>
@@ -325,12 +325,12 @@ export default function AuthModal() {
                 maxLength={6}
                 inputMode="numeric"
                 className="w-full text-center text-2xl tracking-[0.5em] h-14 rounded-2xl font-mono outline-none"
-                style={{ background: "rgba(255,255,255,0.04)", border: "1px solid rgba(249,115,22,0.2)", color: "var(--color-text-primary)" }}
+                style={{ background: "rgba(255,255,255,0.04)", border: "1px solid rgba(255,122,26,0.2)", color: "var(--color-text-primary)" }}
               />
               <AmberButton type="submit" loading={loading} disabled={otp.length < 6}>{loading ? "Verifying…" : "Verify Code"}</AmberButton>
               <button type="button" onClick={handleResendOtp} disabled={resendCooldown > 0}
                 className="block w-full text-sm transition-colors disabled:opacity-40"
-                style={{ color: "#F97316" }}>
+                style={{ color: "var(--color-text-primary)" }}>
                 {resendCooldown > 0 ? `Resend code in ${resendCooldown}s` : "Resend code"}
               </button>
               <BackButton onClick={() => { go("choice"); setOtp(""); setPendingEmail(""); setResendCooldown(0); }} />
@@ -360,7 +360,7 @@ function Field({
           id={id} name={name} type={type} placeholder={placeholder} required={required} autoComplete={autoComplete}
           className={`w-full pl-10 ${trailing ? "pr-10" : "pr-4"} h-11 rounded-xl outline-none text-sm transition-all`}
           style={{ background: "rgba(255,255,255,0.04)", border: "1px solid rgba(255,255,255,0.08)", color: "var(--color-text-primary)" }}
-          onFocus={(e) => (e.target.style.borderColor = "rgba(249,115,22,0.5)")}
+          onFocus={(e) => (e.target.style.borderColor = "rgba(255,122,26,0.5)")}
           onBlur={(e) => (e.target.style.borderColor = "rgba(255,255,255,0.08)")}
         />
         {trailing}
@@ -389,12 +389,12 @@ function AmberButton({ children, onClick, type = "button", loading = false, disa
       type={type} onClick={onClick} disabled={loading || disabled}
       className="w-full h-12 rounded-full font-bold text-sm relative overflow-hidden"
       style={{
-        background: "linear-gradient(135deg, #F97316 0%, #FBBF24 100%)",
-        color: "#1a0a00",
-        boxShadow: "0 0 24px rgba(249,115,22,0.25)",
+        background: "linear-gradient(135deg, #ff7a1a 0%, #ffb56b 100%)",
+        color: "#2a1206",
+        boxShadow: "0 0 24px rgba(255,122,26,0.25)",
         opacity: loading || disabled ? 0.6 : 1,
       }}
-      whileHover={{ scale: 1.03, boxShadow: "0 0 32px rgba(249,115,22,0.4)" }}
+      whileHover={{ scale: 1.03, boxShadow: "0 0 32px rgba(255,122,26,0.4)" }}
       whileTap={{ scale: 0.97 }}
       transition={{ type: "spring", stiffness: 400, damping: 20 }}
     >

@@ -32,7 +32,7 @@ const vibeCards = [
     desc: "SLC, your corner table, oat milk flat white, vibes only",
     interests: ["☕ Coffee", "📷 Photography"],
     bg: "linear-gradient(160deg, #1a0d00 0%, #2d1600 50%, #0f0800 100%)",
-    accent: "#fbbf24",
+    accent: "#ffb56b",
     particle: "✨",
   },
   {
@@ -62,7 +62,7 @@ const vibeCards = [
     desc: "Hikes, open mics, random events — if it's new, you're in",
     interests: ["🥾 Hiking", "🎵 Music", "🎭 Theater", "🎨 Arts"],
     bg: "linear-gradient(160deg, #120a00 0%, #1a0d00 50%, #0d0600 100%)",
-    accent: "#f97316",
+    accent: "#ff7a1a",
     particle: "🌟",
   },
 ];
@@ -87,11 +87,11 @@ export default function OnboardingPage() {
   };
 
   return (
-    <div className="min-h-screen flex flex-col" style={{ background: "var(--color-bg)" }}>
+    <div className="min-h-screen flex flex-col">
       {/* Ambient background */}
       <div className="fixed inset-0 pointer-events-none">
         <div className="absolute top-0 left-1/2 -translate-x-1/2 w-[600px] h-[300px] rounded-full opacity-30"
-          style={{ background: "radial-gradient(ellipse, rgba(249,115,22,0.12) 0%, transparent 70%)" }} />
+          style={{ background: "radial-gradient(ellipse, rgba(255,122,26,0.12) 0%, transparent 70%)" }} />
       </div>
 
       <div className="relative z-10 flex flex-col flex-1 max-w-xl mx-auto w-full px-5 pt-12 pb-10">
@@ -104,7 +104,7 @@ export default function OnboardingPage() {
           transition={{ duration: 0.7, ease }}
         >
           <p className="text-xs font-semibold tracking-[0.2em] uppercase mb-2"
-            style={{ color: "var(--color-accent-start)" }}>
+            style={{ color: "var(--color-text-primary)" }}>
             step 1 of 1
           </p>
           <h1 className="font-display text-4xl font-bold leading-tight"
@@ -148,7 +148,7 @@ export default function OnboardingPage() {
                   style={{
                     background: isSelected
                       ? `radial-gradient(ellipse at 80% 20%, ${card.accent}18 0%, transparent 60%)`
-                      : "radial-gradient(ellipse at 80% 20%, rgba(249,115,22,0.05) 0%, transparent 60%)",
+                      : "radial-gradient(ellipse at 80% 20%, rgba(255,122,26,0.05) 0%, transparent 60%)",
                   }} />
 
                 <div className="relative flex items-center gap-4">
@@ -183,7 +183,7 @@ export default function OnboardingPage() {
                       <motion.div
                         key="check"
                         className="w-7 h-7 rounded-full flex items-center justify-center shrink-0"
-                        style={{ background: `linear-gradient(135deg, #F97316, #FBBF24)` }}
+                        style={{ background: `linear-gradient(135deg, #ff7a1a, #ffb56b)` }}
                         initial={{ scale: 0, opacity: 0 }}
                         animate={{ scale: 1, opacity: 1 }}
                         exit={{ scale: 0, opacity: 0 }}
@@ -223,10 +223,10 @@ export default function OnboardingPage() {
             className="w-full h-13 py-3.5 rounded-full font-bold text-base relative overflow-hidden"
             style={{
               background: selected.size > 0
-                ? "linear-gradient(135deg, #F97316 0%, #FBBF24 100%)"
+                ? "linear-gradient(135deg, #ff7a1a 0%, #ffb56b 100%)"
                 : "rgba(255,255,255,0.06)",
-              color: selected.size > 0 ? "#1a0a00" : "var(--color-text-muted)",
-              boxShadow: selected.size > 0 ? "0 0 32px rgba(249,115,22,0.3)" : "none",
+              color: selected.size > 0 ? "#2a1206" : "var(--color-text-muted)",
+              boxShadow: selected.size > 0 ? "0 0 32px rgba(255,122,26,0.3)" : "none",
               cursor: selected.size === 0 ? "not-allowed" : "pointer",
             }}
             whileHover={selected.size > 0 ? { scale: 1.03 } : {}}

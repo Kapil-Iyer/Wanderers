@@ -56,7 +56,7 @@ export default function CursorGlow() {
           translateY: "-50%",
           borderRadius: "50%",
           background:
-            "radial-gradient(circle, rgba(251,191,36,0.55) 0%, rgba(249,115,22,0.22) 42%, transparent 72%)",
+            "radial-gradient(circle, rgba(255,181,107,0.55) 0%, rgba(255,122,26,0.22) 42%, transparent 72%)",
           filter: "blur(2px)",
         }}
         animate={{ width: hot ? 60 : 34, height: hot ? 60 : 34, opacity: hot ? 0.5 : 0.3 }}

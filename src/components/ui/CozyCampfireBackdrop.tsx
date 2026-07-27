@@ -71,7 +71,7 @@ export default function CozyCampfireBackdrop() {
           transform: "translateX(-50%)",
           transformOrigin: "bottom center",
           background:
-            "radial-gradient(ellipse at 50% 100%, rgba(249,140,40,0.5) 0%, rgba(249,115,22,0.28) 30%, rgba(180,60,10,0.12) 55%, transparent 75%)",
+            "radial-gradient(ellipse at 50% 100%, rgba(249,140,40,0.5) 0%, rgba(255,122,26,0.28) 30%, rgba(180,60,10,0.12) 55%, transparent 75%)",
           filter: "blur(20px)",
         }}
       />
@@ -87,7 +87,7 @@ export default function CozyCampfireBackdrop() {
           transformOrigin: "bottom center",
           animationDelay: "-1.2s",
           background:
-            "radial-gradient(ellipse at 50% 100%, rgba(255,210,140,0.55) 0%, rgba(249,140,40,0.3) 45%, transparent 75%)",
+            "radial-gradient(ellipse at 50% 100%, rgba(255,210,140,0.5) 0%, rgba(255,122,26,0.3) 45%, transparent 75%)",
           filter: "blur(14px)",
         }}
       />
@@ -103,8 +103,8 @@ export default function CozyCampfireBackdrop() {
               bottom: "8%",
               width: e.size,
               height: e.size,
-              background: "radial-gradient(circle, #fed7aa 0%, #f97316 60%, transparent 100%)",
-              boxShadow: "0 0 6px rgba(249,115,22,0.7)",
+              background: "radial-gradient(circle, #fed7aa 0%, #ff7a1a 60%, transparent 100%)",
+              boxShadow: "0 0 6px rgba(255,122,26,0.7)",
               // @ts-expect-error custom prop consumed by the ember-rise keyframe
               "--ember-drift": e.drift,
               animation: `ember-rise ${e.dur}s linear ${e.delay}s infinite`,
@@ -116,7 +116,7 @@ export default function CozyCampfireBackdrop() {
       {!reduce && (
         <motion.div
           className="absolute inset-0"
-          style={{ background: "radial-gradient(ellipse 60% 50% at 50% 100%, rgba(249,115,22,0.10), transparent 70%)" }}
+          style={{ background: "radial-gradient(ellipse 60% 50% at 50% 100%, rgba(255,122,26,0.10), transparent 70%)" }}
           animate={{ opacity: [0.6, 0.9, 0.6] }}
           transition={{ duration: 5, repeat: Infinity, ease: "easeInOut" }}
         />

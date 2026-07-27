@@ -12,7 +12,7 @@ const zoneOptions = ["PAC", "DC", "SLC", "EV3", "MC", "Columbia Fields", "Laurel
 const ease = [0.25, 0.46, 0.45, 0.94] as const;
 
 const AMBER_TOAST = {
-  background: "linear-gradient(135deg, #F97316, #FBBF24)",
+  background: "linear-gradient(135deg, #ff7a1a, #ffb56b)",
   color: "#1a0a00",
   border: "none",
   fontWeight: 600,
@@ -180,9 +180,9 @@ export default function CreateBubbleModal({ open, onClose, onCreated, prefill }:
             className="w-full max-w-lg rounded-t-3xl sm:rounded-3xl overflow-hidden"
             style={{
               background: "rgba(12,12,14,0.97)",
-              border: "1px solid rgba(249,115,22,0.15)",
+              border: "1px solid rgba(255,122,26,0.15)",
               backdropFilter: "blur(24px)",
-              boxShadow: "inset 0 1px 0 rgba(249,115,22,0.1), 0 -32px 80px rgba(0,0,0,0.8)",
+              boxShadow: "inset 0 1px 0 rgba(255,122,26,0.1), 0 -32px 80px rgba(0,0,0,0.8)",
               maxHeight: "88vh",
               overflowY: "auto",
             }}
@@ -191,7 +191,7 @@ export default function CreateBubbleModal({ open, onClose, onCreated, prefill }:
             onClick={(e) => e.stopPropagation()}
           >
             <div className="absolute top-0 left-0 right-0 h-1 pointer-events-none"
-              style={{ background: "linear-gradient(90deg, #F97316, #FBBF24, #F97316)" }} />
+              style={{ background: "linear-gradient(90deg, #ff7a1a, #ffb56b, #ff7a1a)" }} />
 
             <div className="p-6">
               <div className="flex items-center justify-between mb-6">
@@ -225,23 +225,23 @@ export default function CreateBubbleModal({ open, onClose, onCreated, prefill }:
                   >
                     <div className="rounded-3xl p-6 relative overflow-hidden"
                       style={{
-                        background: "linear-gradient(160deg, rgba(249,115,22,0.12), rgba(255,255,255,0.02))",
-                        border: "1px solid rgba(249,115,22,0.25)",
-                        boxShadow: "inset 0 1px 0 rgba(249,115,22,0.15)",
+                        background: "linear-gradient(160deg, rgba(255,122,26,0.12), rgba(255,255,255,0.02))",
+                        border: "1px solid rgba(255,122,26,0.25)",
+                        boxShadow: "inset 0 1px 0 rgba(255,122,26,0.15)",
                       }}>
                       <div className="absolute -top-8 -right-8 w-32 h-32 rounded-full pointer-events-none"
-                        style={{ background: "radial-gradient(circle, rgba(249,115,22,0.2), transparent 70%)" }} />
+                        style={{ background: "radial-gradient(circle, rgba(255,122,26,0.2), transparent 70%)" }} />
                       <div className="relative">
                         <div className="text-5xl mb-3">{previewEmoji}</div>
                         <h3 className="font-display text-2xl font-bold leading-tight" style={{ color: "var(--color-text-primary)" }}>
                           {previewTitle}
                         </h3>
                         <div className="flex items-center gap-3 mt-2 flex-wrap">
-                          <span className="flex items-center gap-1.5 text-sm" style={{ color: "#FBBF24" }}>
+                          <span className="flex items-center gap-1.5 text-sm" style={{ color: "#ffb56b" }}>
                             <Clock className="w-3.5 h-3.5" /> Starting {previewStarting === "Now" ? "now" : `in ${previewStarting}`}
                           </span>
                           <span className="flex items-center gap-1.5 text-sm" style={{ color: "var(--color-text-secondary)" }}>
-                            <Users className="w-3.5 h-3.5" style={{ color: "#F97316" }} /> {previewCapacity}
+                            <Users className="w-3.5 h-3.5" style={{ color: "#ff7a1a" }} /> {previewCapacity}
                           </span>
                         </div>
                         {description.trim() && (
@@ -256,12 +256,12 @@ export default function CreateBubbleModal({ open, onClose, onCreated, prefill }:
                       <motion.button type="button" onClick={submit} disabled={submitting}
                         className="flex-1 h-12 rounded-full font-bold text-base flex items-center justify-center gap-2"
                         style={{
-                          background: "linear-gradient(135deg, #F97316, #FBBF24)",
+                          background: "linear-gradient(135deg, #ff7a1a, #ffb56b)",
                           color: "#1a0a00",
-                          boxShadow: "0 0 32px rgba(249,115,22,0.35)",
+                          boxShadow: "0 0 32px rgba(255,122,26,0.35)",
                           opacity: submitting ? 0.7 : 1,
                         }}
-                        whileHover={submitting ? {} : { scale: 1.02, boxShadow: "0 0 48px rgba(249,115,22,0.5)" }}
+                        whileHover={submitting ? {} : { scale: 1.02, boxShadow: "0 0 48px rgba(255,122,26,0.5)" }}
                         whileTap={submitting ? {} : { scale: 0.97 }}
                         transition={{ type: "spring", stiffness: 400, damping: 20 }}>
                         <Flame className="w-4 h-4" />
@@ -290,7 +290,7 @@ export default function CreateBubbleModal({ open, onClose, onCreated, prefill }:
                     <div className="space-y-2">
                       <label className="text-xs font-bold uppercase tracking-wider flex items-center gap-1.5"
                         style={{ color: "var(--color-text-muted)" }}>
-                        <Sparkles className="w-3.5 h-3.5" style={{ color: "#F97316" }} />
+                        <Sparkles className="w-3.5 h-3.5" style={{ color: "#ff7a1a" }} />
                         Describe it naturally
                       </label>
                       <div className="flex gap-2">
@@ -303,7 +303,7 @@ export default function CreateBubbleModal({ open, onClose, onCreated, prefill }:
                         />
                         <motion.button type="button" onClick={handleParseIntent} disabled={parsing}
                           className="px-4 h-11 rounded-xl text-xs font-bold shrink-0 flex items-center gap-1.5"
-                          style={{ background: "rgba(249,115,22,0.15)", border: "1px solid rgba(249,115,22,0.25)", color: "#F97316", opacity: parsing ? 0.6 : 1 }}
+                          style={{ background: "rgba(255,122,26,0.15)", border: "1px solid rgba(255,122,26,0.25)", color: "#ff7a1a", opacity: parsing ? 0.6 : 1 }}
                           whileHover={{ scale: 1.03 }} whileTap={{ scale: 0.97 }}
                           transition={{ type: "spring", stiffness: 400, damping: 20 }}>
                           {parsing ? (
@@ -317,8 +317,8 @@ export default function CreateBubbleModal({ open, onClose, onCreated, prefill }:
                           {parsing ? (
                             <>
                               <span className="w-3 h-3 rounded-full border-2 animate-spin"
-                                style={{ borderColor: "#F97316", borderTopColor: "transparent" }} />
-                              <span style={{ color: "#FBBF24" }}>Reading your idea…</span>
+                                style={{ borderColor: "#ff7a1a", borderTopColor: "transparent" }} />
+                              <span style={{ color: "#ffb56b" }}>Reading your idea…</span>
                             </>
                           ) : (
                             <span style={{ color: "#f87171" }}>{parseError}</span>
@@ -356,15 +356,15 @@ export default function CreateBubbleModal({ open, onClose, onCreated, prefill }:
                         maxLength={500}
                         className="w-full px-3 py-2.5 rounded-xl text-sm resize-none outline-none"
                         style={{ background: "rgba(255,255,255,0.04)", border: "1px solid rgba(255,255,255,0.08)", color: "var(--color-text-primary)" }}
-                        onFocus={(e) => (e.target.style.borderColor = "rgba(249,115,22,0.4)")}
+                        onFocus={(e) => (e.target.style.borderColor = "rgba(255,122,26,0.4)")}
                         onBlur={(e) => (e.target.style.borderColor = "rgba(255,255,255,0.08)")}
                       />
                     </FieldGroup>
 
                     <motion.button type="submit" disabled={submitting}
                       className="w-full h-12 rounded-full font-bold text-base"
-                      style={{ background: "linear-gradient(135deg, #F97316 0%, #FBBF24 100%)", color: "#1a0a00", boxShadow: "0 0 32px rgba(249,115,22,0.35)", opacity: submitting ? 0.7 : 1 }}
-                      whileHover={submitting ? {} : { scale: 1.02, boxShadow: "0 0 48px rgba(249,115,22,0.5)" }}
+                      style={{ background: "linear-gradient(135deg, #ff7a1a 0%, #ffb56b 100%)", color: "#1a0a00", boxShadow: "0 0 32px rgba(255,122,26,0.35)", opacity: submitting ? 0.7 : 1 }}
+                      whileHover={submitting ? {} : { scale: 1.02, boxShadow: "0 0 48px rgba(255,122,26,0.5)" }}
                       whileTap={submitting ? {} : { scale: 0.97 }}
                       transition={{ type: "spring", stiffness: 400, damping: 20 }}>
                       {submitting ? "Creating…" : "Create Bubble 🫧"}
@@ -386,7 +386,7 @@ function WarmInput({ className = "", ...props }: React.InputHTMLAttributes<HTMLI
       {...props}
       className={`h-11 px-3 rounded-xl text-sm outline-none w-full ${className}`}
       style={{ background: "rgba(255,255,255,0.04)", border: "1px solid rgba(255,255,255,0.08)", color: "var(--color-text-primary)", ...props.style }}
-      onFocus={(e) => { e.target.style.borderColor = "rgba(249,115,22,0.4)"; props.onFocus?.(e); }}
+      onFocus={(e) => { e.target.style.borderColor = "rgba(255,122,26,0.4)"; props.onFocus?.(e); }}
       onBlur={(e) => { e.target.style.borderColor = "rgba(255,255,255,0.08)"; props.onBlur?.(e); }}
     />
   );
@@ -408,7 +408,7 @@ function ChipGrid({ options, selected, onSelect }: { options: string[]; selected
         <motion.button key={opt} type="button" onClick={() => onSelect(opt)}
           className="px-3 py-1.5 rounded-full text-xs font-medium"
           style={selected === opt
-            ? { background: "linear-gradient(135deg, #F97316, #FBBF24)", color: "#1a0a00", fontWeight: 700, border: "none" }
+            ? { background: "linear-gradient(135deg, #ff7a1a, #ffb56b)", color: "#1a0a00", fontWeight: 700, border: "none" }
             : { background: "rgba(255,255,255,0.04)", border: "1px solid rgba(255,255,255,0.08)", color: "var(--color-text-secondary)" }}
           whileHover={{ scale: 1.05 }} whileTap={{ scale: 0.95 }}
           transition={{ type: "spring", stiffness: 400, damping: 20 }}>

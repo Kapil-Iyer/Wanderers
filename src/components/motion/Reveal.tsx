@@ -113,18 +113,22 @@ export function AnimatedHeadline({
   text,
   className,
   accentWords = [],
+  accentClassName = "text-gradient",
   delay = 0,
 }: {
   text: string;
   className?: string;
   accentWords?: string[];
+  accentClassName?: string;
   delay?: number;
 }) {
   const reduce = useReducedMotion();
   const words = text.split(" ");
 
   const isAccent = (w: string) =>
-    accentWords.some((a) => w.replace(/[.,!?]/g, "").toLowerCase() === a.toLowerCase());
+    accentWords.some(
+      (a) => w.replace(/[.,!?]/g, "").toLowerCase() === a.replace(/[.,!?]/g, "").toLowerCase()
+    );
 
   if (reduce) {
     return (
@@ -133,7 +137,7 @@ export function AnimatedHeadline({
           <span
             key={i}
             style={{ marginRight: "0.28em" }}
-            className={isAccent(w) ? "text-gradient" : undefined}
+            className={isAccent(w) ? accentClassName : undefined}
           >
             {w}
           </span>
@@ -147,7 +151,7 @@ export function AnimatedHeadline({
       {words.map((w, i) => (
         <motion.span
           key={i}
-          className={isAccent(w) ? "text-gradient" : undefined}
+          className={isAccent(w) ? accentClassName : undefined}
           style={{ display: "inline-block", marginRight: "0.28em" }}
           initial={{ filter: "blur(10px)", opacity: 0, y: 40 }}
           animate={{

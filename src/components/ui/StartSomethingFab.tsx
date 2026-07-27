@@ -22,19 +22,19 @@ export default function StartSomethingFab({ onClick }: { onClick: () => void }) 
           aria-label="Start Something — create a new bubble"
           className="relative flex items-center gap-2 h-13 px-7 py-3.5 rounded-full font-bold text-sm"
           style={{
-            background: "linear-gradient(135deg, #F97316 0%, #FBBF24 100%)",
-            color: "#1a0a00",
+            background: "linear-gradient(135deg, #ff7a1a 0%, #ffb56b 100%)",
+            color: "#2a1206",
           }}
           animate={
             reduce
-              ? { boxShadow: "0 0 28px rgba(249,115,22,0.35)" }
+              ? { boxShadow: "0 0 28px rgba(255,122,26,0.35)" }
               : {
                   // heartbeat scale + sonar ping ring, in sync
                   scale: [1, 1.08, 1],
                   boxShadow: [
-                    "0 0 0 0 rgba(249,115,22,0.4), 0 0 24px rgba(249,115,22,0.3)",
-                    "0 0 0 20px rgba(249,115,22,0), 0 0 44px rgba(249,115,22,0.5)",
-                    "0 0 0 0 rgba(249,115,22,0), 0 0 24px rgba(249,115,22,0.3)",
+                    "0 0 0 0 rgba(255,122,26,0.4), 0 0 24px rgba(255,122,26,0.3)",
+                    "0 0 0 20px rgba(255,122,26,0), 0 0 44px rgba(255,122,26,0.5)",
+                    "0 0 0 0 rgba(255,122,26,0), 0 0 24px rgba(255,122,26,0.3)",
                   ],
                 }
           }
