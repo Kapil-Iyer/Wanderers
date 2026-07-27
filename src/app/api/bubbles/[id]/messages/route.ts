@@ -156,9 +156,20 @@ export async function POST(
       );
     }
 
+    const { data: profile } = await admin
+      .from("users")
+      .select("name")
+      .eq("id", user.id)
+      .maybeSingle();
+    const senderName =
+      (profile?.name && String(profile.name).trim()) ||
+      (typeof user.user_metadata?.name === "string" && user.user_metadata.name.trim()) ||
+      user.email?.split("@")[0] ||
+      "Wanderer";
+
     return NextResponse.json({
       success: true,
-      data: message,
+      data: { ...message, sender_name: senderName },
       members_count: membership.members_count,
     });
   } catch {

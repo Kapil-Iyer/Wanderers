@@ -40,6 +40,7 @@ export default function BubbleCard({ bubble }: { bubble: Bubble }) {
     const token = sessionData.session?.access_token;
     if (!token) {
       toast.error("Sign in to join a bubble");
+      router.push("/");
       return;
     }
     setJoining(true);
