@@ -76,6 +76,35 @@ export default function HomePage() {
   const [liveBubbles, setLiveBubbles] = useState<Bubble[]>([]);
   const [campusEvents, setCampusEvents] = useState<CampusEvent[]>([]);
   const [prefill, setPrefill] = useState<{ activity?: string; zone?: string } | undefined>();
+  const [profileInitials, setProfileInitials] = useState("?");
+
+  useEffect(() => {
+    let cancelled = false;
+    import("@/lib/supabase")
+      .then((m) => m.supabase.auth.getSession())
+      .then(async ({ data }) => {
+        const user = data?.session?.user;
+        if (!user || cancelled) return;
+        const meta =
+          (typeof user.user_metadata?.name === "string" && user.user_metadata.name.trim()) ||
+          (typeof user.user_metadata?.full_name === "string" && user.user_metadata.full_name.trim()) ||
+          "";
+        const { data: row } = await import("@/lib/supabase").then((m) =>
+          m.supabase.from("users").select("name").eq("id", user.id).maybeSingle()
+        );
+        const name = (row?.name && String(row.name).trim()) || meta || user.email?.split("@")[0] || "W";
+        const parts = name.split(/\s+/).filter(Boolean);
+        const initials =
+          parts.length >= 2
+            ? (parts[0][0] + parts[parts.length - 1][0]).toUpperCase()
+            : name.slice(0, 2).toUpperCase();
+        if (!cancelled) setProfileInitials(initials);
+      })
+      .catch(() => {});
+    return () => {
+      cancelled = true;
+    };
+  }, []);
 
   const router = useRouter();
   const momentsRef = useRef<HTMLDivElement>(null);
@@ -234,7 +263,7 @@ export default function HomePage() {
               whileTap={{ scale: 0.92 }}
               transition={{ type: "spring", stiffness: 400, damping: 20 }}
             >
-              JD
+              {profileInitials}
             </motion.button>
           </div>
         </div>
