@@ -3,6 +3,7 @@
 import { useMemo, useState } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import BottomNav from "@/components/ui/BottomNav";
+import AppHeader from "@/components/ui/AppHeader";
 import BubbleCard from "@/components/ui/BubbleCard";
 import { mockBubbles, filterChips } from "@/lib/mockData";
 import { Reveal, StaggerContainer, StaggerItem, AnimatedHeadline, EASE } from "@/components/motion/Reveal";
@@ -21,18 +22,19 @@ export default function MyBubblesPage() {
   }, [activeFilter, myBubbles]);
 
   return (
-    <div className="min-h-screen pb-40">
-      {/* Top bar */}
-      <header
-        className={`sticky top-0 z-50 transition-[margin] duration-300 ease-out ${sidebarExpanded ? "lg:ml-64" : "lg:ml-3"}`}
-        style={{ background: "rgba(20,15,10,0.8)", borderBottom: "1px solid rgba(255,122,26,0.07)", backdropFilter: "blur(16px)" }}
-      >
-        <div className="px-5 sm:px-8 h-14 flex items-center max-w-[1400px] mx-auto">
-          <span className="text-sm font-semibold" style={{ color: "var(--color-text-secondary)" }}>My Bubbles</span>
-        </div>
-      </header>
+    <div className="min-h-screen pb-40 relative">
+      <div
+        className="pointer-events-none absolute inset-0 z-0"
+        style={{
+          background:
+            "radial-gradient(ellipse 80% 50% at 50% -10%, rgba(255,122,26,0.08), transparent 55%), linear-gradient(180deg, rgba(10,7,5,0.55) 0%, rgba(10,7,5,0.78) 40%, rgba(10,7,5,0.88) 100%)",
+        }}
+        aria-hidden
+      />
 
-      <div className={`transition-[padding] duration-300 ease-out ${sidebarExpanded ? "lg:pl-64" : "lg:pl-3"}`}>
+      <AppHeader title="My Bubbles" />
+
+      <div className={`relative z-10 transition-[padding] duration-300 ease-out ${sidebarExpanded ? "lg:pl-64" : "lg:pl-3"}`}>
         <div className="max-w-[1100px] mx-auto px-5 sm:px-8">
 
           {/* Editorial title */}
@@ -86,9 +88,9 @@ export default function MyBubblesPage() {
           {/* Grid */}
           <AnimatePresence mode="wait">
             {filteredBubbles.length > 0 ? (
-              <StaggerContainer key={activeFilter} className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-3 gap-5 pb-10">
+              <StaggerContainer key={activeFilter} className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-3 gap-5 auto-rows-fr pb-10">
                 {filteredBubbles.map((b) => (
-                  <StaggerItem key={b.id}>
+                  <StaggerItem key={b.id} className="h-full">
                     <BubbleCard bubble={b} />
                   </StaggerItem>
                 ))}

@@ -36,8 +36,11 @@ export default function BubbleCard({ bubble }: { bubble: Bubble }) {
 
   const handleJoin = async () => {
     if (joining) return;
-    const { data: sessionData } = await supabase.auth.getSession();
-    const token = sessionData.session?.access_token;
+    // Refresh so we don't send an expired access token
+    const { data: refreshed } = await supabase.auth.refreshSession();
+    const token =
+      refreshed.session?.access_token ??
+      (await supabase.auth.getSession()).data.session?.access_token;
     if (!token) {
       toast.error("Sign in to join a bubble");
       router.push("/");
@@ -55,7 +58,13 @@ export default function BubbleCard({ bubble }: { bubble: Bubble }) {
       });
       const data = await res.json().catch(() => ({}));
       if (!res.ok || !data.success) {
-        toast.error(data.error ?? "Could not join");
+        const err = (data.error ?? "Could not join") as string;
+        toast.error(
+          /unauth/i.test(err) || res.status === 401
+            ? "Session expired — sign in again"
+            : err
+        );
+        if (/unauth/i.test(err) || res.status === 401) router.push("/");
         return;
       }
       const membersCount =
@@ -75,29 +84,28 @@ export default function BubbleCard({ bubble }: { bubble: Bubble }) {
   };
 
   return (
-    <div className="relative h-full" style={{ perspective: "1600px" }}>
+    <div className="relative h-[420px]" style={{ perspective: "1600px" }}>
       <motion.div
         className="relative h-full w-full"
         style={{ transformStyle: "preserve-3d" }}
         animate={{ rotateY: flipped ? 180 : 0 }}
         transition={{ duration: 0.6, ease: EASE }}
       >
-        {/* ── FRONT — stays in normal flow so the grid row measures its real height;
-              the back face (absolutely positioned) then matches whatever height this produces ── */}
+        {/* ── FRONT — fixed height so new events match every other card ── */}
         <motion.div
-          className="group relative rounded-3xl h-full flex flex-col"
+          className="group relative rounded-3xl h-full flex flex-col overflow-hidden"
           style={{
             background: `linear-gradient(165deg, ${theme.tint} 0%, rgba(10,7,5,0.95) 45%)`,
-            border: "1px solid rgba(255,255,255,0.07)",
-            backdropFilter: "blur(12px)",
-            boxShadow: "inset 0 1px 0 rgba(255,255,255,0.05), 0 4px 24px rgba(0,0,0,0.4)",
+            border: "1.5px solid rgba(255,181,107,0.18)",
+            boxShadow:
+              "inset 0 1px 0 rgba(255,255,255,0.1), inset 0 -1px 0 rgba(0,0,0,0.35), 0 10px 28px -10px rgba(0,0,0,0.55)",
             backfaceVisibility: "hidden",
             pointerEvents: flipped ? "none" : "auto",
           }}
           whileHover={{
-            y: -7,
-            scale: 1.018,
-            boxShadow: `inset 0 1px 0 ${theme.from}40, 0 24px 60px -16px ${theme.from}45, 0 0 32px ${theme.from}18`,
+            y: -5,
+            rotateX: 2,
+            boxShadow: `inset 0 1px 0 ${theme.from}40, 0 18px 40px -14px ${theme.from}40, 0 0 24px ${theme.from}14`,
           }}
           transition={{ type: "spring", stiffness: 300, damping: 22 }}
         >
@@ -156,7 +164,10 @@ export default function BubbleCard({ bubble }: { bubble: Bubble }) {
 
           {/* Body */}
           <div className="p-5 flex flex-col flex-1">
-            <h3 className="font-display text-lg font-bold leading-tight" style={{ color: "var(--color-text-primary)" }}>
+            <h3
+              className="font-display text-lg font-bold leading-tight line-clamp-2 min-h-[2.75rem]"
+              style={{ color: "var(--color-text-primary)" }}
+            >
               {bubble.title}
             </h3>
 
@@ -185,8 +196,11 @@ export default function BubbleCard({ bubble }: { bubble: Bubble }) {
               />
             </div>
 
-            <p className="text-sm mt-4 line-clamp-2 leading-relaxed flex-1" style={{ color: "var(--color-text-secondary)" }}>
-              {bubble.description}
+            <p
+              className="text-sm mt-4 line-clamp-2 leading-relaxed min-h-[2.5rem]"
+              style={{ color: "var(--color-text-secondary)" }}
+            >
+              {bubble.description || "Join this bubble and meet people nearby."}
             </p>
 
             {/* Footer — creator */}

@@ -3,8 +3,9 @@
 /**
  * END EVENT MODAL - Two-step flow
  * -----------------------------------------------------------------------------
- * Card 1: Take picture, caption, Save to device | Save and post (→ /api/media/upload, then /api/bubbles/[id]/confirm)
+ * Card 1: Take picture, caption, Save to device | End event (confirm bubble)
  * Card 2: People you hung out with + "Wanna wander?" (connect request)
+ * Photo upload to remote storage is disabled — local preview / save only.
  * -----------------------------------------------------------------------------
  */
 
@@ -32,7 +33,6 @@ export default function EndEventModal({ bubble, onClose, onAddPost }: EndEventMo
   const [step, setStep] = useState<"photo" | "people">("photo");
   const [caption, setCaption] = useState("");
   const [photoUrl, setPhotoUrl] = useState<string | null>(null);
-  const [photoFile, setPhotoFile] = useState<File | null>(null);
   const [filter, setFilter] = useState<"polaroid" | "grayscale" | "sepia" | null>(null);
   const [posting, setPosting] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
@@ -47,7 +47,6 @@ export default function EndEventModal({ bubble, onClose, onAddPost }: EndEventMo
   const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (file && file.type.startsWith("image/")) {
-      setPhotoFile(file);
       setPhotoUrl(URL.createObjectURL(file));
     }
     e.target.value = "";
@@ -64,55 +63,13 @@ export default function EndEventModal({ bubble, onClose, onAddPost }: EndEventMo
   };
 
   const handleSaveAndPost = async () => {
-    if (!photoFile) {
-      toast.error("Please take or select a photo first.");
-      return;
-    }
-
     const bubbleId = bubble.id.replace(/^bubble-/, "");
     const { data: sessionData } = await supabase.auth.getSession();
     const token = sessionData?.session?.access_token;
 
     setPosting(true);
     try {
-      const base64Image = await new Promise<string>((resolve, reject) => {
-        const reader = new FileReader();
-        reader.onload = () => {
-          const result = reader.result as string;
-          resolve(result);
-        };
-        reader.onerror = () => reject(new Error("Failed to read image"));
-        reader.readAsDataURL(photoFile);
-      });
-
-      const participants = bubble.participants ?? [];
-      const filterStyle = filter ?? "polaroid";
-
-      const uploadHeaders: Record<string, string> = { "Content-Type": "application/json" };
-      if (token) uploadHeaders.Authorization = `Bearer ${token}`;
-
-      const uploadRes = await fetch("/api/media/upload", {
-        method: "POST",
-        headers: uploadHeaders,
-        body: JSON.stringify({
-          bubble_id: bubbleId,
-          image: base64Image,
-          activity: bubble.name,
-          location: bubble.zone ?? "—",
-          date: new Date().toLocaleDateString(undefined, { dateStyle: "medium" }),
-          memberCount: participants.length,
-          filterStyle,
-        }),
-      });
-
-      const uploadJson = await uploadRes.json();
-      if (!uploadRes.ok || !uploadJson.success) {
-        toast.error(uploadJson.error ?? "Upload failed");
-        return;
-      }
-
-      const cloudinaryUrl = uploadJson.data?.cloudinary_url ?? uploadJson.cloudinary_url;
-
+      // End event without remote photo upload (media upload disabled).
       if (token) {
         const confirmRes = await fetch(`/api/bubbles/${bubbleId}/confirm`, {
           method: "POST",
@@ -122,7 +79,9 @@ export default function EndEventModal({ bubble, onClose, onAddPost }: EndEventMo
           const errBody = await confirmRes.json().catch(() => ({}));
           const msg = errBody?.error || confirmRes.statusText;
           if (confirmRes.status === 403) {
-            toast.error("You're not a member of this bubble. Join the bubble from the chat first, then end the event.");
+            toast.error(
+              "You're not a member of this bubble. Join the bubble from the chat first, then end the event."
+            );
           } else {
             toast.error(msg || "Event could not be ended.");
           }
@@ -130,15 +89,17 @@ export default function EndEventModal({ bubble, onClose, onAddPost }: EndEventMo
         }
       }
 
+      const participants = bubble.participants ?? [];
       onAddPost({
         username: "you",
-        userAvatar: "JD",
+        userAvatar: "YU",
         activity: bubble.name,
         zone: bubble.zone ?? "—",
         participants: participants.map((p) => ({ name: p.name, avatar: p.avatar })),
         caption: caption.trim() || `${bubble.name} 💫`,
-        imageUrl: cloudinaryUrl,
+        ...(photoUrl ? { imageUrl: photoUrl } : {}),
       });
+      toast.success("Event ended");
       setStep("people");
     } catch (err) {
       toast.error(err instanceof Error ? err.message : "Something went wrong");

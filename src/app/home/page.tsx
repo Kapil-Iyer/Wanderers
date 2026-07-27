@@ -1,11 +1,11 @@
 "use client";
 
 import { useEffect, useMemo, useRef, useState } from "react";
-import { useRouter } from "next/navigation";
 import Link from "next/link";
 import { motion, AnimatePresence, useReducedMotion } from "framer-motion";
-import { ChevronDown, MapPin, Bell, ChevronsDown, Clock, Users, Instagram, ArrowRight } from "lucide-react";
+import { MapPin, ChevronsDown, Clock, Users, Instagram, ArrowRight } from "lucide-react";
 import BottomNav from "@/components/ui/BottomNav";
+import AppHeader from "@/components/ui/AppHeader";
 import BubbleCard from "@/components/ui/BubbleCard";
 import CreateBubbleModal from "@/components/ui/CreateBubbleModal";
 import StartSomethingFab from "@/components/ui/StartSomethingFab";
@@ -109,7 +109,6 @@ export default function HomePage() {
     };
   }, []);
 
-  const router = useRouter();
   const { expanded: sidebarExpanded } = useSidebar();
   const upcomingRef = useRef<HTMLDivElement>(null);
   const nearbyRef = useRef<HTMLElement>(null);
@@ -127,12 +126,12 @@ export default function HomePage() {
   useEffect(() => {
     fetch("/api/moments")
       .then((r) => r.json())
-      .then((data: { success?: boolean; data?: Array<{ id: string; cloudinary_url: string; created_at: string }> }) => {
+      .then((data: { success?: boolean; data?: Array<{ id: string; image_url?: string; cloudinary_url?: string; created_at: string }> }) => {
         if (data?.success && Array.isArray(data.data) && data.data.length > 0) {
           setFeedPosts(data.data.map((m) => ({
             id: m.id, username: "Wanderer", userAvatar: "✨", activity: "Wander Moment",
             zone: "—", caption: "#wandermoment", timestamp: formatMomentTime(m.created_at),
-            participants: [], likes: 0, comments: [], imageUrl: m.cloudinary_url,
+            participants: [], likes: 0, comments: [], imageUrl: m.image_url ?? m.cloudinary_url,
           })));
         }
       })
@@ -243,69 +242,33 @@ export default function HomePage() {
   return (
     <div className="min-h-screen pb-40">
 
-      {/* ── Top bar ── */}
-      <header
-        className={`sticky top-0 z-50 transition-[margin] duration-300 ease-out ${sidebarExpanded ? "lg:ml-64" : "lg:ml-3"}`}
-        style={{ background: "rgba(20,15,10,0.8)", borderBottom: "1px solid rgba(255,122,26,0.07)", backdropFilter: "blur(16px)" }}
-      >
-        <div className="flex items-center justify-between gap-3 px-4 sm:px-6 h-14 max-w-[1400px] mx-auto">
-          <button className="flex items-center gap-1.5 text-sm font-medium whitespace-nowrap shrink-0" style={{ color: "var(--color-text-primary)" }}>
-            <MapPin className="w-3.5 h-3.5 shrink-0" style={{ color: "#ff7a1a" }} />
-            University of Waterloo
-            <ChevronDown className="w-3 h-3 shrink-0" style={{ color: "var(--color-text-muted)" }} />
-          </button>
-
-          <div className="hidden md:flex items-center gap-2 overflow-x-auto min-w-0">
+      <AppHeader
+        showCampus
+        notificationCount={pendingCount}
+        onNotificationsClick={() => setDrawerOpen(true)}
+        profileInitials={profileInitials}
+        center={
+          <div className="flex items-center gap-1.5 overflow-x-auto">
             {quickNavLinks.map((item) => (
               <button
                 key={item.label}
                 type="button"
                 onClick={item.onClick}
-                className="px-3 py-1.5 rounded-full text-xs font-semibold whitespace-nowrap"
-                style={{ background: "rgba(255,255,255,0.05)", border: "1px solid rgba(255,255,255,0.1)", color: "var(--color-text-primary)" }}
+                className="px-3 py-1.5 rounded-xl text-[11px] font-semibold whitespace-nowrap transition-colors"
+                style={{
+                  background:
+                    "linear-gradient(165deg, rgba(40,32,26,0.8) 0%, rgba(18,13,10,0.9) 100%)",
+                  border: "1px solid rgba(255,181,107,0.14)",
+                  color: "var(--color-text-secondary)",
+                  boxShadow: "0 1px 0 rgba(255,255,255,0.05) inset, 0 4px 12px rgba(0,0,0,0.25)",
+                }}
               >
                 {item.label}
               </button>
             ))}
           </div>
-
-          <div className="flex items-center gap-2 shrink-0">
-            <motion.button
-              type="button"
-              onClick={() => setDrawerOpen(true)}
-              aria-label={`Notifications${pendingCount ? `, ${pendingCount} pending` : ""}`}
-              className="relative w-9 h-9 rounded-full flex items-center justify-center"
-              style={{ background: "rgba(255,255,255,0.04)", border: "1px solid rgba(255,255,255,0.08)", color: "var(--color-text-secondary)" }}
-              whileHover={{ scale: 1.08, color: "var(--color-text-primary)" }}
-              whileTap={{ scale: 0.92 }}
-              transition={{ type: "spring", stiffness: 400, damping: 20 }}
-            >
-              <Bell className="w-4 h-4" />
-              {pendingCount > 0 && (
-                <span
-                  className="absolute -top-0.5 -right-0.5 min-w-4 h-4 px-1 rounded-full flex items-center justify-center text-[9px] font-bold"
-                  style={{ background: "linear-gradient(135deg, #ff7a1a, #ffb56b)", color: "#2a1206", boxShadow: "0 0 8px rgba(255,122,26,0.5)" }}
-                >
-                  {pendingCount}
-                </span>
-              )}
-            </motion.button>
-
-            <motion.button
-              type="button"
-              onClick={() => router.push("/profile")}
-              aria-label="Your profile"
-              className="w-9 h-9 rounded-full flex items-center justify-center text-xs font-bold"
-              style={{ background: "linear-gradient(135deg, #ff7a1a, #ffb56b)", color: "#2a1206", boxShadow: "0 0 12px rgba(255,122,26,0.3)" }}
-              whileHover={{ scale: 1.1 }}
-              whileTap={{ scale: 0.92 }}
-              transition={{ type: "spring", stiffness: 400, damping: 20 }}
-            >
-              {profileInitials}
-            </motion.button>
-          </div>
-        </div>
-      </header>
+        }
+      />
 
       <div className={`transition-[padding] duration-300 ease-out ${sidebarExpanded ? "lg:pl-64" : "lg:pl-3"}`}>
         <div className="max-w-[1100px] mx-auto px-5 sm:px-8">
@@ -555,10 +518,10 @@ export default function HomePage() {
               ) : (
                 <StaggerContainer
                   key={activeFilter}
-                  className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-3 gap-5"
+                  className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-3 gap-5 auto-rows-fr"
                 >
                   {filteredBubbles.map((bubble) => (
-                    <StaggerItem key={bubble.id}>
+                    <StaggerItem key={bubble.id} className="h-full">
                       <BubbleCard bubble={bubble} />
                     </StaggerItem>
                   ))}
