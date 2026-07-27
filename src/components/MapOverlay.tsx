@@ -999,7 +999,7 @@ function MapDiscoveryUI({ onClose }: MapOverlayProps) {
             toast.error("Could not create bubble. Try again.");
             return;
           }
-          bubbleForContext = { ...demoBubble, id: realBubbleId, joined: 1 };
+          bubbleForContext = { ...demoBubble, id: realBubbleId, joined: 2 };
           addBubbleConversation(bubbleForContext);
           onClose();
           router.push(`/chat/bubble-${realBubbleId}`);
@@ -1025,9 +1025,13 @@ function MapDiscoveryUI({ onClose }: MapOverlayProps) {
           toast.error(data.error ?? "Could not join");
           return;
         }
+        const membersCount =
+          typeof data?.data?.members_count === "number"
+            ? data.data.members_count
+            : (bubble.members_count ?? 0) + 1;
         const coords = ZONE_COORDS[bubble.zone] ?? DEFAULT_MAP_CENTER;
         bubbleForContext = toBubbleForContext(
-          { ...bubble, members_count: (bubble.members_count ?? 0) + 1 },
+          { ...bubble, members_count: membersCount },
           coords.lat,
           coords.lng
         );

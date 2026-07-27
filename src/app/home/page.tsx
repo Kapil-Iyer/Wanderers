@@ -4,13 +4,13 @@ import { useEffect, useMemo, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
 import { motion, AnimatePresence, useReducedMotion } from "framer-motion";
-import { ChevronDown, MapPin, Bell, ChevronsDown, Clock, Users, Instagram } from "lucide-react";
+import { ChevronDown, MapPin, Bell, ChevronsDown, Clock, Users, Instagram, ArrowRight } from "lucide-react";
 import BottomNav from "@/components/ui/BottomNav";
 import BubbleCard from "@/components/ui/BubbleCard";
 import CreateBubbleModal from "@/components/ui/CreateBubbleModal";
 import StartSomethingFab from "@/components/ui/StartSomethingFab";
 import NotificationDrawer from "@/components/ui/NotificationDrawer";
-import { mockBubbles, filterChips, mockFeedPosts, type FeedPost as FeedPostType } from "@/lib/mockData";
+import { mockBubbles, filterChips, mockFeedPosts, type FeedPost as FeedPostType, type Bubble } from "@/lib/mockData";
 import FeedPost from "@/components/FeedPost";
 import { useConnections } from "@/contexts/ConnectionsContext";
 import { useConversations } from "@/contexts/ConversationsContext";
@@ -19,6 +19,8 @@ import type { BubbleConversation } from "@/contexts/ConversationsContext";
 import { Reveal, StaggerContainer, StaggerItem, AnimatedHeadline, CountUp, LineReveal, EASE } from "@/components/motion/Reveal";
 import { getCategoryTheme } from "@/lib/categoryThemes";
 import { useSidebar } from "@/contexts/SidebarContext";
+import { supabase } from "@/lib/supabase";
+import { apiBubbleToUi, type ApiBubble } from "@/lib/bubbleMap";
 
 type UpcomingBubble = {
   id: string; emoji: string; title: string; startingIn: string;
@@ -33,6 +35,23 @@ function formatMomentTime(iso: string): string {
   const diffHours = Math.floor(diffMins / 60);
   if (diffHours < 24) return `${diffHours}h ago`;
   return d.toLocaleDateString(undefined, { month: "short", day: "numeric" });
+}
+
+type CampusEvent = {
+  id: string; title: string; location: string; zone: string | null;
+  date_time: string; organizer: string | null; category: string | null; source_url: string | null;
+};
+
+const EVENT_EMOJI: Record<string, string> = {
+  sports: "🏀", academic: "📚", social: "🎉", arts: "🎨", career: "💼",
+};
+
+// "Thu · 4:00 PM"
+function formatEventTime(iso: string): string {
+  const d = new Date(iso);
+  const day = d.toLocaleDateString(undefined, { weekday: "short" });
+  const time = d.toLocaleTimeString(undefined, { hour: "numeric", minute: "2-digit" });
+  return `${day} · ${time}`;
 }
 
 export default function HomePage() {
@@ -57,6 +76,38 @@ export default function HomePage() {
   const [upcomingForYou, setUpcomingForYou] = useState<UpcomingBubble[]>(defaultUpcoming);
   const [momentIndex, setMomentIndex] = useState(0);
   const [momentsPaused, setMomentsPaused] = useState(false);
+  const [liveBubbles, setLiveBubbles] = useState<Bubble[]>([]);
+  const [campusEvents, setCampusEvents] = useState<CampusEvent[]>([]);
+  const [prefill, setPrefill] = useState<{ activity?: string; zone?: string } | undefined>();
+  const [profileInitials, setProfileInitials] = useState("?");
+
+  useEffect(() => {
+    let cancelled = false;
+    import("@/lib/supabase")
+      .then((m) => m.supabase.auth.getSession())
+      .then(async ({ data }) => {
+        const user = data?.session?.user;
+        if (!user || cancelled) return;
+        const meta =
+          (typeof user.user_metadata?.name === "string" && user.user_metadata.name.trim()) ||
+          (typeof user.user_metadata?.full_name === "string" && user.user_metadata.full_name.trim()) ||
+          "";
+        const { data: row } = await import("@/lib/supabase").then((m) =>
+          m.supabase.from("users").select("name").eq("id", user.id).maybeSingle()
+        );
+        const name = (row?.name && String(row.name).trim()) || meta || user.email?.split("@")[0] || "W";
+        const parts = name.split(/\s+/).filter(Boolean);
+        const initials =
+          parts.length >= 2
+            ? (parts[0][0] + parts[parts.length - 1][0]).toUpperCase()
+            : name.slice(0, 2).toUpperCase();
+        if (!cancelled) setProfileInitials(initials);
+      })
+      .catch(() => {});
+    return () => {
+      cancelled = true;
+    };
+  }, []);
 
   const router = useRouter();
   const { expanded: sidebarExpanded } = useSidebar();
@@ -125,11 +176,56 @@ export default function HomePage() {
     setFeedPosts((prev) => [{ ...rest, ...(imageUrl && { imageUrl }), id: `f-${Date.now()}`, timestamp: "JUST NOW" }, ...prev]);
   };
 
+  // Active Nearby — real bubbles from Supabase (initial load)
+  useEffect(() => {
+    let cancelled = false;
+    fetch("/api/bubbles/list")
+      .then((r) => r.json())
+      .then((d: { success?: boolean; data?: ApiBubble[] }) => {
+        if (!cancelled && d?.success && Array.isArray(d.data)) {
+          setLiveBubbles(d.data.map(apiBubbleToUi));
+        }
+      })
+      .catch(() => {});
+    return () => { cancelled = true; };
+  }, []);
+
+  // Realtime — new bubbles appear at the top, expired ones disappear (no refresh)
+  useEffect(() => {
+    const channel = supabase
+      .channel("public-bubbles")
+      .on("postgres_changes", { event: "INSERT", schema: "public", table: "bubbles" }, (payload) => {
+        const b = payload.new as ApiBubble;
+        if (b.status && b.status !== "open") return;
+        setLiveBubbles((prev) => (prev.some((x) => x.id === b.id) ? prev : [apiBubbleToUi(b), ...prev]));
+      })
+      .on("postgres_changes", { event: "UPDATE", schema: "public", table: "bubbles" }, (payload) => {
+        const b = payload.new as ApiBubble;
+        setLiveBubbles((prev) =>
+          b.status === "expired"
+            ? prev.filter((x) => x.id !== b.id)
+            : prev.map((x) => (x.id === b.id ? apiBubbleToUi(b) : x))
+        );
+      })
+      .subscribe();
+    return () => { supabase.removeChannel(channel); };
+  }, []);
+
+  // Happening on Campus — upcoming campus events (public; falls back server-side)
+  useEffect(() => {
+    fetch("/api/campus-events")
+      .then((r) => r.json())
+      .then((d: { success?: boolean; data?: CampusEvent[] }) => {
+        if (d?.success && Array.isArray(d.data)) setCampusEvents(d.data.slice(0, 3));
+      })
+      .catch(() => {});
+  }, []);
+
   const filteredBubbles = useMemo(() => {
-    if (activeFilter === "Happening Now") return mockBubbles.filter((b) => b.startingIn.includes("min"));
-    if (activeFilter === "Starting Soon") return mockBubbles.filter((b) => b.startingIn.includes("hr"));
-    return mockBubbles.filter((b) => b.category === activeFilter);
-  }, [activeFilter]);
+    if (activeFilter === "Happening Now") return liveBubbles.filter((b) => b.startingIn.includes("min") || b.startingIn === "Now");
+    if (activeFilter === "Starting Soon") return liveBubbles.filter((b) => b.startingIn.includes("hr"));
+    return liveBubbles.filter((b) => b.category === activeFilter);
+  }, [activeFilter, liveBubbles]);
 
   const scrollToMoments = () => momentsRef.current?.scrollIntoView({ behavior: "smooth", block: "start" });
   const scrollToRef = (ref: React.RefObject<HTMLElement | null>) =>
@@ -205,7 +301,7 @@ export default function HomePage() {
               whileTap={{ scale: 0.92 }}
               transition={{ type: "spring", stiffness: 400, damping: 20 }}
             >
-              JD
+              {profileInitials}
             </motion.button>
           </div>
         </div>
@@ -404,6 +500,48 @@ export default function HomePage() {
               </div>
             </Reveal>
 
+            {/* ── HAPPENING ON CAMPUS ── */}
+            {campusEvents.length > 0 && (
+              <Reveal delay={0.08}>
+                <div className="mb-8">
+                  <p className="text-[11px] font-bold uppercase tracking-[0.18em] mb-3" style={{ color: "#F97316" }}>
+                    Happening on campus
+                  </p>
+                  <div className="flex gap-3 overflow-x-auto pb-2 -mx-5 px-5 sm:-mx-8 sm:px-8">
+                    {campusEvents.map((ev) => (
+                      <div
+                        key={ev.id}
+                        className="flex-shrink-0 w-64 rounded-2xl p-4 flex flex-col"
+                        style={{ background: "rgba(255,255,255,0.025)", border: "1px solid rgba(249,115,22,0.12)", backdropFilter: "blur(12px)" }}
+                      >
+                        <div className="flex items-start gap-2.5">
+                          <span className="text-2xl shrink-0">{EVENT_EMOJI[ev.category ?? ""] ?? "📅"}</span>
+                          <div className="min-w-0 flex-1">
+                            <p className="text-sm font-semibold line-clamp-2 leading-snug" style={{ color: "var(--color-text-primary)" }}>{ev.title}</p>
+                            <p className="text-[11px] mt-1 flex items-center gap-1 truncate" style={{ color: "var(--color-text-secondary)" }}>
+                              <MapPin className="w-3 h-3 shrink-0" style={{ color: "#F97316" }} />{ev.location}
+                            </p>
+                          </div>
+                        </div>
+                        <p className="text-[11px] mt-2.5 font-semibold" style={{ color: "#FBBF24" }}>{formatEventTime(ev.date_time)}</p>
+                        <motion.button
+                          type="button"
+                          onClick={() => { setPrefill({ activity: ev.title, zone: ev.zone ?? ev.location }); setCreateOpen(true); }}
+                          className="mt-3 w-full py-2 rounded-full text-xs font-bold flex items-center justify-center gap-1.5"
+                          style={{ background: "rgba(249,115,22,0.15)", border: "1px solid rgba(249,115,22,0.3)", color: "#F97316" }}
+                          whileHover={{ scale: 1.03, background: "rgba(249,115,22,0.22)" }}
+                          whileTap={{ scale: 0.97 }}
+                          transition={{ type: "spring", stiffness: 400, damping: 20 }}
+                        >
+                          Start a bubble for this <ArrowRight className="w-3.5 h-3.5" />
+                        </motion.button>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              </Reveal>
+            )}
+
             <AnimatePresence mode="wait">
               {filteredBubbles.length === 0 ? (
                 <motion.div
@@ -520,13 +658,20 @@ export default function HomePage() {
       </div>
 
       {/* FAB + drawer + modals + nav */}
-      <StartSomethingFab onClick={() => setCreateOpen(true)} />
+      <StartSomethingFab onClick={() => { setPrefill(undefined); setCreateOpen(true); }} />
       <NotificationDrawer
         open={drawerOpen}
         onClose={() => setDrawerOpen(false)}
         onEndEvent={(b) => { setDrawerOpen(false); setEndEventBubble(b); }}
       />
-      <CreateBubbleModal open={createOpen} onClose={() => setCreateOpen(false)} />
+      <CreateBubbleModal
+        open={createOpen}
+        onClose={() => setCreateOpen(false)}
+        prefill={prefill}
+        onCreated={(b) => {
+          if (b) setLiveBubbles((prev) => (prev.some((x) => x.id === b.id) ? prev : [apiBubbleToUi(b), ...prev]));
+        }}
+      />
       {endEventBubble && (
         <EndEventModal
           bubble={endEventBubble}

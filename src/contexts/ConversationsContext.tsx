@@ -65,7 +65,7 @@ export function ConversationsProvider({ children }: { children: React.ReactNode 
           participants: bubble.participants?.length
             ? bubble.participants
             : [{ id: "creator", name: bubble.creator, avatar: bubble.creatorAvatar }],
-          joined: bubble.joined + 1, // +1 for current user joining
+          joined: bubble.joined, // caller passes post-join count; do not +1 again
           zone: bubble.zone,
         },
       ];

@@ -1,13 +1,13 @@
 import { NextRequest, NextResponse } from "next/server";
 import { getAuthUser } from "@/lib/auth";
 import { getSupabaseAdmin } from "@/lib/supabaseAdmin";
+import { ensureBubbleMembership } from "@/lib/ensureBubbleMembership";
 
 const MAX_MESSAGE_LENGTH = 500;
 
 /**
  * GET /api/bubbles/[id]/messages
- * List messages for a bubble. Auth required; caller must be a member.
- * Returns: { success, data: [{ id, bubble_id, user_id, content, created_at }] }
+ * Auth required. Auto-joins open bubbles if needed, then returns full history.
  */
 export async function GET(
   request: NextRequest,
@@ -31,18 +31,11 @@ export async function GET(
     }
 
     const admin = getSupabaseAdmin();
-
-    const { data: membership } = await admin
-      .from("bubble_members")
-      .select("user_id")
-      .eq("bubble_id", bubbleId)
-      .eq("user_id", user.id)
-      .maybeSingle();
-
-    if (!membership) {
+    const membership = await ensureBubbleMembership(admin, user, bubbleId);
+    if (membership.ok === false) {
       return NextResponse.json(
-        { success: false, error: "Not a member of this bubble" },
-        { status: 403 }
+        { success: false, error: membership.error },
+        { status: membership.status }
       );
     }
 
@@ -59,9 +52,33 @@ export async function GET(
       );
     }
 
+    const rows = messages ?? [];
+    const senderIds = [...new Set(rows.map((m) => m.user_id).filter(Boolean))];
+    const nameById = new Map<string, string | null>();
+    if (senderIds.length > 0) {
+      const { data: senders } = await admin.from("users").select("id, name").in("id", senderIds);
+      for (const s of senders ?? []) nameById.set(s.id, s.name);
+    }
+
+    const avatarInitial = (name: string | null | undefined, id: string): string => {
+      const base = (name ?? "").trim();
+      if (base) {
+        const parts = base.split(/\s+/);
+        return (parts[0][0] + (parts[1]?.[0] ?? "")).toUpperCase();
+      }
+      return id.slice(0, 2).toUpperCase();
+    };
+
+    const enriched = rows.map((m) => ({
+      ...m,
+      sender_name: nameById.get(m.user_id) ?? "Wanderer",
+      sender_avatar: avatarInitial(nameById.get(m.user_id), m.user_id),
+    }));
+
     return NextResponse.json({
       success: true,
-      data: messages ?? [],
+      data: enriched,
+      members_count: membership.members_count,
     });
   } catch {
     return NextResponse.json(
@@ -73,8 +90,7 @@ export async function GET(
 
 /**
  * POST /api/bubbles/[id]/messages
- * Send a message. Caller must be authenticated and a member of the bubble.
- * Body: { content: string }
+ * Auth required. Auto-joins if needed, then inserts the message.
  */
 export async function POST(
   request: NextRequest,
@@ -115,18 +131,11 @@ export async function POST(
     }
 
     const admin = getSupabaseAdmin();
-
-    const { data: membership } = await admin
-      .from("bubble_members")
-      .select("user_id")
-      .eq("bubble_id", bubbleId)
-      .eq("user_id", user.id)
-      .maybeSingle();
-
-    if (!membership) {
+    const membership = await ensureBubbleMembership(admin, user, bubbleId);
+    if (membership.ok === false) {
       return NextResponse.json(
-        { success: false, error: "Not a member of this bubble" },
-        { status: 403 }
+        { success: false, error: membership.error },
+        { status: membership.status }
       );
     }
 
@@ -137,7 +146,7 @@ export async function POST(
         user_id: user.id,
         content,
       })
-      .select()
+      .select("id, bubble_id, user_id, content, created_at")
       .single();
 
     if (error) {
@@ -150,6 +159,7 @@ export async function POST(
     return NextResponse.json({
       success: true,
       data: message,
+      members_count: membership.members_count,
     });
   } catch {
     return NextResponse.json(

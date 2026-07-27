@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
 import { motion } from "framer-motion";
 import { ArrowLeft, Camera, Edit2, Plus, LogOut, BadgeCheck, Star, Quote } from "lucide-react";
@@ -9,11 +9,32 @@ import { ProfileLink } from "@/components/ProfileLink";
 import { personalityTraits, mockBubbles, interestOptions } from "@/lib/mockData";
 import { useConnections } from "@/contexts/ConnectionsContext";
 import { useSidebar } from "@/contexts/SidebarContext";
+import { supabase } from "@/lib/supabase";
 
 const ease = [0.25, 0.46, 0.45, 0.94] as const;
 
-// On-brand identity tags (ties back to the vibe onboarding) — presentational.
-const vibeTags = ["Coffee Shop Regular", "Study Buddy", "Explorer", "Waterloo '27"];
+const VIBE_LABELS: Record<string, string> = {
+  late_night_grinder: "Late Night Grinder",
+  coffee_regular: "Coffee Shop Regular",
+  sports: "Sports",
+  study_buddy: "Study Buddy",
+  explorer: "Explorer",
+};
+
+function getInitials(name: string): string {
+  const parts = name.trim().split(/\s+/).filter(Boolean);
+  if (parts.length === 0) return "?";
+  if (parts.length === 1) return parts[0].slice(0, 2).toUpperCase();
+  return (parts[0][0] + parts[parts.length - 1][0]).toUpperCase();
+}
+
+function displayNameFromEmail(email: string | null | undefined): string {
+  if (!email) return "Wanderer";
+  const local = email.split("@")[0] ?? "Wanderer";
+  return local
+    .replace(/[._-]+/g, " ")
+    .replace(/\b\w/g, (c) => c.toUpperCase());
+}
 
 // "Your Journey" entries — past bubbles restyled as a timeline.
 const journeyTimes = ["2 days ago", "5 days ago", "1 week ago", "2 weeks ago"];
@@ -26,6 +47,55 @@ export default function ProfilePage() {
   const [editingInterests, setEditingInterests] = useState(false);
   const [userInterests, setUserInterests] = useState(interestOptions.slice(0, 6));
   const [customInterest, setCustomInterest] = useState("");
+  const [displayName, setDisplayName] = useState<string | null>(null);
+  const [vibeTags, setVibeTags] = useState<string[]>(["Waterloo"]);
+
+  useEffect(() => {
+    let cancelled = false;
+
+    (async () => {
+      const { data: sessionData } = await supabase.auth.getSession();
+      const user = sessionData.session?.user;
+      if (!user) {
+        if (!cancelled) setDisplayName("Wanderer");
+        return;
+      }
+
+      const metaName =
+        (typeof user.user_metadata?.name === "string" && user.user_metadata.name.trim()) ||
+        (typeof user.user_metadata?.full_name === "string" && user.user_metadata.full_name.trim()) ||
+        null;
+
+      const { data: row } = await supabase
+        .from("users")
+        .select("name, vibe, email")
+        .eq("id", user.id)
+        .maybeSingle();
+
+      const name =
+        (row?.name && String(row.name).trim()) ||
+        metaName ||
+        displayNameFromEmail(row?.email ?? user.email);
+
+      const tags: string[] = [];
+      if (row?.vibe && VIBE_LABELS[row.vibe]) tags.push(VIBE_LABELS[row.vibe]);
+      tags.push("University of Waterloo");
+
+      if (!cancelled) {
+        setDisplayName(name);
+        setVibeTags(tags);
+      }
+    })();
+
+    return () => {
+      cancelled = true;
+    };
+  }, []);
+
+  const initials = useMemo(
+    () => getInitials(displayName ?? "Wanderer"),
+    [displayName]
+  );
 
   const toggleInterest = (interest: string) => {
     setUserInterests(prev =>
@@ -90,7 +160,7 @@ export default function ProfilePage() {
                   boxShadow: "0 0 36px rgba(255,122,26,0.45)",
                   border: "3px solid #140F0A",
                 }}>
-                JD
+                {initials}
               </div>
               {/* verified badge */}
               <div className="absolute bottom-1 right-1 w-7 h-7 rounded-full flex items-center justify-center"
@@ -106,7 +176,9 @@ export default function ProfilePage() {
               </motion.button>
             </div>
 
-            <h2 className="text-2xl font-display font-bold mt-4" style={{ color: "var(--color-text-primary)" }}>John Doe</h2>
+            <h2 className="text-2xl font-display font-bold mt-4" style={{ color: "var(--color-text-primary)" }}>
+              {displayName ?? "Loading…"}
+            </h2>
             <p className="text-sm mt-0.5" style={{ color: "var(--color-text-secondary)" }}>University of Waterloo</p>
 
             {/* bio quote */}

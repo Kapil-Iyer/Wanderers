@@ -16,7 +16,13 @@ export async function POST(request: NextRequest) {
 
     const emailTrimmed = email.trim().toLowerCase();
 
-    const { data, error } = await supabase.auth.signUp({ email: emailTrimmed, password });
+    const { data, error } = await supabase.auth.signUp({
+      email: emailTrimmed,
+      password,
+      options: {
+        data: { name: name?.trim() || null },
+      },
+    });
 
     if (error) {
       console.error("[auth/signup] Supabase signUp error:", { message: error.message, status: error.status });
