@@ -300,21 +300,6 @@ export default function ChatPage({ params }: { params: Promise<{ id: string }> }
               🫧
             </div>
             <p className="text-sm font-medium text-foreground">{messagesError}</p>
-            <button
-              type="button"
-              className="px-4 py-2 rounded-full text-xs font-bold bg-primary text-primary-foreground"
-              onClick={async () => {
-                const { data } = await supabase.auth.getSession();
-                const token = data.session?.access_token;
-                const uid = data.session?.user?.id;
-                if (token && uid) {
-                  setBootstrapping(true);
-                  await loadMessages(token, uid);
-                }
-              }}
-            >
-              Join & retry
-            </button>
           </div>
         ) : isBubbleChat && memberNames ? (
           <div className="flex justify-center pt-4">
