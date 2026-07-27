@@ -969,6 +969,7 @@ function MapDiscoveryUI({ onClose }: MapOverlayProps) {
           bubbleForContext = { ...mockBubble, id: realBubbleId, joined: mockBubble.joined + 1 };
           addBubbleConversation(bubbleForContext);
           onClose();
+          router.push("/messages");
           router.push(`/chat/bubble-${realBubbleId}`);
         } catch {
           toast.error("Something went wrong");
@@ -1002,6 +1003,7 @@ function MapDiscoveryUI({ onClose }: MapOverlayProps) {
           bubbleForContext = { ...demoBubble, id: realBubbleId, joined: 2 };
           addBubbleConversation(bubbleForContext);
           onClose();
+          router.push("/messages");
           router.push(`/chat/bubble-${realBubbleId}`);
         } catch {
           toast.error("Something went wrong");
@@ -1038,6 +1040,7 @@ function MapDiscoveryUI({ onClose }: MapOverlayProps) {
         addBubbleConversation(bubbleForContext);
         setJoinedIds((prev) => new Set(prev).add(id));
         onClose();
+        router.push("/messages");
         router.push(`/chat/bubble-${id}`);
       } catch {
         toast.error("Something went wrong");
@@ -1054,6 +1057,7 @@ function MapDiscoveryUI({ onClose }: MapOverlayProps) {
       if (mockBubble) {
         addBubbleConversation(mockBubble);
         onClose();
+        router.push("/messages");
         router.push(`/chat/bubble-${id}`);
         return;
       }
@@ -1063,6 +1067,7 @@ function MapDiscoveryUI({ onClose }: MapOverlayProps) {
       const bubbleForContext = toBubbleForContext(apiBubble, coords.lat, coords.lng);
       addBubbleConversation(bubbleForContext);
       onClose();
+      router.push("/messages");
       router.push(`/chat/bubble-${id}`);
     },
     [apiBubbles, addBubbleConversation, onClose, router]

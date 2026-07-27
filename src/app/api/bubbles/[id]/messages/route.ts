@@ -54,10 +54,46 @@ export async function GET(
 
     const rows = messages ?? [];
     const senderIds = [...new Set(rows.map((m) => m.user_id).filter(Boolean))];
-    const nameById = new Map<string, string | null>();
+    const nameById = new Map<string, string>();
     if (senderIds.length > 0) {
-      const { data: senders } = await admin.from("users").select("id, name").in("id", senderIds);
-      for (const s of senders ?? []) nameById.set(s.id, s.name);
+      const { data: senders } = await admin
+        .from("users")
+        .select("id, name, email")
+        .in("id", senderIds);
+
+      const found = new Set<string>();
+      for (const s of senders ?? []) {
+        const name = (s.name && String(s.name).trim()) || "";
+        const email = (s.email && String(s.email).trim()) || "";
+        const resolved =
+          name ||
+          (email.includes("@") ? email.split("@")[0] : email) ||
+          "";
+        if (resolved) {
+          nameById.set(s.id, resolved);
+          found.add(s.id);
+        }
+      }
+
+      // Auth metadata fallback when users.name is empty
+      const missing = senderIds.filter((id) => !found.has(id));
+      await Promise.all(
+        missing.map(async (id) => {
+          try {
+            const { data } = await admin.auth.admin.getUserById(id);
+            const u = data?.user;
+            const meta =
+              (typeof u?.user_metadata?.name === "string" && u.user_metadata.name.trim()) ||
+              (typeof u?.user_metadata?.full_name === "string" && u.user_metadata.full_name.trim()) ||
+              "";
+            const emailLocal = u?.email?.split("@")[0]?.trim() || "";
+            const resolved = meta || emailLocal;
+            if (resolved) nameById.set(id, resolved);
+          } catch {
+            /* ignore */
+          }
+        })
+      );
     }
 
     const avatarInitial = (name: string | null | undefined, id: string): string => {
@@ -69,11 +105,14 @@ export async function GET(
       return id.slice(0, 2).toUpperCase();
     };
 
-    const enriched = rows.map((m) => ({
-      ...m,
-      sender_name: nameById.get(m.user_id) ?? "Wanderer",
-      sender_avatar: avatarInitial(nameById.get(m.user_id), m.user_id),
-    }));
+    const enriched = rows.map((m) => {
+      const senderName = nameById.get(m.user_id) ?? "Wanderer";
+      return {
+        ...m,
+        sender_name: senderName,
+        sender_avatar: avatarInitial(senderName, m.user_id),
+      };
+    });
 
     return NextResponse.json({
       success: true,
@@ -158,12 +197,14 @@ export async function POST(
 
     const { data: profile } = await admin
       .from("users")
-      .select("name")
+      .select("name, email")
       .eq("id", user.id)
       .maybeSingle();
     const senderName =
       (profile?.name && String(profile.name).trim()) ||
       (typeof user.user_metadata?.name === "string" && user.user_metadata.name.trim()) ||
+      (typeof user.user_metadata?.full_name === "string" && user.user_metadata.full_name.trim()) ||
+      (profile?.email && String(profile.email).split("@")[0]) ||
       user.email?.split("@")[0] ||
       "Wanderer";
 

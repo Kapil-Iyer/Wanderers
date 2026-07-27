@@ -7,8 +7,9 @@
  *
  * Flow:
  *   signup  → POST /api/auth/signup {name,email,password} → back to login
- *   login   → POST /api/auth/login  {email,password}      → OTP "verify" step
- *   verify  → POST /api/auth/verify {email,token}         → setSession → /home
+ *   login   → POST /api/auth/login  {email,password,rememberDevice}
+ *             → session if device trusted (7d), else OTP "verify" step
+ *   verify  → POST /api/auth/verify {email,token,rememberDevice} → setSession → /home
  *   forgot  → POST /api/auth/forgot-password {email}      → reset email
  *
  * NOTE: campus (@uwaterloo.ca) enforcement is intentionally not re-added here —
@@ -42,6 +43,7 @@ export default function AuthModal() {
   const [showSignupPwd, setShowSignupPwd] = useState(false);
   const [showSignupConfirm, setShowSignupConfirm] = useState(false);
   const [showLoginPwd, setShowLoginPwd] = useState(false);
+  const [rememberDevice, setRememberDevice] = useState(true);
 
   const router = useRouter();
 
@@ -101,10 +103,20 @@ export default function AuthModal() {
       const res = await fetch("/api/auth/login", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ email, password }),
+        body: JSON.stringify({ email, password, rememberDevice }),
+        credentials: "include",
       });
       const data = await res.json();
-      if (!res.ok || !data.success) throw new Error(data.error || "Failed to send code");
+      if (!res.ok || !data.success) throw new Error(data.error || "Failed to log in");
+
+      // Trusted device — password only, no OTP for ~7 days
+      if (data.skippedOtp && data.session) {
+        const { supabase } = await import("@/lib/supabase");
+        await supabase.auth.setSession(data.session);
+        router.replace("/home");
+        return;
+      }
+
       setPendingEmail(email);
       setMode("verify");
     } catch (err) {
@@ -170,7 +182,12 @@ export default function AuthModal() {
       const res = await fetch("/api/auth/verify", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ email: pendingEmail, token: otp }),
+        body: JSON.stringify({
+          email: pendingEmail,
+          token: otp,
+          rememberDevice,
+        }),
+        credentials: "include",
       });
       const data = await res.json();
       if (!res.ok) throw new Error(data.error || "Verification failed");
@@ -282,15 +299,35 @@ export default function AuthModal() {
             <motion.form key="login" variants={panelVariants} initial="enter" animate="center" exit="exit"
               transition={{ duration: 0.3, ease }} className="space-y-4" onSubmit={handleLogin} autoComplete="off">
               <Field id="loginEmail" name="loginEmail" type="email" icon={<Mail className="w-4 h-4" />} placeholder="you@uwaterloo.ca" label="Waterloo Email" required autoComplete="off" />
-              <Field id="loginPassword" name="loginPassword" type={showLoginPwd ? "text" : "password"} icon={<Lock className="w-4 h-4" />} placeholder="Your password" label="Password" required autoComplete="new-password"
+              <Field id="loginPassword" name="loginPassword" type={showLoginPwd ? "text" : "password"} icon={<Lock className="w-4 h-4" />} placeholder="Your password" label="Password" required autoComplete="current-password"
                 trailing={<EyeToggle show={showLoginPwd} onToggle={() => setShowLoginPwd((p) => !p)} />} />
+              <label className="flex items-start gap-2.5 cursor-pointer select-none">
+                <input
+                  type="checkbox"
+                  checked={rememberDevice}
+                  onChange={(e) => setRememberDevice(e.target.checked)}
+                  className="mt-0.5 w-4 h-4 rounded accent-[#ff7a1a]"
+                />
+                <span className="text-xs leading-snug" style={{ color: "var(--color-text-secondary)" }}>
+                  Remember this device for 7 days
+                  <span className="block mt-0.5" style={{ color: "var(--color-text-muted)" }}>
+                    Skip the email code on this browser until then.
+                  </span>
+                </span>
+              </label>
               <div className="flex justify-end -mt-1">
                 <button type="button" onClick={() => go("forgot")} className="text-xs transition-colors" style={{ color: "var(--color-text-primary)" }}>
                   Forgot password?
                 </button>
               </div>
-              <p className="text-xs" style={{ color: "var(--color-text-muted)" }}>We&apos;ll send a 6-digit code to verify it&apos;s you.</p>
-              <AmberButton type="submit" loading={loading}>{loading ? "Sending code…" : "Log In"}</AmberButton>
+              <p className="text-xs" style={{ color: "var(--color-text-muted)" }}>
+                {rememberDevice
+                  ? "First time (or after a week): we'll email a 6-digit code once."
+                  : "We'll send a 6-digit code every time you log in."}
+              </p>
+              <AmberButton type="submit" loading={loading}>
+                {loading ? "Signing in…" : "Log In"}
+              </AmberButton>
               <BackButton onClick={() => go("choice")} />
             </motion.form>
           )}

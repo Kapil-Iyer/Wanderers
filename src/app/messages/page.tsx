@@ -1,192 +1,379 @@
 "use client";
 
+import { useEffect } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { motion } from "framer-motion";
-import { MessageCircle, MapPin, Sparkles } from "lucide-react";
+import { MessageCircle, MapPin, ChevronRight, Users } from "lucide-react";
 import BottomNav from "@/components/ui/BottomNav";
 import { ProfileLink } from "@/components/ProfileLink";
 import { useConversations } from "@/contexts/ConversationsContext";
 import { useConnections } from "@/contexts/ConnectionsContext";
-import { Reveal, StaggerContainer, StaggerItem, EASE } from "@/components/motion/Reveal";
+import { Reveal, StaggerContainer, StaggerItem } from "@/components/motion/Reveal";
 import { useSidebar } from "@/contexts/SidebarContext";
+
+const panelStyle: React.CSSProperties = {
+  background: "linear-gradient(165deg, rgba(36,28,22,0.92) 0%, rgba(18,13,10,0.96) 100%)",
+  border: "1px solid rgba(255,181,107,0.14)",
+  boxShadow: "0 1px 0 rgba(255,255,255,0.06) inset, 0 12px 40px -16px rgba(0,0,0,0.65)",
+};
 
 export default function MessagesPage() {
   const router = useRouter();
   const { expanded: sidebarExpanded } = useSidebar();
-  const { conversations } = useConversations();
+  const { conversations, loadingJoined, refreshJoinedBubbles } = useConversations();
   const { getConnectedFriends } = useConnections();
   const circle = getConnectedFriends();
   const liveNow = circle.filter((f) => f.currentEvent);
+  const activeChats = conversations.filter((c) => c.lastMessage !== "Bubble ended");
+  const endedChats = conversations.filter((c) => c.lastMessage === "Bubble ended");
+
+  useEffect(() => {
+    refreshJoinedBubbles();
+  }, [refreshJoinedBubbles]);
 
   return (
-    <div className="min-h-screen pb-24">
-      {/* Header */}
-      <header className={`sticky top-0 z-50 transition-[margin] duration-300 ease-out ${sidebarExpanded ? "lg:ml-64" : "lg:ml-3"}`}
-        style={{ background: "rgba(20,15,10,0.85)", borderBottom: "1px solid rgba(255,122,26,0.08)", backdropFilter: "blur(16px)" }}>
-        <div className="px-5 sm:px-8 h-14 flex items-center max-w-[1400px] mx-auto">
-          <span className="text-sm font-semibold" style={{ color: "var(--color-text-secondary)" }}>Messages</span>
+    <div className="min-h-screen pb-28 relative">
+      {/* Soft scrim so plexus stays atmospheric, not competing with content */}
+      <div
+        className="pointer-events-none absolute inset-0 z-0"
+        style={{
+          background:
+            "radial-gradient(ellipse 80% 50% at 50% -10%, rgba(255,122,26,0.08), transparent 55%), linear-gradient(180deg, rgba(10,7,5,0.55) 0%, rgba(10,7,5,0.78) 40%, rgba(10,7,5,0.88) 100%)",
+        }}
+        aria-hidden
+      />
+
+      <header
+        className={`sticky top-0 z-50 transition-[margin] duration-300 ease-out ${sidebarExpanded ? "lg:ml-64" : "lg:ml-3"}`}
+        style={{
+          background: "rgba(14,10,7,0.82)",
+          borderBottom: "1px solid rgba(255,122,26,0.1)",
+          backdropFilter: "blur(18px)",
+        }}
+      >
+        <div className="px-5 sm:px-8 h-14 flex items-center justify-between max-w-[1400px] mx-auto">
+          <span className="text-sm font-semibold tracking-wide" style={{ color: "var(--color-text-primary)" }}>
+            Messages
+          </span>
+          {conversations.length > 0 && (
+            <span className="text-[11px] font-medium tabular-nums" style={{ color: "var(--color-text-muted)" }}>
+              {activeChats.length} active
+              {endedChats.length > 0 ? ` · ${endedChats.length} ended` : ""}
+            </span>
+          )}
         </div>
       </header>
 
-      <div className={`transition-[padding] duration-300 ease-out ${sidebarExpanded ? "lg:pl-64" : "lg:pl-3"}`}>
-        <div className="max-w-2xl mx-auto px-5 sm:px-8">
-
-          {/* Editorial title */}
-          <section className="pt-10 pb-6">
-            <p className="text-[11px] font-bold uppercase tracking-[0.18em] mb-2" style={{ color: "var(--color-text-primary)" }}>
-              Stay in the loop
-            </p>
-            <h1 className="font-display text-4xl sm:text-5xl font-bold leading-[1.02] tracking-tight"
-              style={{ color: "var(--color-text-primary)" }}>
-              Your <span className="text-gradient">conversations.</span>
-            </h1>
+      <div
+        className={`relative z-10 transition-[padding] duration-300 ease-out ${sidebarExpanded ? "lg:pl-64" : "lg:pl-3"}`}
+      >
+        <div className="max-w-xl mx-auto px-5 sm:px-6">
+          {/* Hero — one job */}
+          <section className="pt-9 pb-8">
+            <motion.p
+              className="text-[11px] font-bold uppercase tracking-[0.2em] mb-3"
+              style={{ color: "rgba(255,181,107,0.85)" }}
+              initial={{ opacity: 0, y: 8 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ duration: 0.45 }}
+            >
+              Inbox
+            </motion.p>
+            <motion.h1
+              className="font-display text-4xl sm:text-[2.75rem] font-bold leading-[1.05] tracking-tight"
+              style={{ color: "var(--color-text-primary)" }}
+              initial={{ opacity: 0, y: 14 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ duration: 0.55, delay: 0.05 }}
+            >
+              Your <span className="text-gradient">conversations</span>
+            </motion.h1>
+            <motion.p
+              className="mt-3 text-sm max-w-sm leading-relaxed"
+              style={{ color: "var(--color-text-secondary)" }}
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              transition={{ duration: 0.5, delay: 0.15 }}
+            >
+              Bubble group chats you&apos;ve joined — pick one up anytime.
+            </motion.p>
           </section>
 
-          {/* Chats */}
-          {conversations.length > 0 ? (
-            <Reveal as="section" className="mb-10">
-              <h2 className="text-xs font-bold uppercase tracking-[0.15em] mb-3" style={{ color: "var(--color-text-muted)" }}>
+          {/* Bubble chats */}
+          <section className="mb-10">
+            <div className="flex items-center gap-2 mb-3.5">
+              <MessageCircle className="w-3.5 h-3.5" style={{ color: "#ff7a1a" }} />
+              <h2
+                className="text-[11px] font-bold uppercase tracking-[0.16em]"
+                style={{ color: "var(--color-text-muted)" }}
+              >
                 Bubble chats
               </h2>
-              <StaggerContainer className="rounded-3xl overflow-hidden"
-                amount={0.05}>
-                {conversations.map((convo) => (
-                  <StaggerItem key={convo.id}>
-                    <motion.button type="button"
-                      onClick={() => router.push(`/chat/${convo.id}`)}
-                      className="w-full flex items-center gap-3.5 p-4 text-left"
-                      style={{ borderBottom: "1px solid rgba(255,255,255,0.04)", background: "rgba(255,255,255,0.015)" }}
-                      whileHover={{ x: 4, background: "rgba(255,255,255,0.04)" }}
-                      transition={{ type: "spring", stiffness: 300, damping: 24 }}
-                    >
-                      <div className="relative w-12 h-12 rounded-full flex items-center justify-center text-lg shrink-0"
-                        style={{ background: "rgba(255,122,26,0.1)", border: "1px solid rgba(255,122,26,0.2)" }}>
-                        {convo.avatar.length <= 2
-                          ? <span className="text-xs font-bold" style={{ color: "var(--color-text-primary)" }}>{convo.avatar}</span>
-                          : convo.avatar}
-                        {convo.unread > 0 && (
-                          <span className="absolute inset-0 rounded-full animate-pulse-amber pointer-events-none" />
-                        )}
-                      </div>
-                      <div className="flex-1 min-w-0">
-                        <div className="flex items-center justify-between">
-                          <span className="font-semibold text-sm" style={{ color: "var(--color-text-primary)" }}>{convo.name}</span>
-                          <span className="text-[10px]" style={{ color: "var(--color-text-muted)" }}>{convo.time}</span>
-                        </div>
-                        <p className="text-xs truncate mt-0.5" style={{ color: "var(--color-text-secondary)" }}>{convo.lastMessage}</p>
-                      </div>
-                      {convo.unread > 0 && (
-                        <div className="w-5 h-5 rounded-full flex items-center justify-center shrink-0"
-                          style={{ background: "linear-gradient(135deg, #ff7a1a, #ffb56b)", boxShadow: "0 0 10px rgba(255,122,26,0.4)" }}>
-                          <span className="text-[10px] font-bold" style={{ color: "#2a1206" }}>{convo.unread}</span>
-                        </div>
-                      )}
-                    </motion.button>
-                  </StaggerItem>
-                ))}
-              </StaggerContainer>
-            </Reveal>
-          ) : (
-            <Reveal className="mb-10">
-              <div className="relative overflow-hidden rounded-3xl p-8 text-center"
-                style={{ background: "rgba(255,255,255,0.02)", border: "1px solid rgba(255,122,26,0.12)" }}>
-                {/* warm pool */}
-                <div className="absolute inset-x-0 bottom-0 h-24 pointer-events-none"
-                  style={{ background: "radial-gradient(ellipse 60% 100% at 50% 100%, rgba(255,122,26,0.14), transparent 70%)" }} />
-                <div className="relative">
-                  <div className="w-16 h-16 rounded-full flex items-center justify-center mx-auto mb-4"
-                    style={{ background: "rgba(255,122,26,0.1)", border: "1px solid rgba(255,122,26,0.2)" }}>
-                    <MessageCircle className="w-7 h-7" style={{ color: "#ff7a1a" }} />
-                  </div>
-                  <p className="font-display text-lg font-bold" style={{ color: "var(--color-text-primary)" }}>No chats yet</p>
-                  <p className="text-sm mt-1.5 max-w-[280px] mx-auto" style={{ color: "var(--color-text-secondary)" }}>
-                    Join a bubble to unlock its group chat — or start your own and watch your people show up.
-                  </p>
-                  <Link href="/map">
-                    <motion.div
-                      className="inline-flex items-center gap-2 mt-5 px-5 py-2.5 rounded-full text-sm font-bold"
-                      style={{ background: "linear-gradient(135deg, #ff7a1a, #ffb56b)", color: "#2a1206", boxShadow: "0 0 20px rgba(255,122,26,0.3)" }}
-                      whileHover={{ scale: 1.05 }} whileTap={{ scale: 0.97 }}
-                      transition={{ type: "spring", stiffness: 400, damping: 20 }}>
-                      <MapPin className="w-4 h-4" />
-                      Find a bubble
-                    </motion.div>
-                  </Link>
-                </div>
-              </div>
-            </Reveal>
-          )}
+            </div>
 
-          {/* Your circle — who you've connected with, who's out right now */}
+            {loadingJoined && conversations.length === 0 ? (
+              <div className="rounded-2xl px-5 py-12 text-center" style={panelStyle}>
+                <p className="text-sm" style={{ color: "var(--color-text-muted)" }}>
+                  Loading your chats…
+                </p>
+              </div>
+            ) : conversations.length === 0 ? (
+              <Reveal>
+                <div className="relative overflow-hidden rounded-2xl px-6 py-10 text-center" style={panelStyle}>
+                  <div
+                    className="absolute inset-x-0 bottom-0 h-28 pointer-events-none"
+                    style={{
+                      background:
+                        "radial-gradient(ellipse 70% 100% at 50% 100%, rgba(255,122,26,0.16), transparent 70%)",
+                    }}
+                    aria-hidden
+                  />
+                  <div className="relative">
+                    <div
+                      className="w-14 h-14 rounded-2xl flex items-center justify-center mx-auto mb-4"
+                      style={{
+                        background: "rgba(255,122,26,0.12)",
+                        border: "1px solid rgba(255,122,26,0.28)",
+                      }}
+                    >
+                      <MessageCircle className="w-6 h-6" style={{ color: "#ff7a1a" }} />
+                    </div>
+                    <p className="font-display text-xl font-bold" style={{ color: "var(--color-text-primary)" }}>
+                      No chats yet
+                    </p>
+                    <p
+                      className="text-sm mt-2 max-w-[260px] mx-auto leading-relaxed"
+                      style={{ color: "var(--color-text-secondary)" }}
+                    >
+                      Join a bubble nearby to unlock its group chat.
+                    </p>
+                    <Link href="/home" className="inline-block mt-6">
+                      <motion.span
+                        className="inline-flex items-center gap-2 px-5 py-2.5 rounded-full text-sm font-bold"
+                        style={{
+                          background: "linear-gradient(135deg, #ff7a1a, #ffb56b)",
+                          color: "#2a1206",
+                          boxShadow: "0 8px 24px rgba(255,122,26,0.28)",
+                        }}
+                        whileHover={{ scale: 1.03 }}
+                        whileTap={{ scale: 0.97 }}
+                      >
+                        <MapPin className="w-4 h-4" />
+                        Browse bubbles
+                      </motion.span>
+                    </Link>
+                  </div>
+                </div>
+              </Reveal>
+            ) : (
+              <div className="rounded-2xl overflow-hidden" style={panelStyle}>
+                <StaggerContainer amount={0.04}>
+                  {conversations.map((convo, i) => {
+                    const ended = convo.lastMessage === "Bubble ended";
+                    return (
+                      <StaggerItem key={convo.id}>
+                        <motion.button
+                          type="button"
+                          onClick={() => router.push(`/chat/${convo.id}`)}
+                          className="w-full flex items-center gap-3.5 px-4 py-3.5 text-left group"
+                          style={{
+                            borderTop: i === 0 ? "none" : "1px solid rgba(255,255,255,0.05)",
+                          }}
+                          whileHover={{ backgroundColor: "rgba(255,122,26,0.06)" }}
+                          transition={{ duration: 0.15 }}
+                        >
+                          <div
+                            className="relative w-12 h-12 rounded-2xl flex items-center justify-center text-xl shrink-0"
+                            style={{
+                              background: ended
+                                ? "rgba(255,255,255,0.04)"
+                                : "linear-gradient(145deg, rgba(255,122,26,0.22), rgba(255,122,26,0.08))",
+                              border: ended
+                                ? "1px solid rgba(255,255,255,0.08)"
+                                : "1px solid rgba(255,122,26,0.3)",
+                              boxShadow: ended ? "none" : "0 4px 14px rgba(255,122,26,0.12)",
+                            }}
+                          >
+                            {convo.avatar.length <= 2 ? (
+                              <span
+                                className="text-xs font-bold"
+                                style={{ color: "var(--color-text-primary)" }}
+                              >
+                                {convo.avatar}
+                              </span>
+                            ) : (
+                              convo.avatar
+                            )}
+                            {convo.unread > 0 && (
+                              <span
+                                className="absolute -top-1 -right-1 min-w-[18px] h-[18px] px-1 rounded-full flex items-center justify-center text-[10px] font-bold"
+                                style={{
+                                  background: "linear-gradient(135deg, #ff7a1a, #ffb56b)",
+                                  color: "#2a1206",
+                                }}
+                              >
+                                {convo.unread}
+                              </span>
+                            )}
+                          </div>
+
+                          <div className="flex-1 min-w-0">
+                            <div className="flex items-center gap-2">
+                              <span
+                                className="font-semibold text-[15px] truncate"
+                                style={{ color: "var(--color-text-primary)" }}
+                              >
+                                {convo.name}
+                              </span>
+                              {ended ? (
+                                <span
+                                  className="shrink-0 text-[9px] font-bold uppercase tracking-wider px-1.5 py-0.5 rounded-md"
+                                  style={{
+                                    background: "rgba(255,255,255,0.06)",
+                                    color: "var(--color-text-muted)",
+                                  }}
+                                >
+                                  Ended
+                                </span>
+                              ) : (
+                                <span
+                                  className="shrink-0 text-[9px] font-bold uppercase tracking-wider px-1.5 py-0.5 rounded-md"
+                                  style={{
+                                    background: "rgba(74,222,128,0.12)",
+                                    color: "#4ade80",
+                                  }}
+                                >
+                                  Live
+                                </span>
+                              )}
+                            </div>
+                            <p
+                              className="text-xs truncate mt-0.5"
+                              style={{ color: "var(--color-text-secondary)" }}
+                            >
+                              {convo.lastMessage}
+                            </p>
+                          </div>
+
+                          <div className="flex flex-col items-end gap-1 shrink-0">
+                            <span
+                              className="text-[10px] tabular-nums"
+                              style={{ color: "var(--color-text-muted)" }}
+                            >
+                              {convo.time}
+                            </span>
+                            <ChevronRight
+                              className="w-4 h-4 opacity-40 group-hover:opacity-80 transition-opacity"
+                              style={{ color: "#ffb56b" }}
+                            />
+                          </div>
+                        </motion.button>
+                      </StaggerItem>
+                    );
+                  })}
+                </StaggerContainer>
+              </div>
+            )}
+          </section>
+
+          {/* Circle */}
           {circle.length > 0 && (
-            <Reveal as="section" className="mb-10" delay={0.05}>
-              <div className="flex items-center justify-between mb-3">
-                <h2 className="text-xs font-bold uppercase tracking-[0.15em]" style={{ color: "var(--color-text-muted)" }}>
-                  Your circle
-                </h2>
+            <section className="mb-8">
+              <div className="flex items-center justify-between mb-3.5">
+                <div className="flex items-center gap-2">
+                  <Users className="w-3.5 h-3.5" style={{ color: "#ff7a1a" }} />
+                  <h2
+                    className="text-[11px] font-bold uppercase tracking-[0.16em]"
+                    style={{ color: "var(--color-text-muted)" }}
+                  >
+                    Your circle
+                  </h2>
+                </div>
                 {liveNow.length > 0 && (
-                  <span className="flex items-center gap-1.5 text-[11px] font-semibold" style={{ color: "#4ade80" }}>
+                  <span
+                    className="flex items-center gap-1.5 text-[11px] font-semibold"
+                    style={{ color: "#4ade80" }}
+                  >
                     <span className="relative flex h-1.5 w-1.5">
-                      <span className="absolute inline-flex h-full w-full rounded-full animate-ping" style={{ background: "#4ade80", opacity: 0.6 }} />
-                      <span className="relative inline-flex h-1.5 w-1.5 rounded-full" style={{ background: "#4ade80" }} />
+                      <span
+                        className="absolute inline-flex h-full w-full rounded-full animate-ping"
+                        style={{ background: "#4ade80", opacity: 0.55 }}
+                      />
+                      <span
+                        className="relative inline-flex h-1.5 w-1.5 rounded-full"
+                        style={{ background: "#4ade80" }}
+                      />
                     </span>
-                    {liveNow.length} out right now
+                    {liveNow.length} out now
                   </span>
                 )}
               </div>
-              <StaggerContainer className="space-y-2" amount={0.05}>
+
+              <StaggerContainer className="space-y-2" amount={0.04}>
                 {circle.map((friend) => (
                   <StaggerItem key={friend.id}>
-                    <div className="flex items-center gap-3.5 p-3 rounded-2xl"
-                      style={{ background: "rgba(255,255,255,0.02)", border: "1px solid rgba(255,255,255,0.05)" }}>
-                      <div className="relative w-11 h-11 rounded-full flex items-center justify-center text-sm font-bold shrink-0"
-                        style={{ background: "rgba(255,122,26,0.12)", color: "var(--color-text-primary)", border: "1px solid rgba(255,122,26,0.25)" }}>
+                    <div
+                      className="flex items-center gap-3.5 px-3.5 py-3 rounded-2xl"
+                      style={{
+                        background: "rgba(20,15,10,0.72)",
+                        border: "1px solid rgba(255,255,255,0.06)",
+                        boxShadow: "0 1px 0 rgba(255,255,255,0.04) inset",
+                      }}
+                    >
+                      <div
+                        className="relative w-11 h-11 rounded-full flex items-center justify-center text-sm font-bold shrink-0"
+                        style={{
+                          background: "rgba(255,122,26,0.14)",
+                          color: "var(--color-text-primary)",
+                          border: "1px solid rgba(255,122,26,0.28)",
+                        }}
+                      >
                         {friend.avatar}
                         {friend.currentEvent && (
-                          <span className="animate-pulse-dot absolute bottom-0 right-0 w-3 h-3 rounded-full"
-                            style={{ background: "#4ade80", border: "2px solid #140F0A" }} />
+                          <span
+                            className="absolute bottom-0 right-0 w-3 h-3 rounded-full"
+                            style={{ background: "#4ade80", border: "2px solid #140F0A" }}
+                          />
                         )}
                       </div>
                       <div className="min-w-0 flex-1">
-                        <ProfileLink name={friend.name} avatar={friend.avatar}
-                          className="text-sm font-semibold truncate block" style={{ color: "var(--color-text-primary)" }}>
+                        <ProfileLink
+                          name={friend.name}
+                          avatar={friend.avatar}
+                          className="text-sm font-semibold truncate block"
+                          style={{ color: "var(--color-text-primary)" }}
+                        >
                           {friend.name}
                         </ProfileLink>
                         {friend.currentEvent ? (
-                          <p className="text-[11px] truncate" style={{ color: "var(--color-text-primary)" }}>Live · {friend.currentEvent}</p>
+                          <p className="text-[11px] truncate mt-0.5" style={{ color: "#4ade80" }}>
+                            Live · {friend.currentEvent}
+                          </p>
                         ) : (
-                          <p className="text-[11px]" style={{ color: "var(--color-text-muted)" }}>Connected</p>
+                          <p className="text-[11px] mt-0.5" style={{ color: "var(--color-text-muted)" }}>
+                            Connected
+                          </p>
                         )}
                       </div>
-                      <ProfileLink name={friend.name} avatar={friend.avatar}
-                        className="shrink-0 px-3 py-1.5 rounded-full text-[11px] font-bold"
-                        style={{ background: "rgba(255,122,26,0.12)", color: "var(--color-text-primary)", border: "1px solid rgba(255,122,26,0.25)" }}>
+                      <ProfileLink
+                        name={friend.name}
+                        avatar={friend.avatar}
+                        className="shrink-0 px-3.5 py-1.5 rounded-full text-[11px] font-bold transition-colors"
+                        style={{
+                          background: "rgba(255,122,26,0.1)",
+                          color: "#ffb56b",
+                          border: "1px solid rgba(255,122,26,0.28)",
+                        }}
+                      >
                         View
                       </ProfileLink>
                     </div>
                   </StaggerItem>
                 ))}
               </StaggerContainer>
-            </Reveal>
+            </section>
           )}
-
-          {/* Nudge to start something */}
-          <Reveal delay={0.1}>
-            <Link href="/home">
-              <motion.div
-                className="flex items-center gap-3 p-4 rounded-2xl"
-                style={{ background: "rgba(255,122,26,0.06)", border: "1px dashed rgba(255,122,26,0.3)" }}
-                whileHover={{ scale: 1.01, background: "rgba(255,122,26,0.1)" }}
-                transition={{ type: "spring", stiffness: 300, damping: 24 }}>
-                <Sparkles className="w-5 h-5 shrink-0" style={{ color: "#ff7a1a" }} />
-                <div className="flex-1">
-                  <p className="text-sm font-semibold" style={{ color: "var(--color-text-primary)" }}>Quiet here?</p>
-                  <p className="text-xs" style={{ color: "var(--color-text-secondary)" }}>Start something on Home — your next chat is one bubble away.</p>
-                </div>
-              </motion.div>
-            </Link>
-          </Reveal>
         </div>
       </div>
 

@@ -64,6 +64,8 @@ export default function BubbleCard({ bubble }: { bubble: Bubble }) {
           : bubble.joined + 1;
       addBubbleConversation({ ...bubble, joined: membersCount });
       toast.success(`Joined · ${membersCount}/${bubble.maxPeople} 🫧`);
+      // Stack Messages under chat so Back / browser-back lands on /messages, not Home
+      router.push("/messages");
       router.push(`/chat/bubble-${bubble.id}`);
     } catch {
       toast.error("Something went wrong");

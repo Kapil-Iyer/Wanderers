@@ -40,8 +40,11 @@ export async function GET(request: NextRequest) {
 
     const { data: bubbles, error } = await admin
       .from("bubbles")
-      .select("id, activity, zone, start_time, duration_minutes, max_members, status, expires_at, creator_id")
-      .in("id", bubbleIds);
+      .select(
+        "id, activity, zone, emoji, start_time, duration_minutes, max_members, status, expires_at, creator_id"
+      )
+      .in("id", bubbleIds)
+      .order("start_time", { ascending: false });
 
     if (error) {
       return NextResponse.json(
