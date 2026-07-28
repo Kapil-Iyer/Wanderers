@@ -299,7 +299,7 @@ export const interestOptions = [
   "🎲 Board Games", "🌱 Gardening", "🏓 Ping Pong", "🎤 Karaoke",
 ];
 
-export const filterChips = ["Happening Now", "Starting Soon", "Sports", "Casual", "Study", "Music", "Gaming", "Outdoors"];
+export const filterChips = ["All", "Happening Now", "Starting Soon", "Sports", "Casual", "Study", "Music", "Gaming", "Outdoors"];
 
 export interface FeedComment {
   id: string;

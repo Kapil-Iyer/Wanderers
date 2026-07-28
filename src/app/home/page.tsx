@@ -11,7 +11,7 @@ import BubbleCard from "@/components/ui/BubbleCard";
 import CampusEventCard from "@/components/ui/CampusEventCard";
 import CreateBubbleModal from "@/components/ui/CreateBubbleModal";
 import NotificationDrawer from "@/components/ui/NotificationDrawer";
-import { mockBubbles, filterChips, mockFeedPosts, type FeedPost as FeedPostType, type Bubble } from "@/lib/mockData";
+import { mockBubbles, filterChips, mockFeedPosts, type FeedPost as FeedPostType } from "@/lib/mockData";
 import FeedPost from "@/components/FeedPost";
 import { useConnections } from "@/contexts/ConnectionsContext";
 import { useConversations } from "@/contexts/ConversationsContext";
@@ -20,8 +20,6 @@ import type { BubbleConversation } from "@/contexts/ConversationsContext";
 import { Reveal, StaggerContainer, StaggerItem, AnimatedHeadline, CountUp, LineReveal, EASE } from "@/components/motion/Reveal";
 import { getCategoryTheme } from "@/lib/categoryThemes";
 import { useSidebar } from "@/contexts/SidebarContext";
-import { supabase } from "@/lib/supabase";
-import { apiBubbleToUi, type ApiBubble } from "@/lib/bubbleMap";
 
 type UpcomingBubble = {
   id: string; emoji: string; title: string; startingIn: string;
@@ -57,7 +55,7 @@ function formatEventTime(iso: string): string {
 
 export default function HomePage() {
   const router = useRouter();
-  const [activeFilter, setActiveFilter] = useState("Happening Now");
+  const [activeFilter, setActiveFilter] = useState("All");
   const [createOpen, setCreateOpen] = useState(false);
   const [drawerOpen, setDrawerOpen] = useState(false);
   const [endEventBubble, setEndEventBubble] = useState<BubbleConversation | null>(null);
@@ -78,7 +76,6 @@ export default function HomePage() {
   const [upcomingForYou, setUpcomingForYou] = useState<UpcomingBubble[]>(defaultUpcoming);
   const [momentIndex, setMomentIndex] = useState(0);
   const [momentsPaused, setMomentsPaused] = useState(false);
-  const [liveBubbles, setLiveBubbles] = useState<Bubble[]>([]);
   const [campusEvents, setCampusEvents] = useState<CampusEvent[]>([]);
   const [prefill, setPrefill] = useState<{ activity?: string; zone?: string } | undefined>();
   const [profileInitials, setProfileInitials] = useState("?");
@@ -209,41 +206,6 @@ export default function HomePage() {
     setFeedPosts((prev) => [{ ...rest, ...(imageUrl && { imageUrl }), id: `f-${Date.now()}`, timestamp: "JUST NOW" }, ...prev]);
   };
 
-  // Active Nearby - real bubbles from Supabase (initial load)
-  useEffect(() => {
-    let cancelled = false;
-    fetch("/api/bubbles/list")
-      .then((r) => r.json())
-      .then((d: { success?: boolean; data?: ApiBubble[] }) => {
-        if (!cancelled && d?.success && Array.isArray(d.data)) {
-          setLiveBubbles(d.data.map(apiBubbleToUi));
-        }
-      })
-      .catch(() => {});
-    return () => { cancelled = true; };
-  }, []);
-
-  // Realtime - new bubbles appear at the top, expired ones disappear (no refresh)
-  useEffect(() => {
-    const channel = supabase
-      .channel("public-bubbles")
-      .on("postgres_changes", { event: "INSERT", schema: "public", table: "bubbles" }, (payload) => {
-        const b = payload.new as ApiBubble;
-        if (b.status && b.status !== "open") return;
-        setLiveBubbles((prev) => (prev.some((x) => x.id === b.id) ? prev : [apiBubbleToUi(b), ...prev]));
-      })
-      .on("postgres_changes", { event: "UPDATE", schema: "public", table: "bubbles" }, (payload) => {
-        const b = payload.new as ApiBubble;
-        setLiveBubbles((prev) =>
-          b.status === "expired"
-            ? prev.filter((x) => x.id !== b.id)
-            : prev.map((x) => (x.id === b.id ? apiBubbleToUi(b) : x))
-        );
-      })
-      .subscribe();
-    return () => { supabase.removeChannel(channel); };
-  }, []);
-
   // Happening on Campus - upcoming campus events (public; falls back server-side)
   useEffect(() => {
     fetch("/api/campus-events")
@@ -255,23 +217,19 @@ export default function HomePage() {
   }, []);
 
   const filteredBubbles = useMemo(() => {
-    if (activeFilter === "Happening Now") return liveBubbles.filter((b) => b.startingIn.includes("min") || b.startingIn === "Now");
-    if (activeFilter === "Starting Soon") return liveBubbles.filter((b) => b.startingIn.includes("hr"));
-    return liveBubbles.filter((b) => b.category === activeFilter);
-  }, [activeFilter, liveBubbles]);
+    // Startable campus catalog - always 0 members until someone starts (matches Explore).
+    const source = mockBubbles;
+    if (activeFilter === "Happening Now") {
+      return source.filter((b) => b.startingIn.includes("min") || b.startingIn === "Now");
+    }
+    if (activeFilter === "Starting Soon") {
+      return source.filter((b) => b.startingIn.includes("hr"));
+    }
+    if (activeFilter === "All") return source;
+    return source.filter((b) => b.category === activeFilter);
+  }, [activeFilter]);
 
   const scrollToMoments = () => momentsRef.current?.scrollIntoView({ behavior: "smooth", block: "start" });
-  const scrollToRef = (ref: React.RefObject<HTMLElement | null>) =>
-    ref.current?.scrollIntoView({ behavior: "smooth", block: "start" });
-  const scrollToTop = () => window.scrollTo({ top: 0, behavior: "smooth" });
-
-  const quickNavLinks = [
-    { label: "Home", onClick: scrollToTop },
-    { label: "Upcoming for you", onClick: () => scrollToRef(upcomingRef) },
-    { label: "Active nearby", onClick: () => scrollToRef(nearbyRef) },
-    { label: "Recent moments", onClick: () => scrollToRef(momentsRef) },
-    { label: "About us", onClick: () => scrollToRef(aboutRef) },
-  ];
 
   return (
     <div className="min-h-screen pb-12">
@@ -285,27 +243,6 @@ export default function HomePage() {
           setPrefill(undefined);
           setCreateOpen(true);
         }}
-        center={
-          <div className="flex items-center gap-1.5 overflow-x-auto">
-            {quickNavLinks.map((item) => (
-              <button
-                key={item.label}
-                type="button"
-                onClick={item.onClick}
-                className="px-3 py-1.5 rounded-xl text-[11px] font-semibold whitespace-nowrap transition-colors"
-                style={{
-                  background:
-                    "linear-gradient(165deg, rgba(40,32,26,0.8) 0%, rgba(18,13,10,0.9) 100%)",
-                  border: "1px solid rgba(255,181,107,0.14)",
-                  color: "var(--color-text-secondary)",
-                  boxShadow: "0 1px 0 rgba(255,255,255,0.05) inset, 0 4px 12px rgba(0,0,0,0.25)",
-                }}
-              >
-                {item.label}
-              </button>
-            ))}
-          </div>
-        }
       />
 
       <div className={`transition-[padding] duration-300 ease-out ${sidebarExpanded ? "lg:pl-64" : "lg:pl-3"}`}>
@@ -695,8 +632,8 @@ export default function HomePage() {
         open={createOpen}
         onClose={() => setCreateOpen(false)}
         prefill={prefill}
-        onCreated={(b) => {
-          if (b) setLiveBubbles((prev) => (prev.some((x) => x.id === b.id) ? prev : [apiBubbleToUi(b), ...prev]));
+        onCreated={() => {
+          /* Catalog stays startable; new bubbles are available from Messages / chat. */
         }}
       />
       {endEventBubble && (

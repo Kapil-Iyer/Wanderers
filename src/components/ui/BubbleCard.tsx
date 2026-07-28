@@ -7,7 +7,7 @@
  */
 
 import Link from "next/link";
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import { motion, useReducedMotion } from "framer-motion";
 import { toast } from "sonner";
@@ -36,6 +36,9 @@ export default function BubbleCard({ bubble }: { bubble: Bubble }) {
   const reduce = useReducedMotion();
   const [flipped, setFlipped] = useState(false);
   const [joinedCount, setJoinedCount] = useState(bubble.joined);
+  useEffect(() => {
+    setJoinedCount(bubble.joined);
+  }, [bubble.id, bubble.joined]);
   const zone = bubble.zone ?? bubble.distance;
   const fillPct = Math.min(1, joinedCount / Math.max(1, bubble.maxPeople));
   const spotsLeft = Math.max(0, bubble.maxPeople - joinedCount);
@@ -181,17 +184,20 @@ export default function BubbleCard({ bubble }: { bubble: Bubble }) {
 
           <button
             type="button"
-            onClick={() => setFlipped(true)}
+            onClick={(e) => {
+              e.stopPropagation();
+              setFlipped(true);
+            }}
             aria-label="More info"
-            className="absolute -top-1.5 -right-1.5 z-20 w-6 h-6 rounded-full flex items-center justify-center"
+            className="absolute top-2.5 right-2.5 z-30 w-7 h-7 rounded-full flex items-center justify-center transition-transform hover:scale-110"
             style={{
               background: "rgba(10,7,5,0.92)",
-              border: `1px solid ${theme.accent}55`,
+              border: `1px solid ${theme.accent}70`,
               color: theme.accent,
-              boxShadow: "0 2px 10px rgba(0,0,0,0.5)",
+              boxShadow: "0 2px 10px rgba(0,0,0,0.55)",
             }}
           >
-            <Info className="w-3 h-3" />
+            <Info className="w-3.5 h-3.5" />
           </button>
 
           <div
@@ -253,7 +259,9 @@ export default function BubbleCard({ bubble }: { bubble: Bubble }) {
               </span>
               <span className="flex items-center gap-1 text-[11px]" style={{ color: "var(--color-text-secondary)" }}>
                 <Users className="w-3 h-3" style={{ color: theme.accent }} />
-                {joinedCount}/{bubble.maxPeople}
+                {joinedCount === 0
+                  ? `0 people · ${bubble.maxPeople} spots`
+                  : `${joinedCount}/${bubble.maxPeople}`}
               </span>
             </div>
 
@@ -364,12 +372,12 @@ export default function BubbleCard({ bubble }: { bubble: Bubble }) {
             type="button"
             onClick={() => setFlipped(false)}
             aria-label="Close info"
-            className="absolute -top-2 -right-2 z-20 w-7 h-7 rounded-full flex items-center justify-center"
+            className="absolute top-2.5 right-2.5 z-20 w-7 h-7 rounded-full flex items-center justify-center"
             style={{
               background: "rgba(10,7,5,0.92)",
-              border: `1px solid ${theme.accent}55`,
+              border: `1px solid ${theme.accent}70`,
               color: theme.accent,
-              boxShadow: "0 2px 10px rgba(0,0,0,0.5)",
+              boxShadow: "0 2px 10px rgba(0,0,0,0.55)",
             }}
           >
             <X className="w-3.5 h-3.5" />
@@ -405,8 +413,11 @@ export default function BubbleCard({ bubble }: { bubble: Bubble }) {
             </div>
             <div className="flex items-center gap-2">
               <Users className="w-3.5 h-3.5 shrink-0" style={{ color: theme.accent }} />
-              {joinedCount}/{bubble.maxPeople} joined
-              {spotsLeft > 0 ? ` · ${spotsLeft} spot${spotsLeft > 1 ? "s" : ""} left` : " · full"}
+              {joinedCount === 0
+                ? `0 people · ${bubble.maxPeople} spots`
+                : `${joinedCount}/${bubble.maxPeople} joined`}
+              {joinedCount > 0 &&
+                (spotsLeft > 0 ? ` · ${spotsLeft} spot${spotsLeft > 1 ? "s" : ""} left` : " · full")}
             </div>
           </div>
 

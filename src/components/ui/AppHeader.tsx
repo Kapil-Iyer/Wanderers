@@ -226,7 +226,7 @@ export default function AppHeader({
         aria-hidden
       />
 
-      <div className="flex items-center justify-between gap-3 px-4 sm:px-6 h-16 max-w-[1400px] mx-auto">
+      <div className="flex items-center justify-between gap-3 px-4 sm:px-6 h-16 max-w-[1400px] mx-auto flex-nowrap">
         {/* Brand → Home + campus picker */}
         <div className="flex items-center gap-3 shrink-0 min-w-0">
           <Link
