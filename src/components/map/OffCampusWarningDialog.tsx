@@ -39,7 +39,7 @@ export default function OffCampusWarningDialog({
             <span className="font-medium" style={{ color: "var(--text-primary)" }}>
               {title}
             </span>{" "}
-            is at <span className="font-medium">{zone}</span> — outside University of Waterloo.
+            is at <span className="font-medium">{zone}</span> - outside University of Waterloo.
             You&apos;ll need to travel to get there.
           </AlertDialogDescription>
         </AlertDialogHeader>

@@ -1,7 +1,7 @@
 "use client";
 
 /**
- * AUTH MODAL — Wanderers Warmth visuals (amber glass + Framer Motion)
+ * AUTH MODAL - Wanderers Warmth visuals (amber glass + Framer Motion)
  * wrapping the password + 2FA-OTP + forgot-password auth logic from
  * jivesh/auth.
  *
@@ -10,16 +10,16 @@
  *   login   → POST /api/auth/login  {email,password,rememberDevice}
  *             → session if device trusted (7d), else OTP "verify" step
  *   verify  → POST /api/auth/verify {email,token,rememberDevice} → setSession → /home
- *   forgot  → POST /api/auth/forgot-password {email}      → reset email
+ *   forgot  → POST /api/auth/forgot-password → email link (sign-in + change password)
  *
- * NOTE: campus (@uwaterloo.ca) enforcement is intentionally not re-added here —
- * tracked as a post-merge follow-up to gate it server-side.
+ * Campus gate: only @uwaterloo.ca emails (client + server).
  */
 
 import { useState, useEffect } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { useRouter } from "next/navigation";
 import { Mail, User, Lock, Eye, EyeOff, ArrowLeft } from "lucide-react";
+import { CAMPUS_EMAIL_ERROR, isUWaterlooEmail } from "@/lib/campusEmail";
 
 const ease = [0.25, 0.46, 0.45, 0.94] as const;
 
@@ -67,6 +67,7 @@ export default function AuthModal() {
 
     if (!name) { setError("Full name required"); return; }
     if (!email) { setError("Email required"); return; }
+    if (!isUWaterlooEmail(email)) { setError(CAMPUS_EMAIL_ERROR); return; }
     if (!password || password.length < 8) { setError("Password must be at least 8 characters"); return; }
     if (password !== confirmPassword) { setError("Passwords do not match"); return; }
 
@@ -96,6 +97,7 @@ export default function AuthModal() {
     const password = (form.elements.namedItem("loginPassword") as HTMLInputElement)?.value;
 
     if (!email) { setError("Email required"); return; }
+    if (!isUWaterlooEmail(email)) { setError(CAMPUS_EMAIL_ERROR); return; }
     if (!password) { setError("Password required"); return; }
 
     setLoading(true);
@@ -109,7 +111,7 @@ export default function AuthModal() {
       const data = await res.json();
       if (!res.ok || !data.success) throw new Error(data.error || "Failed to log in");
 
-      // Trusted device — password only, no OTP for ~7 days
+      // Trusted device - password only, no OTP for ~7 days
       if (data.skippedOtp && data.session) {
         const { supabase } = await import("@/lib/supabase");
         await supabase.auth.setSession(data.session);
@@ -131,6 +133,7 @@ export default function AuthModal() {
     setError(null);
     const email = (e.currentTarget.elements.namedItem("forgotEmail") as HTMLInputElement)?.value?.trim().toLowerCase();
     if (!email) { setError("Email required"); return; }
+    if (!isUWaterlooEmail(email)) { setError(CAMPUS_EMAIL_ERROR); return; }
     setLoading(true);
     try {
       const res = await fetch("/api/auth/forgot-password", {
@@ -139,11 +142,14 @@ export default function AuthModal() {
         body: JSON.stringify({ email }),
       });
       const data = await res.json();
-      if (!res.ok || !data.success) throw new Error(data.error || "Failed to send reset email");
-      setSuccess("Password reset link sent! Check your email.");
+      if (!res.ok || !data.success) throw new Error(data.error || "Failed to send email");
+      setSuccess(
+        data.message ||
+          "Check your email - open the link to sign in and change your password."
+      );
       setMode("login");
     } catch (err) {
-      setError(err instanceof Error ? err.message : "Failed to send reset email");
+      setError(err instanceof Error ? err.message : "Failed to send email");
     } finally {
       setLoading(false);
     }
@@ -276,7 +282,7 @@ export default function AuthModal() {
               <AmberButton onClick={() => go("signup")}>Sign Up</AmberButton>
               <GhostButton onClick={() => go("login")}>Log In</GhostButton>
               <p className="text-xs text-center pt-1" style={{ color: "var(--color-text-muted)" }}>
-                University of Waterloo students only
+                @uwaterloo.ca email required
               </p>
             </motion.div>
           )}
@@ -322,8 +328,8 @@ export default function AuthModal() {
               </div>
               <p className="text-xs" style={{ color: "var(--color-text-muted)" }}>
                 {rememberDevice
-                  ? "First time (or after a week): we'll email a 6-digit code once."
-                  : "We'll send a 6-digit code every time you log in."}
+                  ? "First time (or after a week): we'll email a 6-digit code once. Owner accounts never need a code."
+                  : "We'll send a 6-digit code every time you log in (owners excepted)."}
               </p>
               <AmberButton type="submit" loading={loading}>
                 {loading ? "Signing in…" : "Log In"}
@@ -336,8 +342,13 @@ export default function AuthModal() {
             <motion.form key="forgot" variants={panelVariants} initial="enter" animate="center" exit="exit"
               transition={{ duration: 0.3, ease }} className="space-y-4" onSubmit={handleForgot} autoComplete="off">
               <Field id="forgotEmail" name="forgotEmail" type="email" icon={<Mail className="w-4 h-4" />} placeholder="you@uwaterloo.ca" label="Waterloo Email" required autoComplete="off" />
-              <p className="text-xs" style={{ color: "var(--color-text-muted)" }}>We&apos;ll send you a link to reset your password.</p>
-              <AmberButton type="submit" loading={loading}>{loading ? "Sending…" : "Send Reset Link"}</AmberButton>
+              <p className="text-xs leading-relaxed" style={{ color: "var(--color-text-muted)" }}>
+                We&apos;ll email a link to <span style={{ color: "var(--color-text-secondary)" }}>your Waterloo inbox</span>.
+                Opening it signs you in and lets you set a new password.
+              </p>
+              <AmberButton type="submit" loading={loading}>
+                {loading ? "Sending…" : "Send email"}
+              </AmberButton>
               <BackButton onClick={() => go("login")} label="Back to Login" />
             </motion.form>
           )}

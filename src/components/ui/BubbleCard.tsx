@@ -1,7 +1,7 @@
 "use client";
 
 /**
- * BUBBLE CARD — large immersive "event poster" card.
+ * BUBBLE CARD - large immersive "event poster" card.
  * Category-tuned warm gradient, lit-from-within emoji, animated capacity bar,
  * layered hover depth. Designed to live in a responsive grid.
  */
@@ -20,6 +20,14 @@ import { supabase } from "@/lib/supabase";
 import { Users, Clock, MapPin, Info, X } from "lucide-react";
 
 const EASE = [0.25, 0.46, 0.45, 0.94] as const;
+const UUID_RE =
+  /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
+
+function parseDurationMinutes(duration: string): number {
+  const hrs = duration.match(/(\d+)\s*hr/i);
+  const mins = duration.match(/(\d+)\s*min/i);
+  return (hrs ? Number(hrs[1]) * 60 : 0) + (mins ? Number(mins[1]) : 0) || 60;
+}
 
 export default function BubbleCard({ bubble }: { bubble: Bubble }) {
   const mapOverlay = useMapOverlay();
@@ -27,16 +35,18 @@ export default function BubbleCard({ bubble }: { bubble: Bubble }) {
   const { addBubbleConversation } = useConversations();
   const reduce = useReducedMotion();
   const [flipped, setFlipped] = useState(false);
+  const [joinedCount, setJoinedCount] = useState(bubble.joined);
   const zone = bubble.zone ?? bubble.distance;
-  const fillPct = Math.min(1, bubble.joined / Math.max(1, bubble.maxPeople));
-  const spotsLeft = Math.max(0, bubble.maxPeople - bubble.joined);
+  const fillPct = Math.min(1, joinedCount / Math.max(1, bubble.maxPeople));
+  const spotsLeft = Math.max(0, bubble.maxPeople - joinedCount);
   const theme = getCategoryTheme(bubble.category);
   const isLive = bubble.startingIn.includes("min");
   const [joining, setJoining] = useState(false);
+  const isEmpty = joinedCount === 0;
+  const isRealBubble = UUID_RE.test(bubble.id);
 
   const handleJoin = async () => {
     if (joining) return;
-    // Refresh so we don't send an expired access token
     const { data: refreshed } = await supabase.auth.refreshSession();
     const token =
       refreshed.session?.access_token ??
@@ -48,6 +58,51 @@ export default function BubbleCard({ bubble }: { bubble: Bubble }) {
     }
     setJoining(true);
     try {
+      // Demo cards use mock IDs that are not in the DB - create a real bubble first.
+      if (!isRealBubble) {
+        const createRes = await fetch("/api/bubbles", {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+            Authorization: `Bearer ${token}`,
+          },
+          body: JSON.stringify({
+            activity: bubble.title,
+            zone: bubble.zone ?? bubble.distance ?? "Campus",
+            duration_minutes: parseDurationMinutes(bubble.duration),
+            max_members: bubble.maxPeople,
+            description: bubble.description,
+            emoji: bubble.emoji,
+          }),
+        });
+        const createData = await createRes.json().catch(() => ({}));
+        if (!createRes.ok || !createData.success || !createData.data?.id) {
+          const err = (createData.error ?? "Could not start bubble") as string;
+          toast.error(
+            /unauth/i.test(err) || createRes.status === 401
+              ? "Session expired - sign in again"
+              : err
+          );
+          if (/unauth/i.test(err) || createRes.status === 401) router.push("/");
+          return;
+        }
+        const realId = createData.data.id as string;
+        const membersCount =
+          typeof createData.data.members_count === "number"
+            ? createData.data.members_count
+            : 1;
+        setJoinedCount(membersCount);
+        addBubbleConversation({ ...bubble, id: realId, joined: membersCount });
+        toast.success(
+          membersCount <= 1
+            ? `Started · ${membersCount}/${bubble.maxPeople} 🫧`
+            : `Joined · ${membersCount}/${bubble.maxPeople} 🫧`
+        );
+        router.push("/messages");
+        router.push(`/chat/bubble-${realId}`);
+        return;
+      }
+
       const res = await fetch("/api/bubbles/join", {
         method: "POST",
         headers: {
@@ -61,7 +116,7 @@ export default function BubbleCard({ bubble }: { bubble: Bubble }) {
         const err = (data.error ?? "Could not join") as string;
         toast.error(
           /unauth/i.test(err) || res.status === 401
-            ? "Session expired — sign in again"
+            ? "Session expired - sign in again"
             : err
         );
         if (/unauth/i.test(err) || res.status === 401) router.push("/");
@@ -70,10 +125,14 @@ export default function BubbleCard({ bubble }: { bubble: Bubble }) {
       const membersCount =
         typeof data?.data?.members_count === "number"
           ? data.data.members_count
-          : bubble.joined + 1;
+          : joinedCount + 1;
+      setJoinedCount(membersCount);
       addBubbleConversation({ ...bubble, joined: membersCount });
-      toast.success(`Joined · ${membersCount}/${bubble.maxPeople} 🫧`);
-      // Stack Messages under chat so Back / browser-back lands on /messages, not Home
+      toast.success(
+        membersCount <= 1
+          ? `Started · ${membersCount}/${bubble.maxPeople} 🫧`
+          : `Joined · ${membersCount}/${bubble.maxPeople} 🫧`
+      );
       router.push("/messages");
       router.push(`/chat/bubble-${bubble.id}`);
     } catch {
@@ -83,109 +142,122 @@ export default function BubbleCard({ bubble }: { bubble: Bubble }) {
     }
   };
 
+  const ctaLabel = joining
+    ? isEmpty
+      ? "Starting…"
+      : "Joining…"
+    : isEmpty
+      ? "Start this bubble"
+      : "Join bubble";
+
   return (
-    <div className="relative h-[420px]" style={{ perspective: "1600px" }}>
+    <div className="relative h-[300px]" style={{ perspective: "1600px" }}>
       <motion.div
         className="relative h-full w-full"
         style={{ transformStyle: "preserve-3d" }}
         animate={{ rotateY: flipped ? 180 : 0 }}
         transition={{ duration: 0.6, ease: EASE }}
       >
-        {/* ── FRONT — fixed height so new events match every other card ── */}
         <motion.div
-          className="group relative rounded-3xl h-full flex flex-col overflow-hidden"
+          className="group relative rounded-2xl h-full flex flex-col overflow-hidden"
           style={{
-            background: `linear-gradient(165deg, ${theme.tint} 0%, rgba(10,7,5,0.95) 45%)`,
+            background: "linear-gradient(165deg, #16120e 0%, #0c0907 50%, #080604 100%)",
             border: "1.5px solid rgba(255,181,107,0.18)",
             boxShadow:
-              "inset 0 1px 0 rgba(255,255,255,0.1), inset 0 -1px 0 rgba(0,0,0,0.35), 0 10px 28px -10px rgba(0,0,0,0.55)",
+              "inset 0 1px 0 rgba(255,255,255,0.08), inset 0 -1px 0 rgba(0,0,0,0.4), 0 10px 28px -10px rgba(0,0,0,0.65)",
             backfaceVisibility: "hidden",
             pointerEvents: flipped ? "none" : "auto",
           }}
           whileHover={{
-            y: -5,
+            y: -4,
             rotateX: 2,
-            boxShadow: `inset 0 1px 0 ${theme.from}40, 0 18px 40px -14px ${theme.from}40, 0 0 24px ${theme.from}14`,
+            boxShadow: `inset 0 1px 0 ${theme.from}40, 0 14px 32px -12px ${theme.from}40, 0 0 20px ${theme.from}12`,
           }}
           transition={{ type: "spring", stiffness: 300, damping: 22 }}
         >
-          {/* ambient breathing glow for live bubbles — separate layer so the CSS
-              keyframe never fights Framer's hover box-shadow on the card itself */}
           {isLive && !reduce && (
-            <div className="absolute inset-0 rounded-3xl pointer-events-none animate-pulse-amber" aria-hidden="true" />
+            <div className="absolute inset-0 rounded-2xl pointer-events-none animate-pulse-amber" aria-hidden="true" />
           )}
 
-          {/* info toggle — flips the card to reveal details */}
           <button
             type="button"
             onClick={() => setFlipped(true)}
             aria-label="More info"
-            className="absolute -top-2 -right-2 z-20 w-7 h-7 rounded-full flex items-center justify-center"
-            style={{ background: "rgba(10,7,5,0.92)", border: `1px solid ${theme.accent}55`, color: theme.accent, boxShadow: "0 2px 10px rgba(0,0,0,0.5)" }}
+            className="absolute -top-1.5 -right-1.5 z-20 w-6 h-6 rounded-full flex items-center justify-center"
+            style={{
+              background: "rgba(10,7,5,0.92)",
+              border: `1px solid ${theme.accent}55`,
+              color: theme.accent,
+              boxShadow: "0 2px 10px rgba(0,0,0,0.5)",
+            }}
           >
-            <Info className="w-3.5 h-3.5" />
+            <Info className="w-3 h-3" />
           </button>
 
-          {/* Poster header */}
           <div
-            className="relative h-36 flex items-center justify-center overflow-hidden rounded-t-3xl"
-            style={{ background: `linear-gradient(135deg, ${theme.from}38 0%, ${theme.to}22 60%, transparent 100%), rgba(8,6,4,0.97)` }}
+            className="relative h-24 flex items-center justify-center overflow-hidden rounded-t-2xl shrink-0"
+            style={{
+              background: `linear-gradient(135deg, ${theme.from}22 0%, ${theme.to}12 50%, transparent 100%), #0a0806`,
+            }}
           >
-            {/* glow pool */}
             <div
-              className="absolute -bottom-10 left-1/2 -translate-x-1/2 w-40 h-40 rounded-full"
+              className="absolute -bottom-8 left-1/2 -translate-x-1/2 w-28 h-28 rounded-full"
               style={{ background: `radial-gradient(circle, ${theme.from}30 0%, transparent 70%)` }}
             />
-            {/* category tag */}
             <span
-              className="absolute top-3 left-3 text-[10px] font-bold uppercase tracking-[0.12em] px-2.5 py-1 rounded-full"
-              style={{ background: "rgba(0,0,0,0.35)", color: theme.accent, border: `1px solid ${theme.accent}40` }}
+              className="absolute top-2 left-2 text-[9px] font-bold uppercase tracking-[0.12em] px-2 py-0.5 rounded-full"
+              style={{
+                background: "rgba(0,0,0,0.35)",
+                color: theme.accent,
+                border: `1px solid ${theme.accent}40`,
+              }}
             >
               {bubble.category}
             </span>
-            {/* spots-left badge */}
             {spotsLeft > 0 && spotsLeft <= 3 && (
               <span
-                className="absolute top-3 right-3 text-[10px] font-bold px-2.5 py-1 rounded-full"
-                style={{ background: `linear-gradient(135deg, ${theme.from}, ${theme.to})`, color: "#2a1206" }}
+                className="absolute top-2 right-2 text-[9px] font-bold px-2 py-0.5 rounded-full"
+                style={{
+                  background: `linear-gradient(135deg, ${theme.from}, ${theme.to})`,
+                  color: "#2a1206",
+                }}
               >
-                {spotsLeft} spot{spotsLeft > 1 ? "s" : ""} left
+                {spotsLeft} left
               </span>
             )}
-            {/* emoji — secondary layered hover */}
             <motion.span
-              className="relative z-10 text-6xl drop-shadow-[0_8px_24px_rgba(0,0,0,0.5)]"
-              whileHover={{ y: -3 }}
+              className="relative z-10 text-4xl drop-shadow-[0_8px_24px_rgba(0,0,0,0.5)]"
+              whileHover={{ y: -2 }}
               transition={{ delay: 0.15, type: "spring", stiffness: 300, damping: 18 }}
             >
               {bubble.emoji}
             </motion.span>
           </div>
 
-          {/* Body */}
-          <div className="p-5 flex flex-col flex-1">
+          <div className="p-3.5 flex flex-col flex-1 min-h-0">
             <h3
-              className="font-display text-lg font-bold leading-tight line-clamp-2 min-h-[2.75rem]"
+              className="font-display text-base font-bold leading-tight line-clamp-2 min-h-[2.5rem]"
               style={{ color: "var(--color-text-primary)" }}
             >
               {bubble.title}
             </h3>
 
-            {/* Meta */}
-            <div className="flex flex-wrap gap-x-4 gap-y-1.5 mt-3">
-              <span className="flex items-center gap-1.5 text-xs" style={{ color: "var(--color-text-secondary)" }}>
-                <MapPin className="w-3.5 h-3.5" style={{ color: theme.accent }} />{zone}
+            <div className="flex flex-wrap gap-x-3 gap-y-1 mt-2">
+              <span className="flex items-center gap-1 text-[11px]" style={{ color: "var(--color-text-secondary)" }}>
+                <MapPin className="w-3 h-3" style={{ color: theme.accent }} />
+                {zone}
               </span>
-              <span className="flex items-center gap-1.5 text-xs" style={{ color: "var(--color-text-secondary)" }}>
-                <Clock className="w-3.5 h-3.5" style={{ color: theme.accent }} />{bubble.startingIn}
+              <span className="flex items-center gap-1 text-[11px]" style={{ color: "var(--color-text-secondary)" }}>
+                <Clock className="w-3 h-3" style={{ color: theme.accent }} />
+                {bubble.startingIn}
               </span>
-              <span className="flex items-center gap-1.5 text-xs" style={{ color: "var(--color-text-secondary)" }}>
-                <Users className="w-3.5 h-3.5" style={{ color: theme.accent }} />{bubble.joined}/{bubble.maxPeople}
+              <span className="flex items-center gap-1 text-[11px]" style={{ color: "var(--color-text-secondary)" }}>
+                <Users className="w-3 h-3" style={{ color: theme.accent }} />
+                {joinedCount}/{bubble.maxPeople}
               </span>
             </div>
 
-            {/* Capacity bar */}
-            <div className="mt-4 h-1.5 rounded-full overflow-hidden" style={{ background: "rgba(255,255,255,0.06)" }}>
+            <div className="mt-2.5 h-1 rounded-full overflow-hidden" style={{ background: "rgba(255,255,255,0.06)" }}>
               <motion.div
                 className="h-full rounded-full"
                 style={{ background: `linear-gradient(90deg, ${theme.from}, ${theme.to})`, originX: 0 }}
@@ -197,51 +269,61 @@ export default function BubbleCard({ bubble }: { bubble: Bubble }) {
             </div>
 
             <p
-              className="text-sm mt-4 line-clamp-2 leading-relaxed min-h-[2.5rem]"
+              className="text-xs mt-2.5 line-clamp-2 leading-relaxed flex-1"
               style={{ color: "var(--color-text-secondary)" }}
             >
-              {bubble.description || "Join this bubble and meet people nearby."}
+              {isEmpty
+                ? "Be the first wanderer - start this bubble and others can join."
+                : bubble.description || "Join this bubble and meet people nearby."}
             </p>
 
-            {/* Footer — creator */}
-            <div className="mt-5 flex items-center gap-2">
+            <div className="mt-2.5 flex items-center gap-2">
               <div
-                className="w-7 h-7 rounded-full flex items-center justify-center text-[10px] font-bold shrink-0"
-                style={{ background: `${theme.from}28`, color: theme.accent, border: `1px solid ${theme.accent}40` }}
+                className="w-6 h-6 rounded-full flex items-center justify-center text-[9px] font-bold shrink-0"
+                style={{
+                  background: `${theme.from}28`,
+                  color: theme.accent,
+                  border: `1px solid ${theme.accent}40`,
+                }}
               >
-                {bubble.creatorAvatar}
+                {isEmpty ? "+" : bubble.creatorAvatar}
               </div>
-              <ProfileLink
-                name={bubble.creator}
-                avatar={bubble.creatorAvatar}
-                className="text-xs truncate flex-1"
-                style={{ color: "var(--color-text-secondary)" }}
-              >
-                {bubble.creator}
-              </ProfileLink>
+              <span className="text-[11px] truncate flex-1" style={{ color: "var(--color-text-secondary)" }}>
+                {isEmpty ? (
+                  "Open · waiting for first wanderer"
+                ) : (
+                  <ProfileLink
+                    name={bubble.creator}
+                    avatar={bubble.creatorAvatar}
+                    className="text-[11px]"
+                    style={{ color: "var(--color-text-secondary)" }}
+                  >
+                    {bubble.creator}
+                  </ProfileLink>
+                )}
+              </span>
             </div>
 
-            {/* Actions — Join + Map */}
-            <div className="mt-4 flex items-center gap-2">
+            <div className="mt-2.5 flex items-center gap-2">
               <motion.button
                 type="button"
                 onClick={handleJoin}
                 disabled={joining}
-                className="flex-1 h-11 rounded-full text-sm font-bold disabled:opacity-60"
+                className="flex-1 h-9 rounded-full text-xs font-bold disabled:opacity-60"
                 style={{
                   background: `linear-gradient(135deg, ${theme.from}, ${theme.to})`,
                   color: "#1a0a00",
-                  boxShadow: `0 0 16px ${theme.from}28`,
+                  boxShadow: `0 0 14px ${theme.from}28`,
                 }}
                 whileTap={{ scale: 0.97 }}
               >
-                {joining ? "Joining…" : "Join bubble"}
+                {ctaLabel}
               </motion.button>
               {mapOverlay ? (
                 <button
                   type="button"
                   onClick={() => mapOverlay.openMap()}
-                  className="h-11 px-3 rounded-full text-xs font-semibold shrink-0"
+                  className="h-9 px-2.5 rounded-full text-[11px] font-semibold shrink-0"
                   style={{
                     background: "rgba(255,255,255,0.04)",
                     border: "1px solid rgba(255,255,255,0.1)",
@@ -253,7 +335,7 @@ export default function BubbleCard({ bubble }: { bubble: Bubble }) {
               ) : (
                 <Link
                   href="/map"
-                  className="h-11 px-3 rounded-full text-xs font-semibold shrink-0 inline-flex items-center"
+                  className="h-9 px-2.5 rounded-full text-[11px] font-semibold shrink-0 inline-flex items-center"
                   style={{
                     background: "rgba(255,255,255,0.04)",
                     border: "1px solid rgba(255,255,255,0.1)",
@@ -267,13 +349,12 @@ export default function BubbleCard({ bubble }: { bubble: Bubble }) {
           </div>
         </motion.div>
 
-        {/* ── BACK — info face ── */}
         <div
-          className="absolute inset-0 rounded-3xl h-full flex flex-col p-5"
+          className="absolute inset-0 rounded-2xl h-full flex flex-col p-3.5"
           style={{
-            background: `linear-gradient(165deg, ${theme.tint} 0%, rgba(10,7,5,0.97) 45%)`,
-            border: "1px solid rgba(255,255,255,0.07)",
-            boxShadow: "inset 0 1px 0 rgba(255,255,255,0.05), 0 4px 24px rgba(0,0,0,0.4)",
+            background: "linear-gradient(165deg, #16120e 0%, #0c0907 55%, #080604 100%)",
+            border: "1px solid rgba(255,181,107,0.16)",
+            boxShadow: "inset 0 1px 0 rgba(255,255,255,0.05), 0 4px 24px rgba(0,0,0,0.5)",
             transform: "rotateY(180deg)",
             backfaceVisibility: "hidden",
             pointerEvents: flipped ? "auto" : "none",
@@ -284,14 +365,23 @@ export default function BubbleCard({ bubble }: { bubble: Bubble }) {
             onClick={() => setFlipped(false)}
             aria-label="Close info"
             className="absolute -top-2 -right-2 z-20 w-7 h-7 rounded-full flex items-center justify-center"
-            style={{ background: "rgba(10,7,5,0.92)", border: `1px solid ${theme.accent}55`, color: theme.accent, boxShadow: "0 2px 10px rgba(0,0,0,0.5)" }}
+            style={{
+              background: "rgba(10,7,5,0.92)",
+              border: `1px solid ${theme.accent}55`,
+              color: theme.accent,
+              boxShadow: "0 2px 10px rgba(0,0,0,0.5)",
+            }}
           >
             <X className="w-3.5 h-3.5" />
           </button>
 
           <span
             className="self-start text-[10px] font-bold uppercase tracking-[0.12em] px-2.5 py-1 rounded-full mb-3"
-            style={{ background: "rgba(0,0,0,0.35)", color: theme.accent, border: `1px solid ${theme.accent}40` }}
+            style={{
+              background: "rgba(0,0,0,0.35)",
+              color: theme.accent,
+              border: `1px solid ${theme.accent}40`,
+            }}
           >
             {bubble.category}
           </span>
@@ -315,7 +405,7 @@ export default function BubbleCard({ bubble }: { bubble: Bubble }) {
             </div>
             <div className="flex items-center gap-2">
               <Users className="w-3.5 h-3.5 shrink-0" style={{ color: theme.accent }} />
-              {bubble.joined}/{bubble.maxPeople} joined
+              {joinedCount}/{bubble.maxPeople} joined
               {spotsLeft > 0 ? ` · ${spotsLeft} spot${spotsLeft > 1 ? "s" : ""} left` : " · full"}
             </div>
           </div>
@@ -323,12 +413,22 @@ export default function BubbleCard({ bubble }: { bubble: Bubble }) {
           <div className="mt-4 pt-4 flex items-center gap-2" style={{ borderTop: "1px solid rgba(255,255,255,0.07)" }}>
             <div
               className="w-7 h-7 rounded-full flex items-center justify-center text-[10px] font-bold shrink-0"
-              style={{ background: `${theme.from}28`, color: theme.accent, border: `1px solid ${theme.accent}40` }}
+              style={{
+                background: `${theme.from}28`,
+                color: theme.accent,
+                border: `1px solid ${theme.accent}40`,
+              }}
             >
-              {bubble.creatorAvatar}
+              {isEmpty ? "+" : bubble.creatorAvatar}
             </div>
             <span className="text-xs" style={{ color: "var(--color-text-secondary)" }}>
-              Hosted by <span style={{ color: "var(--color-text-primary)" }}>{bubble.creator}</span>
+              {isEmpty ? (
+                "No host yet - start it to claim the spot"
+              ) : (
+                <>
+                  Hosted by <span style={{ color: "var(--color-text-primary)" }}>{bubble.creator}</span>
+                </>
+              )}
             </span>
           </div>
         </div>

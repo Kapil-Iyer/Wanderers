@@ -133,7 +133,7 @@ function toBubbleForContext(b: ApiBubble, lat: number, lng: number): MapBubble {
     startingIn,
     startTimeMs,
     duration: `${b.duration_minutes} min`,
-    distance: "—",
+    distance: "-",
     description: "",
     lat,
     lng,
@@ -596,7 +596,7 @@ function MapDiscoveryContent({
           )}
         </div>
 
-        {/* List pane — always visible below map on mobile; sidebar on desktop */}
+        {/* List pane - always visible below map on mobile; sidebar on desktop */}
         <div
           className="flex min-h-0 flex-1 flex-col border-t lg:w-[40%] lg:border-l lg:border-t-0"
           style={{ borderColor: "var(--border-color)", backgroundColor: "var(--bg-page)" }}

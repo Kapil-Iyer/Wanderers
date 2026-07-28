@@ -22,7 +22,7 @@ export default function MyBubblesPage() {
   }, [activeFilter, myBubbles]);
 
   return (
-    <div className="min-h-screen pb-40 relative">
+    <div className="min-h-screen pb-12 relative">
       <div
         className="pointer-events-none absolute inset-0 z-0"
         style={{
@@ -32,7 +32,7 @@ export default function MyBubblesPage() {
         aria-hidden
       />
 
-      <AppHeader title="My Bubbles" />
+      <AppHeader title="Explore" />
 
       <div className={`relative z-10 transition-[padding] duration-300 ease-out ${sidebarExpanded ? "lg:pl-64" : "lg:pl-3"}`}>
         <div className="max-w-[1100px] mx-auto px-5 sm:px-8">
@@ -40,11 +40,11 @@ export default function MyBubblesPage() {
           {/* Editorial title */}
           <section className="pt-12 pb-8">
             <p className="text-[11px] font-bold uppercase tracking-[0.18em] mb-2" style={{ color: "var(--color-text-primary)" }}>
-              Your nights out
+              Around campus
             </p>
             <AnimatedHeadline
-              text="Bubbles you're in."
-              accentWords={["in."]}
+              text="Explore bubbles here."
+              accentWords={["here."]}
               className="font-display text-4xl sm:text-6xl font-bold leading-[1.02] tracking-tight"
             />
           </section>
@@ -88,7 +88,7 @@ export default function MyBubblesPage() {
           {/* Grid */}
           <AnimatePresence mode="wait">
             {filteredBubbles.length > 0 ? (
-              <StaggerContainer key={activeFilter} className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-3 gap-5 auto-rows-fr pb-10">
+              <StaggerContainer key={activeFilter} className="grid grid-cols-3 gap-3 sm:gap-4 auto-rows-fr pb-10">
                 {filteredBubbles.map((b) => (
                   <StaggerItem key={b.id} className="h-full">
                     <BubbleCard bubble={b} />

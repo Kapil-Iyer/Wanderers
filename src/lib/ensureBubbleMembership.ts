@@ -66,7 +66,7 @@ export async function ensureBubbleMembership(
   });
 
   if (insertError) {
-    // Race: another request inserted first — treat as success
+    // Race: another request inserted first - treat as success
     if (insertError.code === "23505") {
       const { count: again } = await admin
         .from("bubble_members")

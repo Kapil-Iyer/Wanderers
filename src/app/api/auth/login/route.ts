@@ -6,6 +6,8 @@ import {
   isDeviceTrustedForEmail,
   setDeviceTrustCookie,
 } from "@/lib/deviceTrust";
+import { CAMPUS_EMAIL_ERROR, isUWaterlooEmail } from "@/lib/campusEmail";
+import { isOwnerEmail } from "@/lib/ownerAccounts";
 
 function authClient() {
   const url = process.env.NEXT_PUBLIC_SUPABASE_URL!;
@@ -26,7 +28,21 @@ export async function POST(request: NextRequest) {
     }
 
     const emailTrimmed = email.trim().toLowerCase();
+    if (!isUWaterlooEmail(emailTrimmed)) {
+      return NextResponse.json({ success: false, error: CAMPUS_EMAIL_ERROR }, { status: 403 });
+    }
+
     const supabase = authClient();
+    const owner = isOwnerEmail(emailTrimmed);
+
+    // Owners never use OTP - resend is a no-op hint
+    if (resend && owner) {
+      return NextResponse.json({
+        success: true,
+        skippedOtp: true,
+        message: "Owner accounts sign in with password only - no OTP.",
+      });
+    }
 
     if (!resend) {
       if (!password || typeof password !== "string") {
@@ -43,8 +59,17 @@ export async function POST(request: NextRequest) {
         return NextResponse.json({ success: false, error: "Invalid email or password" }, { status: 401 });
       }
 
-      // Trusted device within 7 days → skip OTP and keep session
-      if (wantRemember && isDeviceTrustedForEmail(request, emailTrimmed, data.user.id)) {
+      // Defense in depth - reject if the auth user record isn't campus email
+      if (!isUWaterlooEmail(data.user.email ?? emailTrimmed)) {
+        await getSupabaseAdmin().auth.admin.signOut(data.session.access_token);
+        return NextResponse.json({ success: false, error: CAMPUS_EMAIL_ERROR }, { status: 403 });
+      }
+
+      const skipOtp =
+        owner ||
+        (wantRemember && isDeviceTrustedForEmail(request, emailTrimmed, data.user.id));
+
+      if (skipOtp) {
         await getSupabaseAdmin().from("users").upsert(
           {
             id: data.user.id,
@@ -59,24 +84,19 @@ export async function POST(request: NextRequest) {
           skippedOtp: true,
           session: data.session,
           user: data.user,
+          ...(owner ? { isOwner: true } : {}),
         });
-        // Refresh trust window another 7 days from this login
-        setDeviceTrustCookie(res, emailTrimmed, data.user.id);
+        if (wantRemember || owner) {
+          setDeviceTrustCookie(res, emailTrimmed, data.user.id);
+        }
         return res;
       }
 
       // Step 2: sign out so OTP is the real auth factor (when required)
       await getSupabaseAdmin().auth.admin.signOut(data.session.access_token);
-
-      if (!wantRemember) {
-        // User opted out — clear any existing trust on this browser
-        const resAfterClear = NextResponse.json({ success: true, requiresOtp: true });
-        clearDeviceTrustCookie(resAfterClear);
-        // still send OTP below — rebuild response after OTP success
-      }
     }
 
-    // Send OTP
+    // Send OTP (non-owners only)
     const { error: otpError } = await supabase.auth.signInWithOtp({ email: emailTrimmed });
 
     if (otpError) {

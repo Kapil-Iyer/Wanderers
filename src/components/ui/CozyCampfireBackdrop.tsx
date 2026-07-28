@@ -1,7 +1,7 @@
 "use client";
 
 /**
- * COZY CAMPFIRE BACKDROP — a heavily-blurred warm "cabin by the fire" scene for
+ * COZY CAMPFIRE BACKDROP - a heavily-blurred warm "cabin by the fire" scene for
  * the login page. Pure CSS/SVG (no external photos): a flickering fire glow pools
  * up from the bottom, soft candle/chandelier bokeh floats above, embers drift
  * upward, and a deep vignette frames it all. The whole scene sits behind a blur

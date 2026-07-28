@@ -3,9 +3,9 @@
 | Method | Route | Purpose |
 |--------|--------|--------|
 | GET | `/api/hello` | Demo / health check |
-| POST | `/api/auth/login` | Login (email OTP) → used by AuthModal |
-| POST | `/api/auth/signup` | Sign up (email OTP) → used by AuthModal |
-| POST | `/api/auth/verify` | Verify OTP, upsert user profile, return session |
+| POST | `/api/auth/login` | Login (email OTP) → used by AuthModal; **@uwaterloo.ca only** |
+| POST | `/api/auth/signup` | Sign up (email OTP) → used by AuthModal; **@uwaterloo.ca only** |
+| POST | `/api/auth/verify` | Verify OTP, upsert user profile, return session; **@uwaterloo.ca only** |
 | POST | `/api/auth/ensure-profile` | Ensure current user (Bearer) has a row in public.users; use after signInAnonymously when OTP is disabled |
 | POST | `/api/bubbles` | Create bubble (auth required); body: activity, zone, start_time, duration_minutes, max_members?, description? |
 | POST | `/api/bubbles/join` | Join bubble (auth required); body: bubble_id |

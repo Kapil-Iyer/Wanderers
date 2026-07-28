@@ -1,4 +1,4 @@
-/** UW campus lock bounds — SW / NE corners */
+/** UW campus lock bounds - SW / NE corners */
 export const UW_BOUNDS_SW = { lat: 43.4660, lng: -80.5560 };
 export const UW_BOUNDS_NE = { lat: 43.4780, lng: -80.5330 };
 

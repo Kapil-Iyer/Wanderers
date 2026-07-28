@@ -8,9 +8,9 @@ import { getGeminiModel, isGeminiConfigured } from "@/lib/gemini";
  * (responseSchema) for reliable parsing.
  *
  * Responses:
- * - 200 { success: true, data }                — parsed
- * - 200 { success: false, fallback: true, ... } — no key / parse failure → client uses manual form
- * - 400 { success: false, error }               — bad request
+ * - 200 { success: true, data }                - parsed
+ * - 200 { success: false, fallback: true, ... } - no key / parse failure → client uses manual form
+ * - 400 { success: false, error }               - bad request
  */
 
 const responseSchema: Schema = {
@@ -27,7 +27,7 @@ const responseSchema: Schema = {
 };
 
 // ── Simple in-memory rate limit: 10 calls / 60s per client (sliding window).
-// In-memory is per-instance and resets on cold start — fine for this stage.
+// In-memory is per-instance and resets on cold start - fine for this stage.
 const RATE_LIMIT = 10;
 const RATE_WINDOW_MS = 60_000;
 const hits = new Map<string, number[]>();
@@ -65,18 +65,18 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ success: false, error: "text required" }, { status: 400 });
     }
 
-    // Rate limit — 10 parses/min per client
+    // Rate limit - 10 parses/min per client
     if (isRateLimited(clientKey(request))) {
       return NextResponse.json(
-        { success: false, error: "Slow down — you're parsing too fast" },
+        { success: false, error: "Slow down - you're parsing too fast" },
         { status: 429 }
       );
     }
 
-    // Graceful fallback when Gemini isn't configured — client reveals the manual form.
+    // Graceful fallback when Gemini isn't configured - client reveals the manual form.
     if (!isGeminiConfigured()) {
       return NextResponse.json(
-        { success: false, fallback: true, error: "Smart parsing is off — fill in the form below." },
+        { success: false, fallback: true, error: "Smart parsing is off - fill in the form below." },
         { status: 200 }
       );
     }
@@ -99,7 +99,7 @@ export async function POST(request: NextRequest) {
       parsed = JSON.parse(raw.replace(/^```json\s*|\s*```$/g, "").trim());
     } catch {
       return NextResponse.json(
-        { success: false, fallback: true, error: "Couldn't parse that — try the manual form." },
+        { success: false, fallback: true, error: "Couldn't parse that - try the manual form." },
         { status: 200 }
       );
     }
@@ -119,7 +119,7 @@ export async function POST(request: NextRequest) {
     console.error("parse-intent error:", err);
     // Any model/network error → let the client fall back to the manual form.
     return NextResponse.json(
-      { success: false, fallback: true, error: "Couldn't parse that — try the manual form." },
+      { success: false, fallback: true, error: "Couldn't parse that - try the manual form." },
       { status: 200 }
     );
   }

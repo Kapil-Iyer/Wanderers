@@ -31,10 +31,10 @@ export default function LandingPage() {
       {/* One-time cinematic intro */}
       {showSplash && <SplashIntro onComplete={finishSplash} />}
 
-      {/* Cozy campfire backdrop — blurred warm room behind the glass card */}
+      {/* Cozy campfire backdrop - blurred warm room behind the glass card */}
       <CozyCampfireBackdrop />
 
-      {/* Page content — slides up after the splash hands off */}
+      {/* Page content - slides up after the splash hands off */}
       <AnimatePresence>
         {showSplash === false && (
           <motion.div
@@ -53,7 +53,7 @@ export default function LandingPage() {
             >
               <p className="text-xs font-semibold tracking-[0.2em] uppercase mb-3"
                 style={{ color: "var(--color-accent-start)" }}>
-                University of Waterloo — exclusive
+                University of Waterloo - exclusive
               </p>
               <h1 className="font-display text-5xl sm:text-6xl font-bold leading-tight mb-4"
                 style={{ color: "var(--color-text-primary)" }}>
@@ -61,7 +61,7 @@ export default function LandingPage() {
                 <span className="text-gradient">alive.</span>
               </h1>
               <p className="text-base max-w-xs mx-auto" style={{ color: "var(--color-text-secondary)" }}>
-                Real students, real moments — happening right now near you.
+                Real students, real moments - happening right now near you.
               </p>
             </motion.div>
 

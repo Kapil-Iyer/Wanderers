@@ -1,4 +1,4 @@
-/** University of Waterloo — centered on main campus quad */
+/** University of Waterloo - centered on main campus quad */
 export const DEFAULT_MAP_CENTER = { lat: 43.4722, lng: -80.5454 };
 export const DEFAULT_MAP_ZOOM = 16;
 /**

@@ -37,7 +37,7 @@ function displayNameFromEmail(email: string | null | undefined): string {
     .replace(/\b\w/g, (c) => c.toUpperCase());
 }
 
-// "Your Journey" entries — past bubbles restyled as a timeline.
+// "Your Journey" entries - past bubbles restyled as a timeline.
 const journeyTimes = ["2 days ago", "5 days ago", "1 week ago", "2 weeks ago"];
 
 export default function ProfilePage() {
@@ -119,7 +119,7 @@ export default function ProfilePage() {
   ];
 
   return (
-    <div className="min-h-screen pb-24">
+    <div className="min-h-screen pb-12">
       <AppHeader title="Profile" profileInitials={initials} />
 
       {/* Hero band with warm glow */}
@@ -187,7 +187,7 @@ export default function ProfilePage() {
             </div>
           </motion.div>
 
-          {/* Stats — three */}
+          {/* Stats - three */}
           <motion.div className="grid grid-cols-3 gap-3 mt-8"
             initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }}
             transition={{ duration: 0.5, delay: 0.15, ease }}>
@@ -330,7 +330,7 @@ export default function ProfilePage() {
             </div>
           </Section>
 
-          {/* Your Journey — timeline */}
+          {/* Your Journey - timeline */}
           <Section label="Your Journey" delay={0.38}
             action={<span className="text-xs font-medium" style={{ color: "var(--color-text-muted)" }}>{mockBubbles.length} bubbles</span>}>
             <div className="relative pl-6">

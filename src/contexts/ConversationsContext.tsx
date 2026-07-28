@@ -1,7 +1,7 @@
 "use client";
 
 /**
- * Conversations — joined bubble chats.
+ * Conversations - joined bubble chats.
  * Hydrates from GET /api/bubbles/mine so Messages survives refresh / Back.
  */
 
@@ -78,7 +78,7 @@ function mineToConversation(b: MineBubble): BubbleConversation {
     unread: 0,
     memberNames: ["You"],
     duration: b.duration_minutes ? `${b.duration_minutes} min` : undefined,
-    joined: b.members_count ?? 1,
+    joined: b.members_count ?? 0,
     zone: b.zone ?? undefined,
   };
 }
@@ -88,7 +88,7 @@ function bubbleToConversation(bubble: Bubble): BubbleConversation {
     id: `bubble-${bubble.id}`,
     name: bubble.title,
     avatar: bubble.emoji,
-    lastMessage: "You joined — say hi!",
+    lastMessage: "You joined - say hi!",
     time: "Just now",
     unread: 0,
     memberNames: getMemberNames(bubble),

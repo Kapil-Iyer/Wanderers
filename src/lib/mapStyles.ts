@@ -27,7 +27,7 @@ export const DARK_MAP_STYLES: google.maps.MapTypeStyle[] = [
   { featureType: "landscape.natural", elementType: "geometry", stylers: [{ color: "#0c1016" }] },
   { featureType: "landscape", elementType: "labels", stylers: [{ visibility: "off" }] },
 
-  // ── POI — mostly hidden; parks & schools shown ─────────────────
+  // ── POI - mostly hidden; parks & schools shown ─────────────────
   { featureType: "poi", stylers: [{ visibility: "off" }] },
   // Parks: dark green fill + subtle label
   { featureType: "poi.park", elementType: "geometry", stylers: [{ visibility: "on" }, { color: "#0d1d13" }] },
@@ -41,20 +41,20 @@ export const DARK_MAP_STYLES: google.maps.MapTypeStyle[] = [
   // ── Roads ──────────────────────────────────────────────────────
   { featureType: "road", elementType: "geometry.fill", stylers: [{ color: "#181e2c" }] },
   { featureType: "road", elementType: "geometry.stroke", stylers: [{ color: "#10141e" }] },
-  // Local roads — visible but dim; you can read street names
+  // Local roads - visible but dim; you can read street names
   { featureType: "road.local", elementType: "labels", stylers: [{ visibility: "on" }] },
   { featureType: "road.local", elementType: "labels.text.fill", stylers: [{ color: "#3a4460" }] },
-  // Arterials (University Ave, King St, Columbia St) — more prominent
+  // Arterials (University Ave, King St, Columbia St) - more prominent
   { featureType: "road.arterial", elementType: "geometry.fill", stylers: [{ color: "#1c2538" }] },
   { featureType: "road.arterial", elementType: "labels", stylers: [{ visibility: "on" }] },
   { featureType: "road.arterial", elementType: "labels.text.fill", stylers: [{ color: "#5a6b90" }] },
-  // Highways — brightest roads
+  // Highways - brightest roads
   { featureType: "road.highway", elementType: "geometry.fill", stylers: [{ color: "#212e44" }] },
   { featureType: "road.highway", elementType: "geometry.stroke", stylers: [{ color: "#162034" }] },
   { featureType: "road.highway", elementType: "labels", stylers: [{ visibility: "on" }] },
   { featureType: "road.highway", elementType: "labels.text.fill", stylers: [{ color: "#7a90b8" }] },
 
-  // ── Transit — lines visible, station labels on ─────────────────
+  // ── Transit - lines visible, station labels on ─────────────────
   { featureType: "transit", stylers: [{ visibility: "off" }] },
   { featureType: "transit.line", elementType: "geometry", stylers: [{ visibility: "on" }, { color: "#1a2440" }] },
   { featureType: "transit.station", elementType: "labels.text", stylers: [{ visibility: "on" }] },
@@ -85,7 +85,7 @@ const MAP_OPTIONS_BASE: google.maps.MapOptions = {
 /**
  * When NEXT_PUBLIC_GOOGLE_MAPS_MAP_ID is set the map uses Google's vector
  * renderer which gives real 3D building extrusions. The `styles` array is
- * ignored in vector mode — use Google Cloud Console Map Style to theme it.
+ * ignored in vector mode - use Google Cloud Console Map Style to theme it.
  *
  * When no mapId is present we fall back to the raster renderer + dark styles.
  */

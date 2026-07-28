@@ -34,7 +34,7 @@ export default function MessagesPage() {
   }, [refreshJoinedBubbles]);
 
   return (
-    <div className="min-h-screen pb-28 relative">
+    <div className="min-h-screen pb-12 relative">
       {/* Soft scrim so plexus stays atmospheric, not competing with content */}
       <div
         className="pointer-events-none absolute inset-0 z-0"
@@ -61,7 +61,7 @@ export default function MessagesPage() {
         className={`relative z-10 transition-[padding] duration-300 ease-out ${sidebarExpanded ? "lg:pl-64" : "lg:pl-3"}`}
       >
         <div className="max-w-xl mx-auto px-5 sm:px-6">
-          {/* Hero — one job */}
+          {/* Hero - one job */}
           <section className="pt-9 pb-8">
             <motion.p
               className="text-[11px] font-bold uppercase tracking-[0.2em] mb-3"
@@ -88,7 +88,7 @@ export default function MessagesPage() {
               animate={{ opacity: 1 }}
               transition={{ duration: 0.5, delay: 0.15 }}
             >
-              Bubble group chats you&apos;ve joined — pick one up anytime.
+              Bubble group chats you&apos;ve joined - pick one up anytime.
             </motion.p>
           </section>
 

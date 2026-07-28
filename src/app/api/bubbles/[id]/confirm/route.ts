@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { getAuthUser } from '@/lib/auth';
 import { getSupabaseAdmin } from '@/lib/supabaseAdmin';
 
-/** POST /api/bubbles/[id]/confirm — End event: set bubble status to expired. Auth + membership required. No photo logic. */
+/** POST /api/bubbles/[id]/confirm - End event: set bubble status to expired. Auth + membership required. No photo logic. */
 export async function POST(
   request: NextRequest,
   { params }: { params: Promise<{ id: string }> }

@@ -1,7 +1,7 @@
 "use client";
 
 /**
- * NOTIFICATION DRAWER — slide-out panel (right) holding connection requests
+ * NOTIFICATION DRAWER - slide-out panel (right) holding connection requests
  * and "confirmed to attend" bubbles. Triggered by the bell in the top bar,
  * freeing the Home page to run full-width.
  *

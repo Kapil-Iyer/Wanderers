@@ -1,5 +1,5 @@
 /**
- * Supabase Admin Client — server-only, bypasses RLS.
+ * Supabase Admin Client - server-only, bypasses RLS.
  * Use only in API routes for operations that need service-role (e.g. user upsert after auth).
  * Env: NEXT_PUBLIC_SUPABASE_URL (same as main client), SUPABASE_SERVICE_ROLE_KEY (secret, no NEXT_PUBLIC_).
  * Lazy init so build can complete without env vars; runtime will have them.

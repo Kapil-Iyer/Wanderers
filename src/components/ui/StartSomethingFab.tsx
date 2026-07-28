@@ -1,7 +1,7 @@
 "use client";
 
 /**
- * START SOMETHING FAB — centered pill above the bottom nav with a continuous
+ * START SOMETHING FAB - centered pill above the bottom nav with a continuous
  * heartbeat: scale 1 → 1.08 → 1 every 2.5s plus a sonar glow ring that expands
  * and fades (box-shadow 0 → 20px spread). The hero action; always unmissable.
  * Reduced motion: pulse + sonar dropped, static glow + tap feedback remain.
@@ -19,7 +19,7 @@ export default function StartSomethingFab({ onClick }: { onClick: () => void }) 
         <motion.button
           type="button"
           onClick={onClick}
-          aria-label="Start Something — create a new bubble"
+          aria-label="Start Something - create a new bubble"
           className="relative flex items-center gap-2 h-13 px-7 py-3.5 rounded-full font-bold text-sm"
           style={{
             background: "linear-gradient(135deg, #ff7a1a 0%, #ffb56b 100%)",
