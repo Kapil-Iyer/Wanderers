@@ -7,7 +7,7 @@
  */
 
 import Link from "next/link";
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import { motion, useReducedMotion } from "framer-motion";
 import { toast } from "sonner";
@@ -36,6 +36,9 @@ export default function BubbleCard({ bubble }: { bubble: Bubble }) {
   const reduce = useReducedMotion();
   const [flipped, setFlipped] = useState(false);
   const [joinedCount, setJoinedCount] = useState(bubble.joined);
+  useEffect(() => {
+    setJoinedCount(bubble.joined);
+  }, [bubble.id, bubble.joined]);
   const zone = bubble.zone ?? bubble.distance;
   const fillPct = Math.min(1, joinedCount / Math.max(1, bubble.maxPeople));
   const spotsLeft = Math.max(0, bubble.maxPeople - joinedCount);
@@ -253,7 +256,9 @@ export default function BubbleCard({ bubble }: { bubble: Bubble }) {
               </span>
               <span className="flex items-center gap-1 text-[11px]" style={{ color: "var(--color-text-secondary)" }}>
                 <Users className="w-3 h-3" style={{ color: theme.accent }} />
-                {joinedCount}/{bubble.maxPeople}
+                {joinedCount === 0
+                  ? `0 people · ${bubble.maxPeople} spots`
+                  : `${joinedCount}/${bubble.maxPeople}`}
               </span>
             </div>
 
@@ -405,8 +410,11 @@ export default function BubbleCard({ bubble }: { bubble: Bubble }) {
             </div>
             <div className="flex items-center gap-2">
               <Users className="w-3.5 h-3.5 shrink-0" style={{ color: theme.accent }} />
-              {joinedCount}/{bubble.maxPeople} joined
-              {spotsLeft > 0 ? ` · ${spotsLeft} spot${spotsLeft > 1 ? "s" : ""} left` : " · full"}
+              {joinedCount === 0
+                ? `0 people · ${bubble.maxPeople} spots`
+                : `${joinedCount}/${bubble.maxPeople} joined`}
+              {joinedCount > 0 &&
+                (spotsLeft > 0 ? ` · ${spotsLeft} spot${spotsLeft > 1 ? "s" : ""} left` : " · full")}
             </div>
           </div>
 
