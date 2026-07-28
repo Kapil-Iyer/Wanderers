@@ -1,7 +1,7 @@
 "use client";
 
 /**
- * CHAT PAGE — live bubble chat with names, typing, Pepe emotes, pinned composer.
+ * CHAT PAGE - live bubble chat with names, typing, Pepe emotes, pinned composer.
  */
 
 import { use, useState, useEffect, useCallback, useRef } from "react";
@@ -279,7 +279,7 @@ export default function ChatPage({ params }: { params: Promise<{ id: string }> }
     (async () => {
       await refreshBubbleMeta();
 
-      // Prefer a validated/refreshed session — getSession() alone can return
+      // Prefer a validated/refreshed session - getSession() alone can return
       // a stale access token that the API rejects as Unauthenticated.
       const { data: refreshed, error: refreshError } = await supabase.auth.refreshSession();
       let session = refreshed.session;
@@ -677,7 +677,7 @@ export default function ChatPage({ params }: { params: Promise<{ id: string }> }
                   <div className="space-y-3.5 pb-2">
                     {memberCount !== null && memberCount < 2 && (
                       <p className="text-xs text-center py-1" style={{ color: "rgba(255,181,107,0.9)" }}>
-                        You can message now. Invite a friend — they must tap{" "}
+                        You can message now. Invite a friend - they must tap{" "}
                         <strong>Join bubble</strong> to see the chat.
                       </p>
                     )}

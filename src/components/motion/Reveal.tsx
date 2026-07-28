@@ -1,7 +1,7 @@
 "use client";
 
 /**
- * MOTION PRIMITIVES — shared animation building blocks (Wanderers Warmth)
+ * MOTION PRIMITIVES - shared animation building blocks (Wanderers Warmth)
  * -----------------------------------------------------------------------------
  * All variants respect useReducedMotion(): physical motion + blur are stripped,
  * timing is preserved (opacity-only fade at the same duration).

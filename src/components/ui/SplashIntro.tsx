@@ -1,14 +1,14 @@
 "use client";
 
 /**
- * SPLASH INTRO — one-time cinematic entry (landing page only).
+ * SPLASH INTRO - one-time cinematic entry (landing page only).
  *
  * Story (fills the motto "Find your people. Start something."):
  *   1. the pin logo blooms + its outline draws itself
  *   2. a WIDE glowing trail unrolls up through the pin (a road, not a thin line)
  *   3. a little wanderer strides up the trail
  *   4. at the summit they plant an orange flag that unfurls and waves
- *   5. two companions appear beside them — you've found your people
+ *   5. two companions appear beside them - you've found your people
  *   6. "Wanderers" + tagline reveal, then the lockup hands off to the AuthModal
  *
  * Plays once per session (sessionStorage). Reduced motion → calm fade, final
@@ -100,7 +100,7 @@ export default function SplashIntro({ onComplete }: { onComplete: () => void }) 
               transition={{ duration: reduce ? 0 : 1.2, ease: "easeInOut" }}
             />
 
-            {/* WIDE glowing trail — soft outer glow + bright core */}
+            {/* WIDE glowing trail - soft outer glow + bright core */}
             <motion.path
               d={TRAIL_PATH}
               stroke="url(#splash-trail)"
@@ -153,7 +153,7 @@ export default function SplashIntro({ onComplete }: { onComplete: () => void }) 
               </motion.g>
             )}
 
-            {/* companions appear at the summit — "find your people" */}
+            {/* companions appear at the summit - "find your people" */}
             {!reduce && [{ dx: -9, d: 2.95 }, { dx: 8, d: 3.1 }].map((c, i) => (
               <motion.g
                 key={i}
@@ -224,7 +224,7 @@ export default function SplashIntro({ onComplete }: { onComplete: () => void }) 
             animate={{ opacity: 1, letterSpacing: "0.32em" }}
             transition={{ delay: reduce ? 0.4 : 3.6, duration: 0.7, ease: EASE }}
           >
-            — Find your people —
+            - Find your people -
           </motion.p>
         </motion.div>
       )}

@@ -13,7 +13,7 @@ import { useSidebar } from "@/contexts/SidebarContext";
 
 const tabs = [
   { icon: Home,          label: "Home",       path: "/home" },
-  { icon: Compass,       label: "My Bubbles", path: "/my-bubbles" },
+  { icon: Compass,       label: "Explore", path: "/my-bubbles" },
   { icon: MessageCircle, label: "Messages",   path: "/messages" },
   { icon: User,          label: "Profile",    path: "/profile" },
 ];
@@ -25,7 +25,7 @@ export default function BottomNav() {
 
   // Open by default when the app loads; collapses once the mouse moves
   // away (e.g. toward the right, into the page content), and reveals
-  // again on hover of the left edge — same as a native auto-hide panel.
+  // again on hover of the left edge - same as a native auto-hide panel.
   // Shared via context so page headers can shift left in sync.
   const { expanded, setExpanded } = useSidebar();
 
@@ -46,7 +46,7 @@ export default function BottomNav() {
           backdropFilter: "blur(16px)",
         }}>
 
-        {/* always-visible edge glow — hints that hovering here reveals the nav */}
+        {/* always-visible edge glow - hints that hovering here reveals the nav */}
         <div
           className="pointer-events-none absolute inset-y-0 left-0 w-[3px] transition-opacity duration-200"
           style={{
@@ -144,48 +144,6 @@ export default function BottomNav() {
               </div>
             )}
           </div>
-        </div>
-      </nav>
-
-      {/* ── Mobile bottom nav ── */}
-      <nav className="fixed bottom-0 left-0 right-0 z-50 lg:hidden"
-        style={{
-          background: "rgba(20,15,10,0.92)",
-          borderTop: "1px solid rgba(255,122,26,0.08)",
-          backdropFilter: "blur(16px)",
-        }}>
-        <div className="max-w-3xl mx-auto flex items-stretch">
-          {tabs.map((tab) => {
-            const active = activePath === tab.path;
-            return (
-              <Link key={tab.path} href={tab.path} className="flex-1">
-                <motion.div
-                  className="flex flex-col items-center py-3 gap-1 relative"
-                  whileTap={{ scale: 0.92 }}
-                  transition={{ type: "spring", stiffness: 400, damping: 20 }}
-                >
-                  {active && (
-                    <motion.div
-                      layoutId="bottom-nav-active"
-                      className="absolute inset-x-3 inset-y-1 rounded-xl"
-                      style={{ background: "rgba(255,122,26,0.08)" }}
-                      transition={{ type: "spring", stiffness: 300, damping: 30 }}
-                    />
-                  )}
-                  <tab.icon className="w-5 h-5 relative z-10"
-                    style={{
-                      color: active ? "#ff7a1a" : "var(--color-text-muted)",
-                      strokeWidth: active ? 2.5 : 1.8,
-                      filter: active ? "drop-shadow(0 0 6px rgba(255,122,26,0.5))" : undefined,
-                    }} />
-                  <span className="text-[10px] font-medium relative z-10"
-                    style={{ color: active ? "#ff7a1a" : "var(--color-text-muted)" }}>
-                    {tab.label}
-                  </span>
-                </motion.div>
-              </Link>
-            );
-          })}
         </div>
       </nav>
     </>

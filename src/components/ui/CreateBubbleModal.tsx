@@ -75,11 +75,11 @@ export default function CreateBubbleModal({ open, onClose, onCreated, prefill }:
       const data = await res.json();
 
       if (res.status === 429) {
-        setParseError(data.error ?? "Slow down — you're parsing too fast");
+        setParseError(data.error ?? "Slow down - you're parsing too fast");
         return;
       }
       if (!data.success) {
-        setParseError(data.error ?? "Couldn't parse that — try the manual form.");
+        setParseError(data.error ?? "Couldn't parse that - try the manual form.");
         return;
       }
 
@@ -103,13 +103,13 @@ export default function CreateBubbleModal({ open, onClose, onCreated, prefill }:
       if (d.activity) setView("confirm");
       else setParseError("Add a bit more detail, or fill the form manually.");
     } catch {
-      setParseError("Couldn't parse that — try the manual form.");
+      setParseError("Couldn't parse that - try the manual form.");
     } finally {
       setParsing(false);
     }
   };
 
-  // Debounced auto-parse — fire 600ms after the user stops typing (min 6 chars).
+  // Debounced auto-parse - fire 600ms after the user stops typing (min 6 chars).
   // No eslint-disable: exhaustive-deps at worst warns (non-fatal); guards prevent loops.
   useEffect(() => {
     const text = smartInput.trim();
@@ -118,7 +118,7 @@ export default function CreateBubbleModal({ open, onClose, onCreated, prefill }:
     return () => clearTimeout(t);
   }, [smartInput, open, view]); // eslint-disable-line
 
-  // Unified create — used by both "Yes, ignite it" and the manual "Create Bubble"
+  // Unified create - used by both "Yes, ignite it" and the manual "Create Bubble"
   const submit = async () => {
     if (!activity.trim() || !zone.trim()) {
       toast.error("Activity and zone are required");
@@ -200,7 +200,7 @@ export default function CreateBubbleModal({ open, onClose, onCreated, prefill }:
                     {view === "confirm" ? "Ready to ignite?" : "Start Something"}
                   </h2>
                   <p className="text-xs mt-0.5" style={{ color: "var(--color-text-secondary)" }}>
-                    {view === "confirm" ? "We parsed your idea — confirm or edit" : "What's happening on campus?"}
+                    {view === "confirm" ? "We parsed your idea - confirm or edit" : "What's happening on campus?"}
                   </p>
                 </div>
                 <motion.button type="button" onClick={handleClose}

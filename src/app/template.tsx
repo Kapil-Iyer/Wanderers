@@ -1,12 +1,12 @@
 "use client";
 
 /**
- * ROUTE TRANSITION — App Router template.tsx re-mounts on every navigation,
+ * ROUTE TRANSITION - App Router template.tsx re-mounts on every navigation,
  * giving each route a clean cross-fade entrance.
  *
  * IMPORTANT: this wrapper animates OPACITY ONLY. Animating transform/filter
  * here (e.g. blur-slide-up) would make this element a containing block for any
- * `position: fixed` descendant — breaking the FAB, bottom nav, and drawers.
+ * `position: fixed` descendant - breaking the FAB, bottom nav, and drawers.
  * The dramatic blur-slide-up entrances live in the in-page Reveal / Stagger /
  * AnimatedHeadline components instead, where they don't affect fixed layout.
  */

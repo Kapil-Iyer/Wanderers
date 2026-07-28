@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { createClient } from "@supabase/supabase-js";
 import { getSupabaseAdmin } from "@/lib/supabaseAdmin";
 import { clearDeviceTrustCookie, setDeviceTrustCookie } from "@/lib/deviceTrust";
+import { CAMPUS_EMAIL_ERROR, isUWaterlooEmail } from "@/lib/campusEmail";
 
 /**
  * POST /api/auth/verify
@@ -19,6 +20,11 @@ export async function POST(request: NextRequest) {
       );
     }
 
+    const emailTrimmed = String(email).trim().toLowerCase();
+    if (!isUWaterlooEmail(emailTrimmed)) {
+      return NextResponse.json({ success: false, error: CAMPUS_EMAIL_ERROR }, { status: 403 });
+    }
+
     const url = process.env.NEXT_PUBLIC_SUPABASE_URL!;
     const anon = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!;
     const supabase = createClient(url, anon, {
@@ -26,7 +32,7 @@ export async function POST(request: NextRequest) {
     });
 
     const { data, error } = await supabase.auth.verifyOtp({
-      email,
+      email: emailTrimmed,
       token,
       type: "email",
     });
@@ -45,7 +51,10 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    const emailTrimmed = String(email).trim().toLowerCase();
+    if (!isUWaterlooEmail(data.user.email ?? emailTrimmed)) {
+      return NextResponse.json({ success: false, error: CAMPUS_EMAIL_ERROR }, { status: 403 });
+    }
+
     const upsertData: Record<string, unknown> = {
       id: data.user.id,
       email: data.user.email ?? emailTrimmed,

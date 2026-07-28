@@ -12,7 +12,7 @@ import { ensureUserInPublic } from "@/lib/ensureUser";
  *
  * Schema (live): bubbles(id, creator_id, activity, zone, exact_location, time_window,
  *   expires_at, status, created_at, max_members, start_time, duration_minutes, emoji,
- *   description, lat, lng). member_count is NOT a column — derived from bubble_members.
+ *   description, lat, lng). member_count is NOT a column - derived from bubble_members.
  *
  * Notes:
  * - expires_at is calculated manually (start_time + duration_minutes); it is NOT auto-generated.
@@ -90,7 +90,7 @@ export async function POST(request: NextRequest) {
     const duration = Number(duration_minutes);
     const durationClean = Number.isFinite(duration) && duration > 0 ? Math.floor(duration) : DEFAULT_DURATION_MIN;
 
-    // expires_at = start_time + duration_minutes (manual — not auto-generated)
+    // expires_at = start_time + duration_minutes (manual - not auto-generated)
     const expiresAt = new Date(startDate.getTime() + durationClean * 60 * 1000);
     const timeWindow = durationClean >= 60 ? `${Math.floor(durationClean / 60)} hr` : `${durationClean} min`;
 
@@ -98,7 +98,7 @@ export async function POST(request: NextRequest) {
       max_members != null && Number.isFinite(Number(max_members)) ? Math.floor(Number(max_members)) : null;
     const emojiClean = typeof emoji === "string" && emoji.trim() ? emoji.trim().slice(0, 8) : null;
 
-    // 3. Double-tap dedupe — same creator + activity created in the last 10s → return existing
+    // 3. Double-tap dedupe - same creator + activity created in the last 10s → return existing
     const dedupeSince = new Date(Date.now() - DEDUPE_WINDOW_MS).toISOString();
     const { data: recent } = await admin
       .from("bubbles")
@@ -152,7 +152,7 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    // 6. Return full bubble (member_count is 1 — just the creator)
+    // 6. Return full bubble (member_count is 1 - just the creator)
     return NextResponse.json({ success: true, data: { ...bubble, members_count: 1 } });
   } catch {
     return NextResponse.json({ success: false, error: "Invalid request" }, { status: 400 });

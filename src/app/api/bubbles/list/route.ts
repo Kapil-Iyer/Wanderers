@@ -10,7 +10,7 @@ import { getSupabaseAdmin } from "@/lib/supabaseAdmin";
  * - includes members_count (from bubble_members)
  * - ordered by start_time ascending
  *
- * Public read (no auth) — mirrors campus activity; the home feed can call it
+ * Public read (no auth) - mirrors campus activity; the home feed can call it
  * before or after sign-in. All columns the UI needs are returned.
  *
  * NOTE: kept 'active' alongside 'open' so bubbles don't vanish from the feed the

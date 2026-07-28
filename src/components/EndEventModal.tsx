@@ -5,7 +5,7 @@
  * -----------------------------------------------------------------------------
  * Card 1: Take picture, caption, Save to device | End event (confirm bubble)
  * Card 2: People you hung out with + "Wanna wander?" (connect request)
- * Photo upload to remote storage is disabled — local preview / save only.
+ * Photo upload to remote storage is disabled - local preview / save only.
  * -----------------------------------------------------------------------------
  */
 
@@ -94,7 +94,7 @@ export default function EndEventModal({ bubble, onClose, onAddPost }: EndEventMo
         username: "you",
         userAvatar: "YU",
         activity: bubble.name,
-        zone: bubble.zone ?? "—",
+        zone: bubble.zone ?? "-",
         participants: participants.map((p) => ({ name: p.name, avatar: p.avatar })),
         caption: caption.trim() || `${bubble.name} 💫`,
         ...(photoUrl ? { imageUrl: photoUrl } : {}),
@@ -151,7 +151,9 @@ export default function EndEventModal({ bubble, onClose, onAddPost }: EndEventMo
                           ? "grayscale(100%)"
                           : filter === "sepia"
                             ? "sepia(100%)"
-                            : "none",
+                            : filter === "polaroid"
+                              ? "contrast(1.08) saturate(1.12) brightness(1.04)"
+                              : "none",
                     }}
                   />
                 ) : (

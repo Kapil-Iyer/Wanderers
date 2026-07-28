@@ -1,5 +1,5 @@
 /**
- * Gemini client — server-side only. Never import in frontend.
+ * Gemini client - server-side only. Never import in frontend.
  * Uses GEMINI_API_KEY and optional GEMINI_MODEL (default: gemini-2.5-flash).
  */
 import { GoogleGenerativeAI, type GenerationConfig } from "@google/generative-ai";

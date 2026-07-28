@@ -2,13 +2,14 @@
 
 import { useEffect, useMemo, useRef, useState } from "react";
 import Link from "next/link";
+import { useRouter } from "next/navigation";
 import { motion, AnimatePresence, useReducedMotion } from "framer-motion";
-import { MapPin, ChevronsDown, Clock, Users, Instagram, ArrowRight } from "lucide-react";
+import { MapPin, ChevronsDown, Clock, Users, Instagram, ChevronLeft, ChevronRight } from "lucide-react";
 import BottomNav from "@/components/ui/BottomNav";
 import AppHeader from "@/components/ui/AppHeader";
 import BubbleCard from "@/components/ui/BubbleCard";
+import CampusEventCard from "@/components/ui/CampusEventCard";
 import CreateBubbleModal from "@/components/ui/CreateBubbleModal";
-import StartSomethingFab from "@/components/ui/StartSomethingFab";
 import NotificationDrawer from "@/components/ui/NotificationDrawer";
 import { mockBubbles, filterChips, mockFeedPosts, type FeedPost as FeedPostType, type Bubble } from "@/lib/mockData";
 import FeedPost from "@/components/FeedPost";
@@ -55,6 +56,7 @@ function formatEventTime(iso: string): string {
 }
 
 export default function HomePage() {
+  const router = useRouter();
   const [activeFilter, setActiveFilter] = useState("Happening Now");
   const [createOpen, setCreateOpen] = useState(false);
   const [drawerOpen, setDrawerOpen] = useState(false);
@@ -80,6 +82,17 @@ export default function HomePage() {
   const [campusEvents, setCampusEvents] = useState<CampusEvent[]>([]);
   const [prefill, setPrefill] = useState<{ activity?: string; zone?: string } | undefined>();
   const [profileInitials, setProfileInitials] = useState("?");
+
+  // Header / deep-link: /home?create=1 opens the create modal
+  useEffect(() => {
+    if (typeof window === "undefined") return;
+    const params = new URLSearchParams(window.location.search);
+    if (params.get("create") === "1") {
+      setPrefill(undefined);
+      setCreateOpen(true);
+      router.replace("/home", { scroll: false });
+    }
+  }, [router]);
 
   useEffect(() => {
     let cancelled = false;
@@ -126,12 +139,33 @@ export default function HomePage() {
   useEffect(() => {
     fetch("/api/moments")
       .then((r) => r.json())
-      .then((data: { success?: boolean; data?: Array<{ id: string; image_url?: string; cloudinary_url?: string; created_at: string }> }) => {
+      .then((data: {
+        success?: boolean;
+        data?: Array<{
+          id: string;
+          image_url?: string;
+          cloudinary_url?: string;
+          caption?: string | null;
+          activity?: string;
+          zone?: string | null;
+          username?: string;
+          user_avatar?: string;
+          created_at: string;
+        }>;
+      }) => {
         if (data?.success && Array.isArray(data.data) && data.data.length > 0) {
           setFeedPosts(data.data.map((m) => ({
-            id: m.id, username: "Wanderer", userAvatar: "✨", activity: "Wander Moment",
-            zone: "—", caption: "#wandermoment", timestamp: formatMomentTime(m.created_at),
-            participants: [], likes: 0, comments: [], imageUrl: m.image_url ?? m.cloudinary_url,
+            id: m.id,
+            username: m.username || "Wanderer",
+            userAvatar: m.user_avatar || "✨",
+            activity: m.activity || "Campus moment",
+            zone: m.zone || undefined,
+            caption: (m.caption || "").trim() || "A moment from campus",
+            timestamp: formatMomentTime(m.created_at),
+            participants: [],
+            likes: 0,
+            comments: [],
+            imageUrl: m.image_url ?? m.cloudinary_url,
           })));
         }
       })
@@ -175,7 +209,7 @@ export default function HomePage() {
     setFeedPosts((prev) => [{ ...rest, ...(imageUrl && { imageUrl }), id: `f-${Date.now()}`, timestamp: "JUST NOW" }, ...prev]);
   };
 
-  // Active Nearby — real bubbles from Supabase (initial load)
+  // Active Nearby - real bubbles from Supabase (initial load)
   useEffect(() => {
     let cancelled = false;
     fetch("/api/bubbles/list")
@@ -189,7 +223,7 @@ export default function HomePage() {
     return () => { cancelled = true; };
   }, []);
 
-  // Realtime — new bubbles appear at the top, expired ones disappear (no refresh)
+  // Realtime - new bubbles appear at the top, expired ones disappear (no refresh)
   useEffect(() => {
     const channel = supabase
       .channel("public-bubbles")
@@ -210,7 +244,7 @@ export default function HomePage() {
     return () => { supabase.removeChannel(channel); };
   }, []);
 
-  // Happening on Campus — upcoming campus events (public; falls back server-side)
+  // Happening on Campus - upcoming campus events (public; falls back server-side)
   useEffect(() => {
     fetch("/api/campus-events")
       .then((r) => r.json())
@@ -240,13 +274,17 @@ export default function HomePage() {
   ];
 
   return (
-    <div className="min-h-screen pb-40">
+    <div className="min-h-screen pb-12">
 
       <AppHeader
         showCampus
         notificationCount={pendingCount}
         onNotificationsClick={() => setDrawerOpen(true)}
         profileInitials={profileInitials}
+        onStartSomething={() => {
+          setPrefill(undefined);
+          setCreateOpen(true);
+        }}
         center={
           <div className="flex items-center gap-1.5 overflow-x-auto">
             {quickNavLinks.map((item) => (
@@ -273,7 +311,7 @@ export default function HomePage() {
       <div className={`transition-[padding] duration-300 ease-out ${sidebarExpanded ? "lg:pl-64" : "lg:pl-3"}`}>
         <div className="max-w-[1100px] mx-auto px-5 sm:px-8">
 
-          {/* ── CINEMATIC HERO — two-column ── */}
+          {/* ── CINEMATIC HERO - two-column ── */}
           <section className="relative pt-12 pb-10 sm:pt-16 sm:pb-12">
             {/* hero orbs */}
             <div className="absolute inset-0 -z-0 pointer-events-none overflow-hidden">
@@ -285,7 +323,7 @@ export default function HomePage() {
 
             <div className="relative z-10 grid grid-cols-1 lg:grid-cols-5 gap-10 lg:gap-12 items-start">
 
-              {/* Left — 60% */}
+              {/* Left - 60% */}
               <div className="lg:col-span-3">
                 <motion.div
                   className="inline-flex items-center gap-2 px-3 py-1.5 rounded-full mb-6"
@@ -351,7 +389,7 @@ export default function HomePage() {
                 </motion.div>
               </div>
 
-              {/* Right — 40% live panel */}
+              {/* Right - 40% live panel */}
               <div className="lg:col-span-2 w-full">
                 <motion.div
                   initial={{ opacity: 0, y: 16 }}
@@ -463,42 +501,27 @@ export default function HomePage() {
               </div>
             </Reveal>
 
-            {/* ── HAPPENING ON CAMPUS ── */}
+            {/* ── HAPPENING ON CAMPUS - same card template as bubbles ── */}
             {campusEvents.length > 0 && (
               <Reveal delay={0.08}>
                 <div className="mb-8">
-                  <p className="text-[11px] font-bold uppercase tracking-[0.18em] mb-3" style={{ color: "#F97316" }}>
+                  <p className="text-[11px] font-bold uppercase tracking-[0.18em] mb-4" style={{ color: "#ff7a1a" }}>
                     Happening on campus
                   </p>
-                  <div className="flex gap-3 overflow-x-auto pb-2 -mx-5 px-5 sm:-mx-8 sm:px-8">
+                  <div className="grid grid-cols-3 gap-3 sm:gap-4">
                     {campusEvents.map((ev) => (
-                      <div
+                      <CampusEventCard
                         key={ev.id}
-                        className="flex-shrink-0 w-64 rounded-2xl p-4 flex flex-col"
-                        style={{ background: "rgba(255,255,255,0.025)", border: "1px solid rgba(249,115,22,0.12)", backdropFilter: "blur(12px)" }}
-                      >
-                        <div className="flex items-start gap-2.5">
-                          <span className="text-2xl shrink-0">{EVENT_EMOJI[ev.category ?? ""] ?? "📅"}</span>
-                          <div className="min-w-0 flex-1">
-                            <p className="text-sm font-semibold line-clamp-2 leading-snug" style={{ color: "var(--color-text-primary)" }}>{ev.title}</p>
-                            <p className="text-[11px] mt-1 flex items-center gap-1 truncate" style={{ color: "var(--color-text-secondary)" }}>
-                              <MapPin className="w-3 h-3 shrink-0" style={{ color: "#F97316" }} />{ev.location}
-                            </p>
-                          </div>
-                        </div>
-                        <p className="text-[11px] mt-2.5 font-semibold" style={{ color: "#FBBF24" }}>{formatEventTime(ev.date_time)}</p>
-                        <motion.button
-                          type="button"
-                          onClick={() => { setPrefill({ activity: ev.title, zone: ev.zone ?? ev.location }); setCreateOpen(true); }}
-                          className="mt-3 w-full py-2 rounded-full text-xs font-bold flex items-center justify-center gap-1.5"
-                          style={{ background: "rgba(249,115,22,0.15)", border: "1px solid rgba(249,115,22,0.3)", color: "#F97316" }}
-                          whileHover={{ scale: 1.03, background: "rgba(249,115,22,0.22)" }}
-                          whileTap={{ scale: 0.97 }}
-                          transition={{ type: "spring", stiffness: 400, damping: 20 }}
-                        >
-                          Start a bubble for this <ArrowRight className="w-3.5 h-3.5" />
-                        </motion.button>
-                      </div>
+                        emoji={EVENT_EMOJI[ev.category ?? ""] ?? "📅"}
+                        title={ev.title}
+                        location={ev.location}
+                        timeLabel={formatEventTime(ev.date_time)}
+                        organizer={ev.organizer}
+                        onStartBubble={() => {
+                          setPrefill({ activity: ev.title, zone: ev.zone ?? ev.location });
+                          setCreateOpen(true);
+                        }}
+                      />
                     ))}
                   </div>
                 </div>
@@ -513,12 +536,12 @@ export default function HomePage() {
                   initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
                 >
                   <div className="text-5xl mb-3">🫧</div>
-                  <p className="text-sm" style={{ color: "var(--color-text-secondary)" }}>Nothing in this category yet — be the first to start something.</p>
+                  <p className="text-sm" style={{ color: "var(--color-text-secondary)" }}>Nothing in this category yet - be the first to start something.</p>
                 </motion.div>
               ) : (
                 <StaggerContainer
                   key={activeFilter}
-                  className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-3 gap-5 auto-rows-fr"
+                  className="grid grid-cols-3 gap-3 sm:gap-4 auto-rows-fr"
                 >
                   {filteredBubbles.map((bubble) => (
                     <StaggerItem key={bubble.id} className="h-full">
@@ -541,7 +564,7 @@ export default function HomePage() {
               <MomentsTicker base={1247} />
             </Reveal>
             <div
-              className="max-w-xl mx-auto mt-8"
+              className="relative max-w-md mx-auto mt-6"
               onMouseEnter={() => setMomentsPaused(true)}
               onMouseLeave={() => setMomentsPaused(false)}
             >
@@ -551,17 +574,52 @@ export default function HomePage() {
                 </p>
               ) : (
                 <>
-                  <AnimatePresence mode="wait">
-                    <motion.div
-                      key={feedPosts[momentIndex % feedPosts.length].id}
-                      initial={{ opacity: 0, x: 80 }}
-                      animate={{ opacity: 1, x: 0 }}
-                      exit={{ opacity: 0, x: -80 }}
-                      transition={{ duration: 0.5, ease: EASE }}
-                    >
-                      <FeedPost post={feedPosts[momentIndex % feedPosts.length]} />
-                    </motion.div>
-                  </AnimatePresence>
+                  <div className="relative">
+                    {feedPosts.length > 1 && (
+                      <>
+                        <button
+                          type="button"
+                          aria-label="Previous moment"
+                          onClick={() =>
+                            setMomentIndex((i) => (i - 1 + feedPosts.length) % feedPosts.length)
+                          }
+                          className="absolute -left-2 sm:-left-11 top-1/2 z-10 -translate-y-1/2 h-9 w-9 rounded-full flex items-center justify-center transition-opacity hover:opacity-100 opacity-80"
+                          style={{
+                            background: "rgba(18,13,10,0.85)",
+                            border: "1px solid rgba(255,181,107,0.22)",
+                            color: "#ffb56b",
+                          }}
+                        >
+                          <ChevronLeft className="w-4 h-4" />
+                        </button>
+                        <button
+                          type="button"
+                          aria-label="Next moment"
+                          onClick={() => setMomentIndex((i) => (i + 1) % feedPosts.length)}
+                          className="absolute -right-2 sm:-right-11 top-1/2 z-10 -translate-y-1/2 h-9 w-9 rounded-full flex items-center justify-center transition-opacity hover:opacity-100 opacity-80"
+                          style={{
+                            background: "rgba(18,13,10,0.85)",
+                            border: "1px solid rgba(255,181,107,0.22)",
+                            color: "#ffb56b",
+                          }}
+                        >
+                          <ChevronRight className="w-4 h-4" />
+                        </button>
+                      </>
+                    )}
+
+                    <AnimatePresence mode="wait">
+                      <motion.div
+                        key={feedPosts[momentIndex % feedPosts.length].id}
+                        initial={{ opacity: 0, x: 48 }}
+                        animate={{ opacity: 1, x: 0 }}
+                        exit={{ opacity: 0, x: -48 }}
+                        transition={{ duration: 0.4, ease: EASE }}
+                      >
+                        <FeedPost post={feedPosts[momentIndex % feedPosts.length]} />
+                      </motion.div>
+                    </AnimatePresence>
+                  </div>
 
                   {feedPosts.length > 1 && (
                     <div className="flex items-center justify-center gap-1.5 mt-4">
@@ -574,7 +632,10 @@ export default function HomePage() {
                           className="h-1.5 rounded-full transition-all"
                           style={{
                             width: i === momentIndex % feedPosts.length ? 20 : 6,
-                            background: i === momentIndex % feedPosts.length ? "#ff7a1a" : "rgba(255,255,255,0.2)",
+                            background:
+                              i === momentIndex % feedPosts.length
+                                ? "#ff7a1a"
+                                : "rgba(255,255,255,0.2)",
                           }}
                         />
                       ))}
@@ -595,14 +656,18 @@ export default function HomePage() {
               style={{ background: "rgba(10,7,5,0.6)", border: "1px solid rgba(255,122,26,0.12)" }}
             >
               <p className="text-[11px] font-bold uppercase tracking-[0.18em] mb-2" style={{ color: "var(--color-accent-start)" }}>
-                Who we are
+                About us
               </p>
               <h2 className="font-display text-3xl sm:text-4xl font-bold mb-4" style={{ color: "var(--color-text-primary)" }}>
-                About Wanderers
+                Looking to wander?
               </h2>
+              <p className="text-sm sm:text-base max-w-lg mx-auto leading-relaxed mb-5" style={{ color: "var(--color-text-secondary)" }}>
+                Create a bubble to start an event, or join one to keep yourself busy around campus.
+              </p>
               <p className="text-sm sm:text-base max-w-lg mx-auto leading-relaxed mb-8" style={{ color: "var(--color-text-secondary)" }}>
-                Wanderers is built by students, for students — a way to turn empty pockets of time on campus
-                into real hangouts with real people. Start something, or find a bubble already happening near you.
+                Wanderers is a University of Waterloo campus app for finding people nearby in real time.
+                Spot open hangouts, study sessions, coffee runs, and pickup games - then join a bubble or
+                start your own so empty pockets of time turn into real moments with real students.
               </p>
               <a
                 href="https://instagram.com/uw_wanderers"
@@ -620,8 +685,7 @@ export default function HomePage() {
         </div>
       </div>
 
-      {/* FAB + drawer + modals + nav */}
-      <StartSomethingFab onClick={() => { setPrefill(undefined); setCreateOpen(true); }} />
+      {/* drawer + modals + nav */}
       <NotificationDrawer
         open={drawerOpen}
         onClose={() => setDrawerOpen(false)}
@@ -712,7 +776,7 @@ function LiveTickerCard({ bubble, index }: { bubble: (typeof mockBubbles)[number
   );
 }
 
-/* Polaroid stack — 222.place inspired, warm photo borders, slight rotation */
+/* Polaroid stack teaser - compact dark frame */
 function PolaroidStack({ posts, onClick }: { posts: FeedPostType[]; onClick: () => void }) {
   const [index, setIndex] = useState(0);
   const reduce = useReducedMotion();
@@ -727,47 +791,40 @@ function PolaroidStack({ posts, onClick }: { posts: FeedPostType[]; onClick: () 
   const post = posts[index % posts.length];
 
   return (
-    <div style={{ width: 104 }}>
+    <div style={{ width: 108 }}>
       <button
         type="button"
         onClick={onClick}
         aria-label="See recent moments"
-        className="relative block w-full overflow-hidden rounded-md"
-        style={{ height: 128 }}
+        className="relative block w-full overflow-hidden rounded-xl"
+        style={{
+          height: 132,
+          background: "linear-gradient(165deg, #1a1510, #0c0907)",
+          border: "1px solid rgba(255,181,107,0.2)",
+          boxShadow: "0 12px 28px -10px rgba(0,0,0,0.65)",
+          padding: 6,
+        }}
       >
         <AnimatePresence mode="popLayout" initial={false}>
           <motion.div
             key={post.id}
-            className="absolute inset-0"
-            style={{
-              background: "#FAF7F2",
-              padding: "6px 6px 22px 6px",
-              boxShadow: "0 12px 32px -8px rgba(0,0,0,0.6)",
-            }}
-            initial={{ opacity: 0, x: 60 }}
+            className="absolute inset-[6px] rounded-lg overflow-hidden flex items-center justify-center"
+            style={{ background: "rgba(0,0,0,0.35)" }}
+            initial={{ opacity: 0, x: 40 }}
             animate={{ opacity: 1, x: 0 }}
-            exit={{ opacity: 0, x: -60 }}
-            transition={{ duration: 0.5, ease: EASE }}
-            whileHover={{ scale: 1.05 }}
+            exit={{ opacity: 0, x: -40 }}
+            transition={{ duration: 0.45, ease: EASE }}
+            whileHover={{ scale: 1.03 }}
           >
-            <div
-              className="w-full h-full rounded-sm overflow-hidden flex items-center justify-center"
-              style={{ background: "linear-gradient(135deg, rgba(255,122,26,0.25), rgba(120,60,20,0.5))" }}
-            >
-              {post.imageUrl ? (
-                <img src={post.imageUrl} alt={post.caption} className="w-full h-full object-cover" />
-              ) : (
-                <span className="text-3xl">{post.userAvatar.length <= 2 ? "📸" : post.userAvatar}</span>
-              )}
-            </div>
-            <p className="absolute bottom-1 left-0 right-0 text-center text-[8px] font-medium" style={{ color: "#52525B" }}>
-              {post.zone ?? "—"} · {post.timestamp.toLowerCase()}
-            </p>
+            {post.imageUrl ? (
+              <img src={post.imageUrl} alt="" className="w-full h-full object-cover" />
+            ) : (
+              <span className="text-3xl">{post.userAvatar.length <= 2 ? "📸" : post.userAvatar}</span>
+            )}
           </motion.div>
         </AnimatePresence>
       </button>
 
-      {/* progress dots */}
       {posts.length > 1 && (
         <div className="mt-2 flex items-center justify-center gap-1">
           {posts.map((p, i) => (
@@ -786,7 +843,7 @@ function PolaroidStack({ posts, onClick }: { posts: FeedPostType[]; onClick: () 
   );
 }
 
-/* Cycling moments counter — ticks upward every 2s, 222.place style */
+/* Cycling moments counter - ticks upward every 2s, 222.place style */
 function MomentsTicker({ base }: { base: number }) {
   const [count, setCount] = useState(base);
   useEffect(() => {

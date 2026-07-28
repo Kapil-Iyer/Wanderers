@@ -1,5 +1,5 @@
 /**
- * PLEXUS BACKGROUND — low-poly network/plexus graphic behind all page content.
+ * PLEXUS BACKGROUND - low-poly network/plexus graphic behind all page content.
  * Fixed, full-viewport, purely decorative (pointer-events: none). Reinforces the
  * "find your people" idea via a connected node mesh, dense/bright on the left
  * fading to a sparse starfield on the right.

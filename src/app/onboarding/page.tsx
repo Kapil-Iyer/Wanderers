@@ -1,7 +1,7 @@
 "use client";
 
 /**
- * ONBOARDING PAGE — "Who are you on campus?" vibe identity card layout
+ * ONBOARDING PAGE - "Who are you on campus?" vibe identity card layout
  * Visual revamp only. Underlying logic: stores selected interest tags in state,
  * same flow as before (→ /home on confirm). No data model changes.
  */
@@ -39,7 +39,7 @@ const vibeCards = [
     id: "pickup-sports-guy",
     label: "Pick-up Sports Guy",
     emoji: "🏀",
-    desc: "PAC courts, 3v3, doesn't matter who — let's run it",
+    desc: "PAC courts, 3v3, doesn't matter who - let's run it",
     interests: ["🏀 Basketball", "⚽ Soccer", "🏃 Running", "🏊 Swimming"],
     bg: "linear-gradient(160deg, #001a0d 0%, #00200f 50%, #001008 100%)",
     accent: "#4ade80",
@@ -59,7 +59,7 @@ const vibeCards = [
     id: "explorer",
     label: "Explorer",
     emoji: "🧭",
-    desc: "Hikes, open mics, random events — if it's new, you're in",
+    desc: "Hikes, open mics, random events - if it's new, you're in",
     interests: ["🥾 Hiking", "🎵 Music", "🎭 Theater", "🎨 Arts"],
     bg: "linear-gradient(160deg, #120a00 0%, #1a0d00 50%, #0d0600 100%)",
     accent: "#ff7a1a",
@@ -114,7 +114,7 @@ export default function OnboardingPage() {
             <span className="text-gradient">on campus?</span>
           </h1>
           <p className="mt-2 text-sm" style={{ color: "var(--color-text-secondary)" }}>
-            Pick all that fit — we'll match you with your kind of bubbles.
+            Pick all that fit - we'll match you with your kind of bubbles.
           </p>
         </motion.div>
 

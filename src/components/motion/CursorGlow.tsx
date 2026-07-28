@@ -1,7 +1,7 @@
 "use client";
 
 /**
- * CURSOR GLOW — a soft warm light that trails the pin cursor with spring lag,
+ * CURSOR GLOW - a soft warm light that trails the pin cursor with spring lag,
  * growing when hovering interactive elements. Decorative only (pointer-events
  * none, screen blend). Fine-pointer devices only; disabled for reduced motion.
  */

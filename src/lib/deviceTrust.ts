@@ -1,5 +1,5 @@
 /**
- * Signed "remember this device" cookie — skips OTP for 7 days after a
+ * Signed "remember this device" cookie - skips OTP for 7 days after a
  * successful OTP (or trusted password login).
  */
 

@@ -1,5 +1,5 @@
 /**
- * CATEGORY THEMES — per-category gradient tuning for bubble poster cards.
+ * CATEGORY THEMES - per-category gradient tuning for bubble poster cards.
  * Every theme is anchored in emerald (Digital Dusk) so the brand stays
  * coherent, but each category gets its own character via the gradient endpoint.
  */
