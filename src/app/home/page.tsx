@@ -230,17 +230,6 @@ export default function HomePage() {
   }, [activeFilter]);
 
   const scrollToMoments = () => momentsRef.current?.scrollIntoView({ behavior: "smooth", block: "start" });
-  const scrollToRef = (ref: React.RefObject<HTMLElement | null>) =>
-    ref.current?.scrollIntoView({ behavior: "smooth", block: "start" });
-  const scrollToTop = () => window.scrollTo({ top: 0, behavior: "smooth" });
-
-  const quickNavLinks = [
-    { label: "Home", onClick: scrollToTop },
-    { label: "Upcoming for you", onClick: () => scrollToRef(upcomingRef) },
-    { label: "Active nearby", onClick: () => scrollToRef(nearbyRef) },
-    { label: "Recent moments", onClick: () => scrollToRef(momentsRef) },
-    { label: "About us", onClick: () => scrollToRef(aboutRef) },
-  ];
 
   return (
     <div className="min-h-screen pb-12">
@@ -254,27 +243,6 @@ export default function HomePage() {
           setPrefill(undefined);
           setCreateOpen(true);
         }}
-        center={
-          <div className="flex items-center gap-1.5 overflow-x-auto">
-            {quickNavLinks.map((item) => (
-              <button
-                key={item.label}
-                type="button"
-                onClick={item.onClick}
-                className="px-3 py-1.5 rounded-xl text-[11px] font-semibold whitespace-nowrap transition-colors"
-                style={{
-                  background:
-                    "linear-gradient(165deg, rgba(40,32,26,0.8) 0%, rgba(18,13,10,0.9) 100%)",
-                  border: "1px solid rgba(255,181,107,0.14)",
-                  color: "var(--color-text-secondary)",
-                  boxShadow: "0 1px 0 rgba(255,255,255,0.05) inset, 0 4px 12px rgba(0,0,0,0.25)",
-                }}
-              >
-                {item.label}
-              </button>
-            ))}
-          </div>
-        }
       />
 
       <div className={`transition-[padding] duration-300 ease-out ${sidebarExpanded ? "lg:pl-64" : "lg:pl-3"}`}>

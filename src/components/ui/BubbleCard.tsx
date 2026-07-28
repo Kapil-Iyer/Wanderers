@@ -184,17 +184,20 @@ export default function BubbleCard({ bubble }: { bubble: Bubble }) {
 
           <button
             type="button"
-            onClick={() => setFlipped(true)}
+            onClick={(e) => {
+              e.stopPropagation();
+              setFlipped(true);
+            }}
             aria-label="More info"
-            className="absolute -top-1.5 -right-1.5 z-20 w-6 h-6 rounded-full flex items-center justify-center"
+            className="absolute top-2.5 right-2.5 z-30 w-7 h-7 rounded-full flex items-center justify-center transition-transform hover:scale-110"
             style={{
               background: "rgba(10,7,5,0.92)",
-              border: `1px solid ${theme.accent}55`,
+              border: `1px solid ${theme.accent}70`,
               color: theme.accent,
-              boxShadow: "0 2px 10px rgba(0,0,0,0.5)",
+              boxShadow: "0 2px 10px rgba(0,0,0,0.55)",
             }}
           >
-            <Info className="w-3 h-3" />
+            <Info className="w-3.5 h-3.5" />
           </button>
 
           <div
@@ -369,12 +372,12 @@ export default function BubbleCard({ bubble }: { bubble: Bubble }) {
             type="button"
             onClick={() => setFlipped(false)}
             aria-label="Close info"
-            className="absolute -top-2 -right-2 z-20 w-7 h-7 rounded-full flex items-center justify-center"
+            className="absolute top-2.5 right-2.5 z-20 w-7 h-7 rounded-full flex items-center justify-center"
             style={{
               background: "rgba(10,7,5,0.92)",
-              border: `1px solid ${theme.accent}55`,
+              border: `1px solid ${theme.accent}70`,
               color: theme.accent,
-              boxShadow: "0 2px 10px rgba(0,0,0,0.5)",
+              boxShadow: "0 2px 10px rgba(0,0,0,0.55)",
             }}
           >
             <X className="w-3.5 h-3.5" />
