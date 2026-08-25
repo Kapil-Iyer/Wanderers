@@ -12,14 +12,17 @@
  *   verify  → POST /api/auth/verify {email,token,rememberDevice} → setSession → /home
  *   forgot  → POST /api/auth/forgot-password → email link (sign-in + change password)
  *
- * Campus gate: only @uwaterloo.ca emails (client + server).
+ * Campus gate: when enabled, only @uwaterloo.ca emails (client + server).
+ * Set REQUIRE_UW_EMAIL=true (and NEXT_PUBLIC_REQUIRE_UW_EMAIL=true for this
+ * client-side check) in Vercel environment variables to enforce the UWaterloo
+ * email gate in production. When off/missing, any valid email is allowed.
  */
 
 import { useState, useEffect } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { useRouter } from "next/navigation";
 import { Mail, User, Lock, Eye, EyeOff, ArrowLeft } from "lucide-react";
-import { CAMPUS_EMAIL_ERROR, isUWaterlooEmail } from "@/lib/campusEmail";
+import { CAMPUS_EMAIL_ERROR, isEmailAllowed, isCampusGateEnabled } from "@/lib/campusEmail";
 
 const ease = [0.25, 0.46, 0.45, 0.94] as const;
 
@@ -49,10 +52,10 @@ export default function AuthModal() {
 
   const go = (m: Mode) => { setError(null); setMode(m); };
 
-  // auto-dismiss success toast
+  // auto-dismiss success toast (dev messages linger longer so there's time to copy the link/code)
   useEffect(() => {
     if (!success) return;
-    const t = setTimeout(() => setSuccess(null), 3000);
+    const t = setTimeout(() => setSuccess(null), success.startsWith("Dev mode") ? 15000 : 3000);
     return () => clearTimeout(t);
   }, [success]);
 
@@ -67,7 +70,7 @@ export default function AuthModal() {
 
     if (!name) { setError("Full name required"); return; }
     if (!email) { setError("Email required"); return; }
-    if (!isUWaterlooEmail(email)) { setError(CAMPUS_EMAIL_ERROR); return; }
+    if (!isEmailAllowed(email)) { setError(CAMPUS_EMAIL_ERROR); return; }
     if (!password || password.length < 8) { setError("Password must be at least 8 characters"); return; }
     if (password !== confirmPassword) { setError("Passwords do not match"); return; }
 
@@ -97,7 +100,7 @@ export default function AuthModal() {
     const password = (form.elements.namedItem("loginPassword") as HTMLInputElement)?.value;
 
     if (!email) { setError("Email required"); return; }
-    if (!isUWaterlooEmail(email)) { setError(CAMPUS_EMAIL_ERROR); return; }
+    if (!isEmailAllowed(email)) { setError(CAMPUS_EMAIL_ERROR); return; }
     if (!password) { setError("Password required"); return; }
 
     setLoading(true);
@@ -121,6 +124,11 @@ export default function AuthModal() {
 
       setPendingEmail(email);
       setMode("verify");
+      // Dev only: server skipped the real email send and returned the code directly.
+      if (data.devOtp) {
+        setOtp(String(data.devOtp));
+        setSuccess(`Dev mode: OTP auto-filled (${data.devOtp}) — no email was sent.`);
+      }
     } catch (err) {
       setError(err instanceof Error ? err.message : "Login failed");
     } finally {
@@ -133,7 +141,7 @@ export default function AuthModal() {
     setError(null);
     const email = (e.currentTarget.elements.namedItem("forgotEmail") as HTMLInputElement)?.value?.trim().toLowerCase();
     if (!email) { setError("Email required"); return; }
-    if (!isUWaterlooEmail(email)) { setError(CAMPUS_EMAIL_ERROR); return; }
+    if (!isEmailAllowed(email)) { setError(CAMPUS_EMAIL_ERROR); return; }
     setLoading(true);
     try {
       const res = await fetch("/api/auth/forgot-password", {
@@ -143,9 +151,11 @@ export default function AuthModal() {
       });
       const data = await res.json();
       if (!res.ok || !data.success) throw new Error(data.error || "Failed to send email");
+      // Dev only: server skipped the real email send and returned the link directly.
       setSuccess(
-        data.message ||
-          "Check your email - open the link to sign in and change your password."
+        data.devRecoveryLink
+          ? `Dev mode: no email sent — copy this link: ${data.devRecoveryLink}`
+          : data.message || "Check your email - open the link to sign in and change your password."
       );
       setMode("login");
     } catch (err) {
@@ -281,9 +291,12 @@ export default function AuthModal() {
               transition={{ duration: 0.3, ease }} className="space-y-3">
               <AmberButton onClick={() => go("signup")}>Sign Up</AmberButton>
               <GhostButton onClick={() => go("login")}>Log In</GhostButton>
-              <p className="text-xs text-center pt-1" style={{ color: "var(--color-text-muted)" }}>
-                @uwaterloo.ca email required
-              </p>
+              {/* Only show the campus hint when the gate is actually enforced (NEXT_PUBLIC_REQUIRE_UW_EMAIL=true) */}
+              {isCampusGateEnabled() && (
+                <p className="text-xs text-center pt-1" style={{ color: "var(--color-text-muted)" }}>
+                  @uwaterloo.ca email required
+                </p>
+              )}
             </motion.div>
           )}
 
