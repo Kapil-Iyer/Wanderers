@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { createClient } from "@supabase/supabase-js";
 import { getSupabaseAdmin } from "@/lib/supabaseAdmin";
 import { clearDeviceTrustCookie, setDeviceTrustCookie } from "@/lib/deviceTrust";
-import { CAMPUS_EMAIL_ERROR, isUWaterlooEmail } from "@/lib/campusEmail";
+import { CAMPUS_EMAIL_ERROR, isEmailAllowed } from "@/lib/campusEmail";
 
 /**
  * POST /api/auth/verify
@@ -21,7 +21,9 @@ export async function POST(request: NextRequest) {
     }
 
     const emailTrimmed = String(email).trim().toLowerCase();
-    if (!isUWaterlooEmail(emailTrimmed)) {
+    // Campus gate — no-op unless enabled. Set REQUIRE_UW_EMAIL=true in Vercel
+    // environment variables to enforce the UWaterloo email gate in production.
+    if (!isEmailAllowed(emailTrimmed)) {
       return NextResponse.json({ success: false, error: CAMPUS_EMAIL_ERROR }, { status: 403 });
     }
 
@@ -51,7 +53,8 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    if (!isUWaterlooEmail(data.user.email ?? emailTrimmed)) {
+    // Defense in depth. Set REQUIRE_UW_EMAIL=true in Vercel environment variables to enforce the UWaterloo email gate in production.
+    if (!isEmailAllowed(data.user.email ?? emailTrimmed)) {
       return NextResponse.json({ success: false, error: CAMPUS_EMAIL_ERROR }, { status: 403 });
     }
 
