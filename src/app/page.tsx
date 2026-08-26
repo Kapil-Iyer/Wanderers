@@ -1,16 +1,19 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { motion, AnimatePresence } from "framer-motion";
+import { useGSAP } from "@gsap/react";
 import AuthModal from "@/components/ui/AuthModal";
 import SplashIntro, { SPLASH_KEY } from "@/components/ui/SplashIntro";
-import CozyCampfireBackdrop from "@/components/ui/CozyCampfireBackdrop";
+import VantaBackground from "@/components/motion/VantaBackground";
+import { gsap, prefersReducedMotion } from "@/lib/gsap";
 
 const ease = [0.25, 0.46, 0.45, 0.94] as const;
 
 export default function LandingPage() {
   // null = undecided (avoids hydration mismatch); true = play splash; false = skip
   const [showSplash, setShowSplash] = useState<boolean | null>(null);
+  const heroRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
     try {
@@ -25,14 +28,36 @@ export default function LandingPage() {
     setShowSplash(false);
   };
 
+  // GSAP fades the Vanta canvas in first; framer-motion's own staggered
+  // entrance (below) then handles the hero text/card reveal independently.
+  useGSAP(() => {
+    if (showSplash !== false || !heroRef.current || prefersReducedMotion()) return;
+    gsap.fromTo(heroRef.current, { opacity: 0 }, { opacity: 1, duration: 0.9, ease: "power2.out" });
+  }, { scope: heroRef, dependencies: [showSplash] });
+
   return (
     <div className="min-h-screen relative overflow-hidden flex flex-col items-center justify-center px-4 py-12">
 
       {/* One-time cinematic intro */}
       {showSplash && <SplashIntro onComplete={finishSplash} />}
 
-      {/* Cozy campfire backdrop - blurred warm room behind the glass card */}
-      <CozyCampfireBackdrop />
+      {/* Aurora network hero backdrop - Vanta.NET, scoped to this page only */}
+      <div ref={heroRef} className="absolute inset-0">
+        <VantaBackground
+          effect="net"
+          color={0xe0339e}
+          backgroundColor={0x0b0710}
+          options={{ points: 7.0, maxDistance: 22.0, spacing: 22.0, showDots: true }}
+        />
+      </div>
+      {/* dark scrim behind the hero text/card so the network stays legible only at the margins */}
+      <div
+        className="absolute inset-0 pointer-events-none"
+        style={{
+          background:
+            "radial-gradient(ellipse 62% 58% at 50% 45%, rgba(5,5,9,0.88) 0%, rgba(5,5,9,0.6) 45%, transparent 78%)",
+        }}
+      />
 
       {/* Page content - slides up after the splash hands off */}
       <AnimatePresence>

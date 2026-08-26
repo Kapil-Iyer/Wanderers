@@ -8,53 +8,53 @@
 /* 2. DESIGN TOKENS */
 @layer base {
   :root {
-    /* ── Core palette (Network Plexus — warm espresso base) ── */
-    --color-bg:             #16100a;
+    /* ── Core palette (Ember Aurora — warm-plum ink base) ── */
+    --color-bg:             #0b0710;
     --color-surface:        rgba(255, 255, 255, 0.045);
     --color-surface-hover:  rgba(255, 255, 255, 0.08);
-    --color-border:         rgba(255, 150, 80, 0.16);
-    --color-border-warm:    rgba(255,122,26, 0.2);
+    --color-border:         rgba(224, 51, 158, 0.14);
+    --color-border-warm:    rgba(255, 90, 54, 0.22);
 
-    /* ── Orange brand accent (Network Plexus) ── */
-    --color-accent-start:   #ff7a1a;
-    --color-accent-end:     #ffb56b;
-    --color-accent-mid:     #ff8a3d;
-    --color-glow:           rgba(255,122,26, 0.15);
-    --color-glow-strong:    rgba(255,122,26, 0.28);
+    /* ── Red-orange → magenta → violet brand accent (the Wanderers logo's own pin gradient) ── */
+    --color-accent-start:   #FF5A36;
+    --color-accent-mid:     #E0339E;
+    --color-accent-end:     #8b5cf6;
+    --color-glow:           rgba(224, 51, 158, 0.18);
+    --color-glow-strong:    rgba(139, 92, 246, 0.28);
 
     /* ── Text ── */
     --color-text-primary:   #FAFAFA;
-    --color-text-secondary: #A1A1AA;
-    --color-text-muted:     #52525B;
+    --color-text-secondary: #A5A5B8;
+    --color-text-muted:     #55556B;
 
-    /* ── Shadcn tokens (mapped to Network Plexus warm espresso) ── */
-    --background:            30 37% 6%;           /* #16100a */
+    /* ── Shadcn tokens (mapped to Ember Aurora ink) ── */
+    --background:            336 30% 6%;          /* #0b0710 */
     --foreground:            0 0% 98%;
 
-    --primary:               24 100% 62%;         /* #ff8a3d */
-    --primary-foreground:    24 90% 8%;
+    --primary:               11 100% 61%;         /* #FF5A36 */
+    --primary-foreground:    0 0% 100%;
 
-    --card:                  27 33% 11%;          /* #241a12 elevated surface */
+    --card:                  336 24% 10%;         /* elevated surface */
     --card-foreground:       0 0% 98%;
 
-    --popover:               27 33% 11%;
+    --popover:               336 24% 10%;
     --popover-foreground:    0 0% 98%;
 
-    --secondary:             30 10% 12%;
+    --secondary:             336 16% 13%;
     --secondary-foreground:  0 0% 90%;
 
-    --muted:                 30 8% 14%;
-    --muted-foreground:      30 12% 55%;
+    --muted:                 336 12% 15%;
+    --muted-foreground:      336 8% 58%;
 
-    --accent:                24 70% 14%;
-    --accent-foreground:     24 90% 78%;
+    --accent:                326 55% 17%;
+    --accent-foreground:     323 74% 82%;
 
     --destructive:           0 84% 60%;
     --destructive-foreground: 0 0% 100%;
 
-    --border:                24 30% 14%;
-    --input:                 24 20% 8%;
-    --ring:                  24 100% 62%;
+    --border:                326 26% 15%;
+    --input:                 326 18% 8%;
+    --ring:                  323 74% 54%;
 
     --radius: 1rem;
 
@@ -70,9 +70,9 @@
 
     /* ── Shadows ── */
     --shadow-card:   0 1px 3px rgba(0,0,0,0.4), 0 1px 2px rgba(0,0,0,0.3);
-    --shadow-float:  0 20px 60px -15px rgba(255,122,26,0.18);
-    --shadow-glow:   0 0 32px rgba(255,122,26,0.22);
-    --shadow-inner-warm: inset 0 1px 0 rgba(255,122,26,0.12);
+    --shadow-float:  0 20px 60px -15px rgba(139,92,246,0.22);
+    --shadow-glow:   0 0 32px rgba(224,51,158,0.26);
+    --shadow-inner-warm: inset 0 1px 0 rgba(255,90,54,0.14);
   }
 
   * {
@@ -95,7 +95,7 @@
     body,
     button, a, [role="button"], summary, label,
     .cursor-pin {
-      cursor: url("data:image/svg+xml,%3Csvg%20xmlns='http://www.w3.org/2000/svg'%20width='28'%20height='34'%20viewBox='0%200%2028%2034'%3E%3Cpath%20d='M14%2033C14%2033%203%2019%203%2011.5A11%2011%200%200%201%2025%2011.5C25%2019%2014%2033%2014%2033Z'%20fill='%23F97316'%20stroke='%23FBBF24'%20stroke-width='1.5'/%3E%3Ccircle%20cx='14'%20cy='11.5'%20r='4'%20fill='%23fff'/%3E%3C/svg%3E") 14 33, auto;
+      cursor: url("data:image/svg+xml,%3Csvg%20xmlns='http://www.w3.org/2000/svg'%20width='28'%20height='34'%20viewBox='0%200%2028%2034'%3E%3Cpath%20d='M14%2033C14%2033%203%2019%203%2011.5A11%2011%200%200%201%2025%2011.5C25%2019%2014%2033%2014%2033Z'%20fill='%23FF5A36'%20stroke='%23E0339E'%20stroke-width='1.5'/%3E%3Ccircle%20cx='14'%20cy='11.5'%20r='4'%20fill='%23fff'/%3E%3C/svg%3E") 14 33, auto;
     }
     input, textarea, select, [contenteditable="true"] {
       cursor: text;
@@ -106,7 +106,13 @@
     font-family: var(--font-body);
     @apply min-h-screen text-foreground antialiased;
     background-color: var(--color-bg);
-    background-image: radial-gradient(1200px 760px at 20% 30%, #241a12 0%, #16100a 55%, #0e0a06 100%);
+    /* Static fallback under the GlobalBackdrop's live Vanta network (shown while it
+       mounts, on reduced-motion, or when the map overlay's WebGL view is open) - bookends
+       the brand triad with a red-orange glow top-left and a violet glow bottom-right. */
+    background-image:
+      radial-gradient(900px 620px at 14% 8%, rgba(255,90,54,0.09) 0%, transparent 60%),
+      radial-gradient(1000px 720px at 86% 92%, rgba(139,92,246,0.08) 0%, transparent 60%),
+      radial-gradient(1400px 900px at 50% 30%, #1c0f1a 0%, #100812 55%, #0b0710 100%);
     background-attachment: fixed;
   }
 }
@@ -130,9 +136,9 @@
     box-shadow: var(--shadow-inner-warm), 0 0 24px var(--color-glow);
   }
 
-  /* Gradient text — amber to gold */
+  /* Gradient text — red-orange → magenta → violet, the logo's own pin blend */
   .text-gradient {
-    background: linear-gradient(135deg, var(--color-accent-start) 0%, var(--color-accent-end) 100%);
+    background: linear-gradient(135deg, var(--color-accent-start) 0%, var(--color-accent-mid) 50%, var(--color-accent-end) 100%);
     -webkit-background-clip: text;
     -webkit-text-fill-color: transparent;
     background-clip: text;
@@ -141,37 +147,37 @@
   /* Extruded 3D text — solid diagonal step-shadow builds a visible carved side,
      not a soft glow. Fill stays flat/bright so the stepped shadow reads clearly. */
   .text-gradient-3d {
-    color: #f0c896;
+    color: #fff1ea;
     text-shadow:
-      1px 1px 0 #d9a668,
-      2px 2px 0 #d9a668,
-      3px 3px 0 #b8823f,
-      4px 4px 0 #b8823f,
-      5px 5px 0 #8a5a26,
-      6px 6px 0 #8a5a26,
-      7px 7px 0 #5c3814,
-      8px 8px 0 #5c3814,
+      1px 1px 0 #ffcbb0,
+      2px 2px 0 #ffcbb0,
+      3px 3px 0 #ff8a5c,
+      4px 4px 0 #ff8a5c,
+      5px 5px 0 #FF5A36,
+      6px 6px 0 #FF5A36,
+      7px 7px 0 #b3236f,
+      8px 8px 0 #b3236f,
       10px 10px 16px rgba(0, 0, 0, 0.6);
     display: inline-block;
   }
 
   /* Gradient button */
-  .btn-amber {
-    background: linear-gradient(135deg, var(--color-accent-start) 0%, var(--color-accent-end) 100%);
-    color: #2a1206;
+  .btn-gradient {
+    background: linear-gradient(135deg, var(--color-accent-start) 0%, var(--color-accent-mid) 50%, var(--color-accent-end) 100%);
+    color: #0a0a14;
     font-weight: 700;
     border-radius: var(--radius-pill);
     box-shadow: var(--shadow-float);
     transition: box-shadow 0.25s ease, transform 0.15s ease;
   }
 
-  .btn-amber:hover {
+  .btn-gradient:hover {
     box-shadow: var(--shadow-glow);
   }
 
-  /* Amber glow ring — used on active/selected elements */
-  .ring-amber {
-    box-shadow: 0 0 0 2px rgba(255,122,26,0.45);
+  /* Aurora glow ring — used on active/selected elements */
+  .ring-gradient {
+    box-shadow: 0 0 0 2px rgba(224, 51, 158, 0.5);
   }
 
   /* Display font helper */
@@ -188,8 +194,8 @@
   }
 
   .chip-active {
-    background: linear-gradient(135deg, var(--color-accent-start) 0%, var(--color-accent-end) 100%);
-    color: #2a1206;
+    background: linear-gradient(135deg, var(--color-accent-start) 0%, var(--color-accent-mid) 50%, var(--color-accent-end) 100%);
+    color: #0a0a14;
     border-color: transparent;
     font-weight: 700;
     box-shadow: 0 0 12px var(--color-glow);
@@ -199,23 +205,23 @@
   .bubble-glow {
     box-shadow:
       var(--shadow-inner-warm),
-      0 8px 32px -8px rgba(255,122,26,0.12),
+      0 8px 32px -8px rgba(139,92,246,0.14),
       var(--shadow-card);
   }
 
   .bubble-glow:hover {
     box-shadow:
-      inset 0 1px 0 rgba(255,122,26,0.2),
-      0 16px 48px -12px rgba(255,122,26,0.2),
-      0 0 24px rgba(255,122,26,0.08);
+      inset 0 1px 0 rgba(224,51,158,0.2),
+      0 16px 48px -12px rgba(139,92,246,0.22),
+      0 0 24px rgba(224,51,158,0.1);
   }
 
   /* Lit-from-within card header gradient */
   .card-header-glow {
     background: linear-gradient(135deg,
-      rgba(255,122,26,0.25) 0%,
-      rgba(255,181,107,0.15) 50%,
-      rgba(255,122,26,0.08) 100%);
+      rgba(139,92,246,0.25) 0%,
+      rgba(99,102,241,0.15) 50%,
+      rgba(224,51,158,0.1) 100%);
   }
 
   /* Animations */
@@ -242,9 +248,9 @@
   }
   /* breathing glow for "Happening Now" bubbles */
   @keyframes pulse-amber {
-    0%   { box-shadow: 0 0 0 0 rgba(255,122,26,0.15); }
-    50%  { box-shadow: 0 0 20px 4px rgba(255,122,26,0.08); }
-    100% { box-shadow: 0 0 0 0 rgba(255,122,26,0.15); }
+    0%   { box-shadow: 0 0 0 0 rgba(139,92,246,0.18); }
+    50%  { box-shadow: 0 0 20px 4px rgba(224,51,158,0.1); }
+    100% { box-shadow: 0 0 0 0 rgba(139,92,246,0.18); }
   }
   /* presence dot heartbeat (slower) */
   @keyframes pulse-dot {
@@ -252,22 +258,8 @@
     50%  { box-shadow: 0 0 8px 2px rgba(74,222,128,0.2); }
     100% { box-shadow: 0 0 0 0 rgba(74,222,128,0.45); }
   }
-  /* rising embers for the cozy campfire backdrop */
-  @keyframes ember-rise {
-    0%   { transform: translateY(0) translateX(0) scale(1);   opacity: 0; }
-    15%  { opacity: 0.9; }
-    70%  { opacity: 0.6; }
-    100% { transform: translateY(-220px) translateX(var(--ember-drift, 12px)) scale(0.4); opacity: 0; }
-  }
-  /* fireplace flicker */
-  @keyframes fire-flicker {
-    0%, 100% { opacity: 0.55; transform: scale(1); }
-    25%      { opacity: 0.75; transform: scale(1.04); }
-    50%      { opacity: 0.5;  transform: scale(0.98); }
-    75%      { opacity: 0.7;  transform: scale(1.02); }
-  }
 
-  /* sidebar friend row — amber left border slides in top→bottom on hover */
+  /* sidebar friend row — aurora left border slides in top→bottom on hover */
   .friend-row { position: relative; }
   .friend-row::before {
     content: "";
@@ -277,7 +269,7 @@
     bottom: 6px;
     width: 2px;
     border-radius: 2px;
-    background: linear-gradient(to bottom, #ff7a1a, #ffb56b);
+    background: linear-gradient(to bottom, #8b5cf6, #E0339E);
     transform: scaleY(0);
     transform-origin: top;
     transition: transform 0.25s ease;
@@ -286,9 +278,8 @@
 
   .animate-pulse-amber { animation: pulse-amber 2s ease-in-out infinite; }
   .animate-pulse-dot   { animation: pulse-dot 3s ease-in-out infinite; }
-  .animate-fire-flicker { animation: fire-flicker 3.5s ease-in-out infinite; }
   @media (prefers-reduced-motion: reduce) {
-    .animate-pulse-amber, .animate-pulse-dot, .animate-fire-flicker,
+    .animate-pulse-amber, .animate-pulse-dot,
     .animate-float-orb, .animate-pulse-glow { animation: none !important; }
   }
 

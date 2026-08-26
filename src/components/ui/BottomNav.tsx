@@ -41,8 +41,8 @@ export default function BottomNav() {
         onMouseLeave={() => setExpanded(false)}
         className={`hidden lg:fixed lg:inset-y-0 lg:left-0 lg:z-40 lg:flex lg:flex-col transition-[width] duration-300 ease-out overflow-hidden ${expanded ? "w-64" : "w-3"}`}
         style={{
-          background: "rgba(20,15,10,0.92)",
-          borderRight: "1px solid rgba(255,122,26,0.08)",
+          background: "rgba(12,10,18,0.92)",
+          borderRight: "1px solid rgba(139,92,246,0.1)",
           backdropFilter: "blur(16px)",
         }}>
 
@@ -51,7 +51,7 @@ export default function BottomNav() {
           className="pointer-events-none absolute inset-y-0 left-0 w-[3px] transition-opacity duration-200"
           style={{
             opacity: expanded ? 0 : 1,
-            background: "linear-gradient(180deg, transparent, rgba(255,122,26,0.55), transparent)",
+            background: "linear-gradient(180deg, transparent, rgba(139,92,246,0.55), transparent)",
           }}
         />
 
@@ -60,7 +60,7 @@ export default function BottomNav() {
           <div className="px-5 pt-5 pb-4 flex items-center gap-3"
             style={{ borderBottom: "1px solid rgba(255,255,255,0.05)" }}>
             <div className="relative h-8 w-8 overflow-hidden rounded-full shrink-0"
-              style={{ border: "1px solid rgba(255,122,26,0.3)", boxShadow: "0 0 12px rgba(255,122,26,0.2)" }}>
+              style={{ border: "1px solid rgba(139,92,246,0.35)", boxShadow: "0 0 12px rgba(139,92,246,0.22)" }}>
               <Image src={logo} alt="Wanderers" className="h-full w-full object-cover" priority />
             </div>
             <span className="font-display text-lg font-bold whitespace-nowrap" style={{ color: "var(--color-text-primary)" }}>
@@ -79,7 +79,7 @@ export default function BottomNav() {
                       className="flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm font-medium relative whitespace-nowrap"
                       style={{
                         color: active ? "#FAFAFA" : "var(--color-text-secondary)",
-                        background: active ? "rgba(255,122,26,0.1)" : "transparent",
+                        background: active ? "rgba(224,51,158,0.1)" : "transparent",
                       }}
                       whileHover={{ x: 3, color: "#FAFAFA" }}
                       transition={{ type: "spring", stiffness: 300, damping: 22 }}
@@ -88,12 +88,12 @@ export default function BottomNav() {
                         <motion.div
                           layoutId="sidebar-active"
                           className="absolute inset-0 rounded-xl"
-                          style={{ background: "rgba(255,122,26,0.08)", border: "1px solid rgba(255,122,26,0.18)" }}
+                          style={{ background: "rgba(224,51,158,0.08)", border: "1px solid rgba(224,51,158,0.2)" }}
                           transition={{ type: "spring", stiffness: 300, damping: 30 }}
                         />
                       )}
                       <tab.icon className="w-4.5 h-4.5 relative z-10 shrink-0"
-                        style={{ color: active ? "#ff7a1a" : undefined, strokeWidth: active ? 2.5 : 1.8 }} />
+                        style={{ color: active ? "#E0339E" : undefined, strokeWidth: active ? 2.5 : 1.8 }} />
                       <span className="relative z-10">{tab.label}</span>
                     </motion.div>
                   </Link>
@@ -120,7 +120,7 @@ export default function BottomNav() {
                     >
                       <div className="relative shrink-0">
                         <div className="w-6 h-6 rounded-full flex items-center justify-center text-[10px] font-bold shrink-0"
-                          style={{ background: "rgba(255,122,26,0.15)", color: "var(--color-text-primary)", border: "1px solid rgba(255,122,26,0.2)" }}>
+                          style={{ background: "rgba(139,92,246,0.16)", color: "var(--color-text-primary)", border: "1px solid rgba(139,92,246,0.22)" }}>
                           {friend.avatar}
                         </div>
                         {friend.currentEvent && (

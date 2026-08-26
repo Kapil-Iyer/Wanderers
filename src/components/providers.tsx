@@ -21,6 +21,7 @@ import { SidebarProvider } from "@/contexts/SidebarContext";
 import MapOverlayClient from "./MapOverlayClient";
 import ProfileOverlayClient from "./ProfileOverlayClient";
 import CursorGlow from "@/components/motion/CursorGlow";
+import GlobalBackdrop from "@/components/motion/GlobalBackdrop";
 
 export function Providers({ children }: { children: React.ReactNode }) {
   const [queryClient] = useState(() => new QueryClient());
@@ -33,6 +34,7 @@ export function Providers({ children }: { children: React.ReactNode }) {
         <ConnectionsProvider>
         <ProfileOverlayProvider>
         <MapOverlayProvider>
+          <GlobalBackdrop />
           {children}
           <CursorGlow />
           <MapOverlayClient />

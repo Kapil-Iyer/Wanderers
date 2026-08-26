@@ -92,7 +92,7 @@ function CampusPicker({ visible }: { visible: boolean }) {
         className="flex items-center gap-1 max-w-[200px] text-[10px] font-medium rounded-md px-1 -ml-1 py-0.5 transition-colors hover:bg-white/5"
         style={{ color: "var(--color-text-muted)" }}
       >
-        <MapPin className="w-2.5 h-2.5 shrink-0" style={{ color: "#ff7a1a" }} />
+        <MapPin className="w-2.5 h-2.5 shrink-0" style={{ color: "#8b5cf6" }} />
         <span className="truncate">{selected.label}</span>
         <ChevronDown
           className={`w-2.5 h-2.5 shrink-0 opacity-70 transition-transform ${open ? "rotate-180" : ""}`}
@@ -112,8 +112,8 @@ function CampusPicker({ visible }: { visible: boolean }) {
             className="absolute left-0 top-full z-[60] mt-1.5 min-w-[240px] overflow-hidden rounded-xl py-1"
             style={{
               background:
-                "linear-gradient(165deg, rgba(36,28,22,0.98) 0%, rgba(14,10,7,0.98) 100%)",
-              border: "1px solid rgba(255,181,107,0.22)",
+                "linear-gradient(165deg, rgba(28,22,42,0.98) 0%, rgba(10,9,20,0.98) 100%)",
+              border: "1px solid rgba(139,92,246,0.24)",
               boxShadow:
                 "0 1px 0 rgba(255,255,255,0.06) inset, 0 16px 40px -12px rgba(0,0,0,0.75)",
             }}
@@ -131,11 +131,11 @@ function CampusPicker({ visible }: { visible: boolean }) {
                     }}
                     className="w-full flex items-center gap-2 px-3 py-2 text-left text-xs transition-colors hover:bg-white/5"
                     style={{
-                      color: active ? "#ffb56b" : "var(--color-text-secondary)",
+                      color: active ? "#E0339E" : "var(--color-text-secondary)",
                     }}
                   >
                     <span className="flex-1 min-w-0">
-                      <span className="block font-semibold truncate" style={{ color: active ? "#ffb56b" : "var(--color-text-primary)" }}>
+                      <span className="block font-semibold truncate" style={{ color: active ? "#E0339E" : "var(--color-text-primary)" }}>
                         {campus.label}
                       </span>
                       {!campus.live && (
@@ -145,7 +145,7 @@ function CampusPicker({ visible }: { visible: boolean }) {
                       )}
                     </span>
                     {active ? (
-                      <Check className="w-3.5 h-3.5 shrink-0" style={{ color: "#ff7a1a" }} />
+                      <Check className="w-3.5 h-3.5 shrink-0" style={{ color: "#E0339E" }} />
                     ) : null}
                   </button>
                 </li>
@@ -200,10 +200,10 @@ export default function AppHeader({
       }`}
       style={{
         background:
-          "linear-gradient(180deg, rgba(22,16,12,0.97) 0%, rgba(14,10,7,0.9) 100%)",
-        borderBottom: "1px solid rgba(255,181,107,0.18)",
+          "linear-gradient(180deg, rgba(14,12,24,0.97) 0%, rgba(9,8,17,0.9) 100%)",
+        borderBottom: "1px solid rgba(139,92,246,0.18)",
         boxShadow:
-          "0 1px 0 rgba(255,255,255,0.06) inset, 0 12px 40px -16px rgba(0,0,0,0.7), 0 4px 16px rgba(255,122,26,0.06)",
+          "0 1px 0 rgba(255,255,255,0.06) inset, 0 12px 40px -16px rgba(0,0,0,0.7), 0 4px 16px rgba(139,92,246,0.08)",
         backdropFilter: "blur(22px) saturate(1.2)",
       }}
     >
@@ -212,16 +212,16 @@ export default function AppHeader({
         className="pointer-events-none absolute inset-x-0 top-0 h-px"
         style={{
           background:
-            "linear-gradient(90deg, transparent 5%, rgba(255,181,107,0.55) 50%, transparent 95%)",
+            "linear-gradient(90deg, transparent 5%, rgba(139,92,246,0.5) 50%, transparent 95%)",
         }}
         aria-hidden
       />
-      {/* Soft amber wash under header */}
+      {/* Soft aurora wash under header */}
       <div
         className="pointer-events-none absolute inset-x-0 bottom-0 h-12 -z-10 translate-y-full opacity-40"
         style={{
           background:
-            "radial-gradient(ellipse 60% 100% at 50% 0%, rgba(255,122,26,0.18), transparent 70%)",
+            "radial-gradient(ellipse 60% 100% at 50% 0%, rgba(139,92,246,0.18), transparent 70%)",
         }}
         aria-hidden
       />
@@ -234,9 +234,9 @@ export default function AppHeader({
             className="relative h-10 w-10 overflow-hidden rounded-xl shrink-0 transition-transform duration-200 hover:scale-105 hover:-rotate-1"
             aria-label="Wanderers home"
             style={{
-              border: "1px solid rgba(255,122,26,0.4)",
+              border: "1px solid rgba(139,92,246,0.4)",
               boxShadow:
-                "0 1px 0 rgba(255,255,255,0.18) inset, 0 6px 18px rgba(255,122,26,0.3), 0 2px 0 rgba(0,0,0,0.25)",
+                "0 1px 0 rgba(255,255,255,0.18) inset, 0 6px 18px rgba(139,92,246,0.3), 0 2px 0 rgba(0,0,0,0.25)",
             }}
           >
             <Image src={logo} alt="" className="h-full w-full object-cover" priority />
@@ -273,8 +273,8 @@ export default function AppHeader({
           className="hidden md:flex items-center gap-0.5 p-1.5 rounded-2xl"
           style={{
             background:
-              "linear-gradient(165deg, rgba(36,28,22,0.85) 0%, rgba(12,9,7,0.9) 100%)",
-            border: "1px solid rgba(255,181,107,0.14)",
+              "linear-gradient(165deg, rgba(28,22,42,0.85) 0%, rgba(10,8,16,0.9) 100%)",
+            border: "1px solid rgba(139,92,246,0.14)",
             boxShadow:
               "0 1px 0 rgba(255,255,255,0.05) inset, 0 8px 24px -12px rgba(0,0,0,0.55)",
           }}
@@ -293,12 +293,12 @@ export default function AppHeader({
                 <motion.span
                   className="relative flex items-center gap-1.5 px-3.5 py-2 rounded-xl text-xs font-semibold whitespace-nowrap"
                   style={{
-                    color: active ? "#2a1206" : "var(--color-text-secondary)",
+                    color: active ? "#0a0a14" : "var(--color-text-secondary)",
                     background: active
-                      ? "linear-gradient(145deg, #ff9a4a, #ff7a1a 50%, #e56a0f)"
+                      ? "linear-gradient(145deg, #f472c8, #E0339E 50%, #a3187a)"
                       : "transparent",
                     boxShadow: active
-                      ? "0 1px 0 rgba(255,255,255,0.35) inset, 0 4px 14px rgba(255,122,26,0.4)"
+                      ? "0 1px 0 rgba(255,255,255,0.35) inset, 0 4px 14px rgba(224,51,158,0.4)"
                       : "none",
                   }}
                   whileHover={
@@ -329,11 +329,11 @@ export default function AppHeader({
             aria-label="Start Something - create a new bubble"
             className="flex items-center gap-1.5 h-9 px-3 sm:px-3.5 rounded-xl text-xs font-bold shrink-0"
             style={{
-              background: "linear-gradient(145deg, #ff9a4a, #ff7a1a 45%, #e56a0f)",
-              color: "#2a1206",
-              border: "1px solid rgba(255,210,160,0.4)",
+              background: "linear-gradient(135deg, #8b5cf6 0%, #E0339E 100%)",
+              color: "#fff",
+              border: "1px solid rgba(255,255,255,0.25)",
               boxShadow:
-                "0 1px 0 rgba(255,255,255,0.35) inset, 0 4px 14px rgba(255,122,26,0.35)",
+                "0 1px 0 rgba(255,255,255,0.35) inset, 0 4px 14px rgba(139,92,246,0.35)",
             }}
             whileHover={{ scale: 1.04, y: -1 }}
             whileTap={{ scale: 0.96 }}
@@ -367,12 +367,12 @@ export default function AppHeader({
                   className="w-9 h-9 rounded-xl flex items-center justify-center"
                   style={{
                     background: on
-                      ? "linear-gradient(145deg, rgba(255,122,26,0.25), rgba(255,122,26,0.08))"
+                      ? "linear-gradient(145deg, rgba(224,51,158,0.22), rgba(224,51,158,0.06))"
                       : "rgba(255,255,255,0.04)",
                     border: on
-                      ? "1px solid rgba(255,122,26,0.35)"
+                      ? "1px solid rgba(224,51,158,0.35)"
                       : "1px solid rgba(255,255,255,0.08)",
-                    color: on ? "#ff7a1a" : "var(--color-text-secondary)",
+                    color: on ? "#E0339E" : "var(--color-text-secondary)",
                     boxShadow: on ? "0 1px 0 rgba(255,255,255,0.08) inset" : "none",
                   }}
                   aria-label={label}
@@ -391,7 +391,7 @@ export default function AppHeader({
               className="relative w-9 h-9 rounded-xl flex items-center justify-center"
               style={{
                 background:
-                  "linear-gradient(165deg, rgba(40,32,26,0.9) 0%, rgba(18,13,10,0.95) 100%)",
+                  "linear-gradient(165deg, rgba(26,20,38,0.9) 0%, rgba(14,11,20,0.95) 100%)",
                 border: "1px solid rgba(255,255,255,0.1)",
                 color: "var(--color-text-secondary)",
                 boxShadow: "0 1px 0 rgba(255,255,255,0.06) inset, 0 4px 12px rgba(0,0,0,0.35)",
@@ -404,9 +404,9 @@ export default function AppHeader({
                 <span
                   className="absolute -top-0.5 -right-0.5 min-w-4 h-4 px-1 rounded-full flex items-center justify-center text-[9px] font-bold"
                   style={{
-                    background: "linear-gradient(135deg, #ff7a1a, #ffb56b)",
-                    color: "#2a1206",
-                    boxShadow: "0 0 8px rgba(255,122,26,0.5)",
+                    background: "linear-gradient(135deg, #8b5cf6, #E0339E)",
+                    color: "#fff",
+                    boxShadow: "0 0 8px rgba(224,51,158,0.5)",
                   }}
                 >
                   {notificationCount}
@@ -421,11 +421,11 @@ export default function AppHeader({
             aria-label="Your profile"
             className="w-9 h-9 rounded-xl flex items-center justify-center text-xs font-bold"
             style={{
-              background: "linear-gradient(145deg, #ff9a4a, #ff7a1a 40%, #e56a0f)",
-              color: "#2a1206",
-              border: "1px solid rgba(255,210,160,0.4)",
+              background: "linear-gradient(135deg, #8b5cf6 0%, #E0339E 100%)",
+              color: "#fff",
+              border: "1px solid rgba(255,255,255,0.25)",
               boxShadow:
-                "0 1px 0 rgba(255,255,255,0.4) inset, 0 6px 16px rgba(255,122,26,0.4), 0 2px 0 rgba(0,0,0,0.2)",
+                "0 1px 0 rgba(255,255,255,0.4) inset, 0 6px 16px rgba(139,92,246,0.4), 0 2px 0 rgba(0,0,0,0.2)",
             }}
             whileHover={{ scale: 1.08, y: -1 }}
             whileTap={{ scale: 0.94 }}

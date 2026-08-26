@@ -1,7 +1,7 @@
 "use client";
 
 /**
- * AUTH MODAL - Wanderers Warmth visuals (amber glass + Framer Motion)
+ * AUTH MODAL - Campus Aurora visuals (violet/cyan glass + Framer Motion)
  * wrapping the password + 2FA-OTP + forgot-password auth logic from
  * jivesh/auth.
  *
@@ -25,6 +25,30 @@ import { Mail, User, Lock, Eye, EyeOff, ArrowLeft } from "lucide-react";
 import { CAMPUS_EMAIL_ERROR, isEmailAllowed, isCampusGateEnabled } from "@/lib/campusEmail";
 
 const ease = [0.25, 0.46, 0.45, 0.94] as const;
+
+// Gmail SMTP (used for OTP delivery so mail reaches @uwaterloo.ca inboxes,
+// which reject Resend's default sending domain) is intermittently slow from
+// Supabase's infra and times out (504) more often than not before eventually
+// succeeding. Retry the OTP-only request a couple of times before surfacing
+// an error, instead of failing on the first transient timeout.
+async function requestOtp(email: string): Promise<{ ok: boolean; error?: string }> {
+  const res = await fetch("/api/auth/login", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ email, resend: true }),
+  });
+  const data = await res.json().catch(() => ({}));
+  return { ok: res.ok && data.success, error: data.error };
+}
+
+async function sendOtpWithRetry(email: string, attempts = 3, delayMs = 1500): Promise<boolean> {
+  for (let i = 0; i < attempts; i++) {
+    const { ok } = await requestOtp(email);
+    if (ok) return true;
+    if (i < attempts - 1) await new Promise((r) => setTimeout(r, delayMs));
+  }
+  return false;
+}
 
 const panelVariants = {
   enter:  { opacity: 0, filter: "blur(8px)", y: 16, scale: 0.97 },
@@ -112,16 +136,30 @@ export default function AuthModal() {
         credentials: "include",
       });
       const data = await res.json();
-      if (!res.ok || !data.success) throw new Error(data.error || "Failed to log in");
 
-      // Trusted device - password only, no OTP for ~7 days
-      if (data.skippedOtp && data.session) {
-        const { supabase } = await import("@/lib/supabase");
-        await supabase.auth.setSession(data.session);
-        router.replace("/home");
+      // Wrong password/email - don't retry, it'll never succeed.
+      if (res.status === 401) throw new Error(data.error || "Invalid email or password");
+
+      // Password step already came back with success + skippedOtp here, or
+      // the whole call succeeded on the first try - no retry needed.
+      if (res.ok && data.success) {
+        if (data.skippedOtp && data.session) {
+          const { supabase } = await import("@/lib/supabase");
+          await supabase.auth.setSession(data.session);
+          router.replace("/home");
+          return;
+        }
+        setPendingEmail(email);
+        setMode("verify");
         return;
       }
 
+      // Password was correct but the OTP send itself failed (commonly a
+      // transient Gmail SMTP timeout) - retry just the OTP step.
+      const otpSent = await sendOtpWithRetry(email);
+      if (!otpSent) {
+        throw new Error("Couldn't send the login code after a few tries - check your connection and try again.");
+      }
       setPendingEmail(email);
       setMode("verify");
       // Dev only: server skipped the real email send and returned the code directly.
@@ -168,14 +206,10 @@ export default function AuthModal() {
   const handleResendOtp = async () => {
     if (resendCooldown > 0 || !pendingEmail) return;
     setError(null);
+    setLoading(true);
     try {
-      const res = await fetch("/api/auth/login", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ email: pendingEmail, resend: true }),
-      });
-      const data = await res.json();
-      if (!res.ok || !data.success) throw new Error(data.error || "Failed to resend code");
+      const otpSent = await sendOtpWithRetry(pendingEmail);
+      if (!otpSent) throw new Error("Couldn't resend the code - please try again in a moment.");
       setSuccess("Code resent!");
       setResendCooldown(30);
       const timer = setInterval(() => {
@@ -186,6 +220,8 @@ export default function AuthModal() {
       }, 1000);
     } catch (err) {
       setError(err instanceof Error ? err.message : "Failed to resend code");
+    } finally {
+      setLoading(false);
     }
   };
 
@@ -222,15 +258,21 @@ export default function AuthModal() {
       <div
         className="relative overflow-hidden rounded-3xl p-8"
         style={{
-          background: "rgba(255,255,255,0.03)",
-          border: "1px solid rgba(255,122,26,0.15)",
+          background: "linear-gradient(160deg, rgba(24,22,42,0.92) 0%, rgba(14,13,26,0.92) 100%)",
+          border: "1px solid rgba(167,139,250,0.35)",
           backdropFilter: "blur(24px)",
-          boxShadow: "inset 0 1px 0 rgba(255,122,26,0.1), 0 32px 80px -20px rgba(0,0,0,0.7)",
+          boxShadow:
+            "inset 0 1px 0 rgba(196,181,253,0.16), 0 0 0 1px rgba(139,92,246,0.08), 0 24px 70px -12px rgba(139,92,246,0.35), 0 40px 100px -20px rgba(0,0,0,0.85)",
         }}
       >
+        {/* Gradient hairline along the top edge so the card reads as its own lit surface */}
+        <div
+          className="absolute inset-x-0 top-0 h-px pointer-events-none"
+          style={{ background: "linear-gradient(90deg, transparent 0%, #8b5cf6 50%, transparent 100%)" }}
+        />
         <div
           className="absolute -top-10 -right-10 w-40 h-40 rounded-full pointer-events-none"
-          style={{ background: "radial-gradient(circle, rgba(255,122,26,0.12) 0%, transparent 70%)" }}
+          style={{ background: "radial-gradient(circle, rgba(224,51,158,0.18) 0%, transparent 70%)" }}
         />
 
         {/* Wordmark */}
@@ -241,7 +283,7 @@ export default function AuthModal() {
             animate={{ opacity: 1, y: 0 }}
             transition={{ duration: 0.6, ease }}
             style={{
-              background: "linear-gradient(135deg, #ff7a1a 0%, #ffb56b 100%)",
+              background: "linear-gradient(135deg, #8b5cf6 0%, #E0339E 100%)",
               WebkitBackgroundClip: "text",
               WebkitTextFillColor: "transparent",
               backgroundClip: "text",
@@ -289,7 +331,7 @@ export default function AuthModal() {
           {mode === "choice" && (
             <motion.div key="choice" variants={panelVariants} initial="enter" animate="center" exit="exit"
               transition={{ duration: 0.3, ease }} className="space-y-3">
-              <AmberButton onClick={() => go("signup")}>Sign Up</AmberButton>
+              <GradientButton onClick={() => go("signup")}>Sign Up</GradientButton>
               <GhostButton onClick={() => go("login")}>Log In</GhostButton>
               {/* Only show the campus hint when the gate is actually enforced (NEXT_PUBLIC_REQUIRE_UW_EMAIL=true) */}
               {isCampusGateEnabled() && (
@@ -309,7 +351,7 @@ export default function AuthModal() {
                 trailing={<EyeToggle show={showSignupPwd} onToggle={() => setShowSignupPwd((p) => !p)} />} />
               <Field id="confirmPassword" name="confirmPassword" type={showSignupConfirm ? "text" : "password"} icon={<Lock className="w-4 h-4" />} placeholder="Re-enter your password" label="Confirm Password" required autoComplete="new-password"
                 trailing={<EyeToggle show={showSignupConfirm} onToggle={() => setShowSignupConfirm((p) => !p)} />} />
-              <AmberButton type="submit" loading={loading}>{loading ? "Creating account…" : "Create Account"}</AmberButton>
+              <GradientButton type="submit" loading={loading}>{loading ? "Creating account…" : "Create Account"}</GradientButton>
               <BackButton onClick={() => go("choice")} />
             </motion.form>
           )}
@@ -325,7 +367,7 @@ export default function AuthModal() {
                   type="checkbox"
                   checked={rememberDevice}
                   onChange={(e) => setRememberDevice(e.target.checked)}
-                  className="mt-0.5 w-4 h-4 rounded accent-[#ff7a1a]"
+                  className="mt-0.5 w-4 h-4 rounded accent-[#8b5cf6]"
                 />
                 <span className="text-xs leading-snug" style={{ color: "var(--color-text-secondary)" }}>
                   Remember this device for 7 days
@@ -344,9 +386,9 @@ export default function AuthModal() {
                   ? "First time (or after a week): we'll email a 6-digit code once. Owner accounts never need a code."
                   : "We'll send a 6-digit code every time you log in (owners excepted)."}
               </p>
-              <AmberButton type="submit" loading={loading}>
+              <GradientButton type="submit" loading={loading}>
                 {loading ? "Signing in…" : "Log In"}
-              </AmberButton>
+              </GradientButton>
               <BackButton onClick={() => go("choice")} />
             </motion.form>
           )}
@@ -359,9 +401,9 @@ export default function AuthModal() {
                 We&apos;ll email a link to <span style={{ color: "var(--color-text-secondary)" }}>your Waterloo inbox</span>.
                 Opening it signs you in and lets you set a new password.
               </p>
-              <AmberButton type="submit" loading={loading}>
+              <GradientButton type="submit" loading={loading}>
                 {loading ? "Sending…" : "Send email"}
-              </AmberButton>
+              </GradientButton>
               <BackButton onClick={() => go("login")} label="Back to Login" />
             </motion.form>
           )}
@@ -370,8 +412,8 @@ export default function AuthModal() {
             <motion.form key="verify" variants={panelVariants} initial="enter" animate="center" exit="exit"
               transition={{ duration: 0.3, ease }} className="space-y-5 text-center" onSubmit={handleVerify}>
               <div className="w-16 h-16 rounded-full mx-auto flex items-center justify-center"
-                style={{ background: "rgba(255,122,26,0.15)", border: "1px solid rgba(255,122,26,0.3)" }}>
-                <Mail className="w-7 h-7" style={{ color: "#ff7a1a" }} />
+                style={{ background: "rgba(139,92,246,0.15)", border: "1px solid rgba(139,92,246,0.3)" }}>
+                <Mail className="w-7 h-7" style={{ color: "#8b5cf6" }} />
               </div>
               <div>
                 <h2 className="text-xl font-semibold" style={{ color: "var(--color-text-primary)" }}>Check your email</h2>
@@ -386,9 +428,9 @@ export default function AuthModal() {
                 maxLength={6}
                 inputMode="numeric"
                 className="w-full text-center text-2xl tracking-[0.5em] h-14 rounded-2xl font-mono outline-none"
-                style={{ background: "rgba(255,255,255,0.04)", border: "1px solid rgba(255,122,26,0.2)", color: "var(--color-text-primary)" }}
+                style={{ background: "rgba(255,255,255,0.04)", border: "1px solid rgba(139,92,246,0.25)", color: "var(--color-text-primary)" }}
               />
-              <AmberButton type="submit" loading={loading} disabled={otp.length < 6}>{loading ? "Verifying…" : "Verify Code"}</AmberButton>
+              <GradientButton type="submit" loading={loading} disabled={otp.length < 6}>{loading ? "Verifying…" : "Verify Code"}</GradientButton>
               <button type="button" onClick={handleResendOtp} disabled={resendCooldown > 0}
                 className="block w-full text-sm transition-colors disabled:opacity-40"
                 style={{ color: "var(--color-text-primary)" }}>
@@ -421,7 +463,7 @@ function Field({
           id={id} name={name} type={type} placeholder={placeholder} required={required} autoComplete={autoComplete}
           className={`w-full pl-10 ${trailing ? "pr-10" : "pr-4"} h-11 rounded-xl outline-none text-sm transition-all`}
           style={{ background: "rgba(255,255,255,0.04)", border: "1px solid rgba(255,255,255,0.08)", color: "var(--color-text-primary)" }}
-          onFocus={(e) => (e.target.style.borderColor = "rgba(255,122,26,0.5)")}
+          onFocus={(e) => (e.target.style.borderColor = "rgba(224,51,158,0.55)")}
           onBlur={(e) => (e.target.style.borderColor = "rgba(255,255,255,0.08)")}
         />
         {trailing}
@@ -441,7 +483,7 @@ function EyeToggle({ show, onToggle }: { show: boolean; onToggle: () => void }) 
   );
 }
 
-function AmberButton({ children, onClick, type = "button", loading = false, disabled = false }: {
+function GradientButton({ children, onClick, type = "button", loading = false, disabled = false }: {
   children: React.ReactNode; onClick?: () => void; type?: "button" | "submit";
   loading?: boolean; disabled?: boolean;
 }) {
@@ -450,12 +492,12 @@ function AmberButton({ children, onClick, type = "button", loading = false, disa
       type={type} onClick={onClick} disabled={loading || disabled}
       className="w-full h-12 rounded-full font-bold text-sm relative overflow-hidden"
       style={{
-        background: "linear-gradient(135deg, #ff7a1a 0%, #ffb56b 100%)",
-        color: "#2a1206",
-        boxShadow: "0 0 24px rgba(255,122,26,0.25)",
+        background: "linear-gradient(135deg, #8b5cf6 0%, #E0339E 100%)",
+        color: "#fff",
+        boxShadow: "0 0 24px rgba(139,92,246,0.3)",
         opacity: loading || disabled ? 0.6 : 1,
       }}
-      whileHover={{ scale: 1.03, boxShadow: "0 0 32px rgba(255,122,26,0.4)" }}
+      whileHover={{ scale: 1.03, boxShadow: "0 0 32px rgba(224,51,158,0.45)" }}
       whileTap={{ scale: 0.97 }}
       transition={{ type: "spring", stiffness: 400, damping: 20 }}
     >

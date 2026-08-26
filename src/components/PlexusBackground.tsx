@@ -19,17 +19,17 @@ export default function PlexusBackground() {
       >
         <defs>
           <linearGradient id="plxWash" x1="0" y1="0" x2="1" y2="0">
-            <stop offset="0" stopColor="#ffa24d" stopOpacity="0.5" />
-            <stop offset="0.3" stopColor="#ff9a4d" stopOpacity="0.2" />
-            <stop offset="0.56" stopColor="#ff9a4d" stopOpacity="0" />
+            <stop offset="0" stopColor="#8b5cf6" stopOpacity="0.42" />
+            <stop offset="0.3" stopColor="#6366f1" stopOpacity="0.18" />
+            <stop offset="0.56" stopColor="#6366f1" stopOpacity="0" />
           </linearGradient>
           <linearGradient id="plxTri" x1="0" y1="0" x2="1" y2="1">
-            <stop offset="0" stopColor="#ffc48a" stopOpacity="0.55" />
-            <stop offset="1" stopColor="#ff6a1a" stopOpacity="0.12" />
+            <stop offset="0" stopColor="#a78bfa" stopOpacity="0.5" />
+            <stop offset="1" stopColor="#E0339E" stopOpacity="0.1" />
           </linearGradient>
         </defs>
         <rect width="1560" height="860" fill="url(#plxWash)" />
-        <g fill="url(#plxTri)" stroke="#ffbe80" strokeOpacity="0.35" strokeWidth="1">
+        <g fill="url(#plxTri)" stroke="#a78bfa" strokeOpacity="0.32" strokeWidth="1">
           <polygon points="0,0 240,120 120,340" />
           <polygon points="240,120 120,340 420,360" />
           <polygon points="240,120 560,220 420,360" />
@@ -40,7 +40,7 @@ export default function PlexusBackground() {
           <polygon points="700,320 620,560 940,540" />
           <polygon points="560,220 700,320 820,140" />
         </g>
-        <g stroke="#ff9a4d" strokeOpacity="0.42" strokeWidth="1" fill="none">
+        <g stroke="#6366f1" strokeOpacity="0.4" strokeWidth="1" fill="none">
           <path d="M240,120 L560,220 L820,140 L1120,90 L1430,180" />
           <path d="M240,120 L120,340 L420,360 L700,320 L1000,300 L1300,360" />
           <path d="M120,340 L300,560 L620,560 L940,540 L1240,560" />
@@ -49,19 +49,19 @@ export default function PlexusBackground() {
           <path d="M420,360 L620,560 M700,320 L620,560 M700,320 L940,540 M1000,300 L940,540 M1300,360 L1240,560" />
           <path d="M560,220 L620,560 M420,360 L300,560 M620,560 L520,740 M940,540 L860,720 M1240,560 L1180,760" />
         </g>
-        <g fill="#ffd08a">
+        <g fill="#c4b5fd">
           <circle cx="240" cy="120" r="4.5" /><circle cx="560" cy="220" r="5" /><circle cx="820" cy="140" r="3.5" /><circle cx="1120" cy="90" r="3" /><circle cx="1430" cy="180" r="4" />
           <circle cx="120" cy="340" r="4" /><circle cx="420" cy="360" r="5" /><circle cx="700" cy="320" r="4" /><circle cx="1000" cy="300" r="3.5" /><circle cx="1300" cy="360" r="4.5" />
           <circle cx="300" cy="560" r="4.5" /><circle cx="620" cy="560" r="4" /><circle cx="940" cy="540" r="3.5" /><circle cx="1240" cy="560" r="4" />
           <circle cx="180" cy="720" r="3.5" /><circle cx="520" cy="740" r="4" /><circle cx="860" cy="720" r="3.5" /><circle cx="1180" cy="760" r="3" />
         </g>
-        <g fill="#ff5a2e">
+        <g fill="#E0339E">
           <circle cx="700" cy="320" r="2.5" /><circle cx="1120" cy="90" r="2.5" /><circle cx="940" cy="540" r="2.5" /><circle cx="520" cy="740" r="2.5" />
         </g>
-        <g fill="#ffe08a" opacity="0.8">
+        <g fill="#ddd6fe" opacity="0.8">
           <circle cx="1350" cy="470" r="2" /><circle cx="1220" cy="240" r="1.6" /><circle cx="1460" cy="620" r="2.2" /><circle cx="980" cy="700" r="1.6" /><circle cx="1100" cy="600" r="1.4" /><circle cx="1300" cy="700" r="1.8" /><circle cx="880" cy="450" r="1.4" /><circle cx="760" cy="600" r="1.6" /><circle cx="1420" cy="360" r="1.5" /><circle cx="1180" cy="440" r="1.3" />
         </g>
-        <g fill="#ff8a3d" opacity="0.7">
+        <g fill="#fbcfe8" opacity="0.7">
           <circle cx="1400" cy="520" r="1.6" /><circle cx="1050" cy="500" r="1.4" /><circle cx="1250" cy="480" r="1.2" /><circle cx="960" cy="380" r="1.4" /><circle cx="1330" cy="240" r="1.3" />
         </g>
       </svg>

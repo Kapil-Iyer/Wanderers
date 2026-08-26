@@ -53,10 +53,10 @@ export default function SplashIntro({ onComplete }: { onComplete: () => void }) 
           }
           transition={{ duration: 0.5 }}
         >
-          {/* warm bloom behind the lockup */}
+          {/* aurora bloom behind the lockup */}
           <motion.div
             className="absolute w-[520px] h-[520px] rounded-full pointer-events-none"
-            style={{ background: "radial-gradient(circle, rgba(255,122,26,0.16) 0%, transparent 65%)" }}
+            style={{ background: "radial-gradient(circle, rgba(139,92,246,0.2) 0%, transparent 65%)" }}
             initial={{ opacity: 0, scale: 0.4 }}
             animate={{ opacity: 1, scale: 1 }}
             transition={{ delay: reduce ? 0 : 0.9, duration: 1.2, ease: EASE }}
@@ -64,18 +64,20 @@ export default function SplashIntro({ onComplete }: { onComplete: () => void }) 
 
           <svg width="150" height="156" viewBox="0 0 100 103" fill="none" aria-hidden="true">
             <defs>
-              <linearGradient id="splash-amber" x1="0%" y1="100%" x2="100%" y2="0%">
-                <stop offset="0%" stopColor="#ff7a1a" />
-                <stop offset="100%" stopColor="#ffb56b" />
+              {/* Matches the logo pin's own amber (top) -> magenta -> violet (bottom) blend */}
+              <linearGradient id="splash-amber" x1="0%" y1="100%" x2="0%" y2="0%">
+                <stop offset="0%" stopColor="#8b5cf6" />
+                <stop offset="55%" stopColor="#E0339E" />
+                <stop offset="100%" stopColor="#FF9130" />
               </linearGradient>
               <linearGradient id="splash-trail" x1="0%" y1="100%" x2="0%" y2="0%">
-                <stop offset="0%" stopColor="#B45309" />
-                <stop offset="100%" stopColor="#ffb56b" />
+                <stop offset="0%" stopColor="#4c1d95" />
+                <stop offset="100%" stopColor="#E0339E" />
               </linearGradient>
               <radialGradient id="splash-fill" cx="50%" cy="40%" r="65%">
-                <stop offset="0%" stopColor="rgba(255,181,107,0.45)" />
-                <stop offset="55%" stopColor="rgba(255,122,26,0.22)" />
-                <stop offset="100%" stopColor="rgba(255,122,26,0.04)" />
+                <stop offset="0%" stopColor="rgba(224,51,158,0.4)" />
+                <stop offset="55%" stopColor="rgba(139,92,246,0.24)" />
+                <stop offset="100%" stopColor="rgba(139,92,246,0.04)" />
               </radialGradient>
             </defs>
 
@@ -161,9 +163,9 @@ export default function SplashIntro({ onComplete }: { onComplete: () => void }) 
                 animate={{ opacity: 0.85, y: 0 }}
                 transition={{ delay: c.d, duration: 0.4, ease: [0.34, 1.56, 0.64, 1] }}
               >
-                <circle cx={SUMMIT.x + c.dx} cy={SUMMIT.y - 3.5} r="1.3" fill="#ffb56b" />
+                <circle cx={SUMMIT.x + c.dx} cy={SUMMIT.y - 3.5} r="1.3" fill="#E0339E" />
                 <line x1={SUMMIT.x + c.dx} y1={SUMMIT.y - 2.2} x2={SUMMIT.x + c.dx} y2={SUMMIT.y + 1.4}
-                  stroke="#ffb56b" strokeWidth="1" strokeLinecap="round" />
+                  stroke="#E0339E" strokeWidth="1" strokeLinecap="round" />
               </motion.g>
             ))}
 
@@ -192,16 +194,16 @@ export default function SplashIntro({ onComplete }: { onComplete: () => void }) 
                 ease: [0.34, 1.56, 0.64, 1],
                 skewX: { delay: 3.3, duration: 1.0, ease: "easeInOut" },
               }}
-              style={{ transformOrigin: `${SUMMIT.x}px ${SUMMIT.y - 14.5}px`, filter: "drop-shadow(0 0 4px rgba(255,122,26,0.6))" }}
+              style={{ transformOrigin: `${SUMMIT.x}px ${SUMMIT.y - 14.5}px`, filter: "drop-shadow(0 0 4px rgba(139,92,246,0.6))" }}
             />
             {/* spark at the flag */}
             {!reduce && (
               <motion.circle
-                cx={SUMMIT.x} cy={SUMMIT.y - 18} r="2.4" fill="#ffb56b"
+                cx={SUMMIT.x} cy={SUMMIT.y - 18} r="2.4" fill="#E0339E"
                 initial={{ scale: 0, opacity: 0 }}
                 animate={{ scale: [0, 1.8, 1], opacity: [0, 1, 0.9] }}
                 transition={{ delay: 3.0, duration: 0.45, ease: [0.34, 1.56, 0.64, 1] }}
-                style={{ transformOrigin: `${SUMMIT.x}px ${SUMMIT.y - 18}px`, filter: "drop-shadow(0 0 5px rgba(255,181,107,0.9))" }}
+                style={{ transformOrigin: `${SUMMIT.x}px ${SUMMIT.y - 18}px`, filter: "drop-shadow(0 0 5px rgba(224,51,158,0.9))" }}
               />
             )}
           </svg>
