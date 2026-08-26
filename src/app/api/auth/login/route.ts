@@ -6,8 +6,17 @@ import {
   isDeviceTrustedForEmail,
   setDeviceTrustCookie,
 } from "@/lib/deviceTrust";
-import { CAMPUS_EMAIL_ERROR, isUWaterlooEmail } from "@/lib/campusEmail";
+import { CAMPUS_EMAIL_ERROR, isEmailAllowed } from "@/lib/campusEmail";
 import { isOwnerEmail } from "@/lib/ownerAccounts";
+import { withMailRetry } from "@/lib/authRetry";
+
+// Dev only: Supabase's default email sender can time out (504) locally.
+// Set AUTH_RETURN_RECOVERY_LINK=true in .env.local to skip the real OTP
+// email send and get the 6-digit code back directly in the response instead.
+// Never enabled in production regardless of the env var.
+const DEV_RETURN_RECOVERY_LINK =
+  process.env.NODE_ENV !== "production" &&
+  process.env.AUTH_RETURN_RECOVERY_LINK === "true";
 
 function authClient() {
   const url = process.env.NEXT_PUBLIC_SUPABASE_URL!;
@@ -28,7 +37,9 @@ export async function POST(request: NextRequest) {
     }
 
     const emailTrimmed = email.trim().toLowerCase();
-    if (!isUWaterlooEmail(emailTrimmed)) {
+    // Campus gate — no-op unless enabled. Set REQUIRE_UW_EMAIL=true in Vercel
+    // environment variables to enforce the UWaterloo email gate in production.
+    if (!isEmailAllowed(emailTrimmed)) {
       return NextResponse.json({ success: false, error: CAMPUS_EMAIL_ERROR }, { status: 403 });
     }
 
@@ -59,8 +70,9 @@ export async function POST(request: NextRequest) {
         return NextResponse.json({ success: false, error: "Invalid email or password" }, { status: 401 });
       }
 
-      // Defense in depth - reject if the auth user record isn't campus email
-      if (!isUWaterlooEmail(data.user.email ?? emailTrimmed)) {
+      // Defense in depth - reject if the auth user record isn't allowed.
+      // Set REQUIRE_UW_EMAIL=true in Vercel environment variables to enforce the UWaterloo email gate in production.
+      if (!isEmailAllowed(data.user.email ?? emailTrimmed)) {
         await getSupabaseAdmin().auth.admin.signOut(data.session.access_token);
         return NextResponse.json({ success: false, error: CAMPUS_EMAIL_ERROR }, { status: 403 });
       }
@@ -96,8 +108,37 @@ export async function POST(request: NextRequest) {
       await getSupabaseAdmin().auth.admin.signOut(data.session.access_token);
     }
 
-    // Send OTP (non-owners only)
-    const { error: otpError } = await supabase.auth.signInWithOtp({ email: emailTrimmed });
+    if (DEV_RETURN_RECOVERY_LINK) {
+      // Admin generateLink never dispatches an email — sidesteps the SMTP
+      // timeout entirely and hands the code straight back for local testing.
+      const { data, error } = await getSupabaseAdmin().auth.admin.generateLink({
+        type: "magiclink",
+        email: emailTrimmed,
+      });
+
+      if (error) {
+        console.error("[auth/login] (dev generateLink)", error.message);
+        return NextResponse.json({ success: false, error: error.message }, { status: 400 });
+      }
+
+      const res = NextResponse.json({
+        success: true,
+        requiresOtp: true,
+        message: "Dev mode: OTP generated below (no email sent).",
+        devOtp: data.properties?.email_otp ?? null,
+      });
+      if (!wantRemember && !resend) {
+        clearDeviceTrustCookie(res);
+      }
+      return res;
+    }
+
+    // Send OTP (non-owners only). Retries a couple times on Supabase's
+    // transient mailer timeouts (504 "Context deadline exceeded") before
+    // giving up — see src/lib/authRetry.ts.
+    const { error: otpError } = await withMailRetry(() =>
+      supabase.auth.signInWithOtp({ email: emailTrimmed })
+    );
 
     if (otpError) {
       console.error("[auth/login] OTP send error:", { message: otpError.message, status: otpError.status });

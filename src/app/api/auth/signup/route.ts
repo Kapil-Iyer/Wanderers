@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { supabase } from "@/lib/supabase";
 import { getSupabaseAdmin } from "@/lib/supabaseAdmin";
-import { CAMPUS_EMAIL_ERROR, isUWaterlooEmail } from "@/lib/campusEmail";
+import { CAMPUS_EMAIL_ERROR, isEmailAllowed } from "@/lib/campusEmail";
 
 export async function POST(request: NextRequest) {
   try {
@@ -16,7 +16,9 @@ export async function POST(request: NextRequest) {
     }
 
     const emailTrimmed = email.trim().toLowerCase();
-    if (!isUWaterlooEmail(emailTrimmed)) {
+    // Campus gate — no-op unless enabled. Set REQUIRE_UW_EMAIL=true in Vercel
+    // environment variables to enforce the UWaterloo email gate in production.
+    if (!isEmailAllowed(emailTrimmed)) {
       return NextResponse.json({ success: false, error: CAMPUS_EMAIL_ERROR }, { status: 403 });
     }
 
