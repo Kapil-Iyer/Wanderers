@@ -18,6 +18,7 @@ import { useConversations } from "@/contexts/ConversationsContext";
 import EndEventModal from "@/components/EndEventModal";
 import type { BubbleConversation } from "@/contexts/ConversationsContext";
 import { Reveal, StaggerContainer, StaggerItem, AnimatedHeadline, CountUp, LineReveal, EASE } from "@/components/motion/Reveal";
+import { Parallax } from "@/components/motion/Parallax";
 import { getCategoryTheme } from "@/lib/categoryThemes";
 import { useSidebar } from "@/contexts/SidebarContext";
 
@@ -250,12 +251,17 @@ export default function HomePage() {
 
           {/* ── CINEMATIC HERO - two-column ── */}
           <section className="relative pt-12 pb-10 sm:pt-16 sm:pb-12">
-            {/* hero orbs */}
+            {/* hero orbs - CSS keyframe handles the idle drift, Parallax (GSAP ScrollTrigger)
+                adds a scroll-linked layer on top so they sink at different rates as you scroll past */}
             <div className="absolute inset-0 -z-0 pointer-events-none overflow-hidden">
-              <div className="absolute top-0 left-[15%] w-80 h-80 rounded-full animate-float-orb"
-                style={{ background: "radial-gradient(circle, rgba(255,122,26,0.1) 0%, transparent 65%)" }} />
-              <div className="absolute top-10 right-[5%] w-72 h-72 rounded-full animate-float-orb"
-                style={{ background: "radial-gradient(circle, rgba(255,181,107,0.06) 0%, transparent 65%)", animationDelay: "-6s" }} />
+              <Parallax speed={-22} className="absolute top-0 left-[15%] w-80 h-80" start="top bottom" end="bottom top">
+                <div className="w-full h-full rounded-full animate-float-orb"
+                  style={{ background: "radial-gradient(circle, rgba(255,122,26,0.1) 0%, transparent 65%)" }} />
+              </Parallax>
+              <Parallax speed={28} className="absolute top-10 right-[5%] w-72 h-72" start="top bottom" end="bottom top">
+                <div className="w-full h-full rounded-full animate-float-orb"
+                  style={{ background: "radial-gradient(circle, rgba(255,181,107,0.06) 0%, transparent 65%)", animationDelay: "-6s" }} />
+              </Parallax>
             </div>
 
             <div className="relative z-10 grid grid-cols-1 lg:grid-cols-5 gap-10 lg:gap-12 items-start">

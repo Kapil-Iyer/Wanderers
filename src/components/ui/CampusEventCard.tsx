@@ -12,8 +12,8 @@ import { MapPin, Clock, ArrowRight, Info, X } from "lucide-react";
 const EASE = [0.25, 0.46, 0.45, 0.94] as const;
 
 const CARD_STYLE: React.CSSProperties = {
-  background: "linear-gradient(165deg, #16120e 0%, #0c0907 50%, #080604 100%)",
-  border: "1.5px solid rgba(255,181,107,0.18)",
+  background: "linear-gradient(165deg, #16142a 0%, #0c0a18 50%, #08070f 100%)",
+  border: "1.5px solid rgba(139,92,246,0.18)",
   boxShadow:
     "inset 0 1px 0 rgba(255,255,255,0.08), inset 0 -1px 0 rgba(0,0,0,0.4), 0 10px 28px -10px rgba(0,0,0,0.65)",
 };
@@ -36,7 +36,7 @@ export default function CampusEventCard({
   onStartBubble,
 }: CampusEventCardProps) {
   const [flipped, setFlipped] = useState(false);
-  const accent = "#ffb56b";
+  const accent = "#a78bfa";
 
   return (
     <div className="relative h-[300px]" style={{ perspective: "1600px" }}>
@@ -57,7 +57,7 @@ export default function CampusEventCard({
           whileHover={{
             y: -4,
             boxShadow:
-              "inset 0 1px 0 rgba(255,181,107,0.15), 0 14px 32px -12px rgba(255,122,26,0.22)",
+              "inset 0 1px 0 rgba(139,92,246,0.18), 0 14px 32px -12px rgba(139,92,246,0.26)",
           }}
           transition={{ type: "spring", stiffness: 300, damping: 22 }}
         >
@@ -70,7 +70,7 @@ export default function CampusEventCard({
             aria-label="More info"
             className="absolute top-2.5 right-2.5 z-30 w-7 h-7 rounded-full flex items-center justify-center transition-transform hover:scale-110"
             style={{
-              background: "rgba(10,7,5,0.92)",
+              background: "rgba(10,9,20,0.92)",
               border: `1px solid ${accent}70`,
               color: accent,
               boxShadow: "0 2px 10px rgba(0,0,0,0.55)",
@@ -83,13 +83,13 @@ export default function CampusEventCard({
             className="relative h-24 flex items-center justify-center shrink-0"
             style={{
               background:
-                "linear-gradient(135deg, rgba(255,122,26,0.22) 0%, rgba(255,181,107,0.1) 50%, transparent 100%), #0a0806",
+                "linear-gradient(135deg, rgba(139,92,246,0.22) 0%, rgba(224,51,158,0.1) 50%, transparent 100%), #0a0910",
             }}
           >
             <div
               className="absolute -bottom-8 left-1/2 -translate-x-1/2 w-28 h-28 rounded-full pointer-events-none"
               style={{
-                background: "radial-gradient(circle, rgba(255,122,26,0.28) 0%, transparent 70%)",
+                background: "radial-gradient(circle, rgba(139,92,246,0.28) 0%, transparent 70%)",
               }}
               aria-hidden
             />
@@ -97,8 +97,8 @@ export default function CampusEventCard({
               className="absolute top-2 left-2 text-[9px] font-bold uppercase tracking-[0.12em] px-2 py-0.5 rounded-full"
               style={{
                 background: "rgba(0,0,0,0.45)",
-                color: "#ffb56b",
-                border: "1px solid rgba(255,181,107,0.35)",
+                color: "#a78bfa",
+                border: "1px solid rgba(139,92,246,0.35)",
               }}
             >
               Campus
@@ -121,14 +121,14 @@ export default function CampusEventCard({
                 className="flex items-center gap-1 text-[11px] min-w-0"
                 style={{ color: "var(--color-text-secondary)" }}
               >
-                <MapPin className="w-3 h-3 shrink-0" style={{ color: "#ff7a1a" }} />
+                <MapPin className="w-3 h-3 shrink-0" style={{ color: "#a78bfa" }} />
                 <span className="truncate">{location}</span>
               </span>
               <span
                 className="flex items-center gap-1 text-[11px]"
                 style={{ color: "var(--color-text-secondary)" }}
               >
-                <Clock className="w-3 h-3 shrink-0" style={{ color: "#ff7a1a" }} />
+                <Clock className="w-3 h-3 shrink-0" style={{ color: "#a78bfa" }} />
                 {timeLabel}
               </span>
             </div>
@@ -147,9 +147,9 @@ export default function CampusEventCard({
               onClick={onStartBubble}
               className="mt-2.5 w-full h-9 rounded-full text-xs font-bold flex items-center justify-center gap-1.5 shrink-0"
               style={{
-                background: "linear-gradient(135deg, #ff7a1a, #ffb56b)",
-                color: "#2a1206",
-                boxShadow: "0 0 14px rgba(255,122,26,0.28)",
+                background: "linear-gradient(135deg, #8b5cf6, #E0339E)",
+                color: "#fff",
+                boxShadow: "0 0 14px rgba(139,92,246,0.32)",
               }}
               whileHover={{ scale: 1.02 }}
               whileTap={{ scale: 0.97 }}
@@ -175,7 +175,7 @@ export default function CampusEventCard({
             aria-label="Close info"
             className="absolute top-2.5 right-2.5 z-20 w-7 h-7 rounded-full flex items-center justify-center"
             style={{
-              background: "rgba(10,7,5,0.92)",
+              background: "rgba(10,9,20,0.92)",
               border: `1px solid ${accent}70`,
               color: accent,
               boxShadow: "0 2px 10px rgba(0,0,0,0.55)",
@@ -207,11 +207,11 @@ export default function CampusEventCard({
 
           <div className="mt-4 space-y-2 text-xs" style={{ color: "var(--color-text-secondary)" }}>
             <div className="flex items-center gap-2">
-              <MapPin className="w-3.5 h-3.5 shrink-0" style={{ color: "#ff7a1a" }} />
+              <MapPin className="w-3.5 h-3.5 shrink-0" style={{ color: "#a78bfa" }} />
               {location}
             </div>
             <div className="flex items-center gap-2">
-              <Clock className="w-3.5 h-3.5 shrink-0" style={{ color: "#ff7a1a" }} />
+              <Clock className="w-3.5 h-3.5 shrink-0" style={{ color: "#a78bfa" }} />
               {timeLabel}
             </div>
           </div>
@@ -221,8 +221,8 @@ export default function CampusEventCard({
             onClick={onStartBubble}
             className="mt-4 w-full h-9 rounded-full text-xs font-bold flex items-center justify-center gap-1.5 shrink-0"
             style={{
-              background: "linear-gradient(135deg, #ff7a1a, #ffb56b)",
-              color: "#2a1206",
+              background: "linear-gradient(135deg, #8b5cf6, #E0339E)",
+              color: "#fff",
             }}
             whileTap={{ scale: 0.97 }}
           >

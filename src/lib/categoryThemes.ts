@@ -1,6 +1,6 @@
 /**
  * CATEGORY THEMES - per-category gradient tuning for bubble poster cards.
- * Every theme is anchored in emerald (Digital Dusk) so the brand stays
+ * Every theme is anchored in the Campus Aurora violet/cyan brand so it stays
  * coherent, but each category gets its own character via the gradient endpoint.
  */
 
@@ -12,13 +12,13 @@ export type CategoryTheme = {
 };
 
 const themes: Record<string, CategoryTheme> = {
-  Sports:   { from: "#ff7a1a", to: "#EF4444", accent: "#ff8a3d", tint: "rgba(255,122,26,0.10)" },
-  Study:    { from: "#ffb56b", to: "#F59E0B", accent: "#ffb56b", tint: "rgba(255,181,107,0.09)" },
-  Gaming:   { from: "#ff7a1a", to: "#DB2777", accent: "#FB7185", tint: "rgba(219,39,119,0.08)" },
-  Casual:   { from: "#ff8a3d", to: "#ffb56b", accent: "#FDBA74", tint: "rgba(255,138,61,0.09)" },
-  Music:    { from: "#ff7a1a", to: "#EC4899", accent: "#F9A8D4", tint: "rgba(236,72,153,0.08)" },
-  Outdoors: { from: "#16A34A", to: "#84CC16", accent: "#A3E635", tint: "rgba(132,204,22,0.07)" },
-  default:  { from: "#ff7a1a", to: "#ffb56b", accent: "#ff8a3d", tint: "rgba(255,122,26,0.09)" },
+  Sports:   { from: "#8b5cf6", to: "#6366f1", accent: "#a78bfa", tint: "rgba(139,92,246,0.10)" },
+  Study:    { from: "#22d3ee", to: "#6366f1", accent: "#67e8f9", tint: "rgba(34,211,238,0.09)" },
+  Gaming:   { from: "#d946ef", to: "#8b5cf6", accent: "#e879f9", tint: "rgba(217,70,239,0.08)" },
+  Casual:   { from: "#a78bfa", to: "#22d3ee", accent: "#c4b5fd", tint: "rgba(167,139,250,0.09)" },
+  Music:    { from: "#ec4899", to: "#8b5cf6", accent: "#f9a8d4", tint: "rgba(236,72,153,0.08)" },
+  Outdoors: { from: "#22d3ee", to: "#10b981", accent: "#6ee7b7", tint: "rgba(16,185,129,0.07)" },
+  default:  { from: "#8b5cf6", to: "#22d3ee", accent: "#a78bfa", tint: "rgba(139,92,246,0.09)" },
 };
 
 export function getCategoryTheme(category?: string): CategoryTheme {

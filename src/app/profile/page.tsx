@@ -11,6 +11,7 @@ import { personalityTraits, mockBubbles, interestOptions } from "@/lib/mockData"
 import { useConnections } from "@/contexts/ConnectionsContext";
 import { useSidebar } from "@/contexts/SidebarContext";
 import { supabase } from "@/lib/supabase";
+import { Parallax } from "@/components/motion/Parallax";
 
 const ease = [0.25, 0.46, 0.45, 0.94] as const;
 
@@ -124,8 +125,10 @@ export default function ProfilePage() {
 
       {/* Hero band with warm glow */}
       <div className={`relative transition-[padding] duration-300 ease-out ${sidebarExpanded ? "lg:pl-64" : "lg:pl-3"}`}>
-        <div className="absolute inset-x-0 top-0 h-56 pointer-events-none"
-          style={{ background: "radial-gradient(ellipse 70% 100% at 50% 0%, rgba(255,122,26,0.12) 0%, transparent 70%)" }} />
+        <Parallax speed={22} className="absolute inset-x-0 top-0 h-56 pointer-events-none">
+          <div className="w-full h-full"
+            style={{ background: "radial-gradient(ellipse 70% 100% at 50% 0%, rgba(255,122,26,0.12) 0%, transparent 70%)" }} />
+        </Parallax>
 
         <div className="relative max-w-3xl mx-auto px-4 py-8">
 

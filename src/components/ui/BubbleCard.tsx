@@ -164,8 +164,8 @@ export default function BubbleCard({ bubble }: { bubble: Bubble }) {
         <motion.div
           className="group relative rounded-2xl h-full flex flex-col overflow-hidden"
           style={{
-            background: "linear-gradient(165deg, #16120e 0%, #0c0907 50%, #080604 100%)",
-            border: "1.5px solid rgba(255,181,107,0.18)",
+            background: "linear-gradient(165deg, #16142a 0%, #0c0a18 50%, #08070f 100%)",
+            border: "1.5px solid rgba(139,92,246,0.18)",
             boxShadow:
               "inset 0 1px 0 rgba(255,255,255,0.08), inset 0 -1px 0 rgba(0,0,0,0.4), 0 10px 28px -10px rgba(0,0,0,0.65)",
             backfaceVisibility: "hidden",
@@ -191,7 +191,7 @@ export default function BubbleCard({ bubble }: { bubble: Bubble }) {
             aria-label="More info"
             className="absolute top-2.5 right-2.5 z-30 w-7 h-7 rounded-full flex items-center justify-center transition-transform hover:scale-110"
             style={{
-              background: "rgba(10,7,5,0.92)",
+              background: "rgba(10,9,20,0.92)",
               border: `1px solid ${theme.accent}70`,
               color: theme.accent,
               boxShadow: "0 2px 10px rgba(0,0,0,0.55)",
@@ -225,7 +225,7 @@ export default function BubbleCard({ bubble }: { bubble: Bubble }) {
                 className="absolute top-2 right-2 text-[9px] font-bold px-2 py-0.5 rounded-full"
                 style={{
                   background: `linear-gradient(135deg, ${theme.from}, ${theme.to})`,
-                  color: "#2a1206",
+                  color: "#fff",
                 }}
               >
                 {spotsLeft} left
@@ -320,7 +320,7 @@ export default function BubbleCard({ bubble }: { bubble: Bubble }) {
                 className="flex-1 h-9 rounded-full text-xs font-bold disabled:opacity-60"
                 style={{
                   background: `linear-gradient(135deg, ${theme.from}, ${theme.to})`,
-                  color: "#1a0a00",
+                  color: "#fff",
                   boxShadow: `0 0 14px ${theme.from}28`,
                 }}
                 whileTap={{ scale: 0.97 }}
@@ -360,8 +360,8 @@ export default function BubbleCard({ bubble }: { bubble: Bubble }) {
         <div
           className="absolute inset-0 rounded-2xl h-full flex flex-col p-3.5"
           style={{
-            background: "linear-gradient(165deg, #16120e 0%, #0c0907 55%, #080604 100%)",
-            border: "1px solid rgba(255,181,107,0.16)",
+            background: "linear-gradient(165deg, #16142a 0%, #0c0a18 55%, #08070f 100%)",
+            border: "1px solid rgba(139,92,246,0.16)",
             boxShadow: "inset 0 1px 0 rgba(255,255,255,0.05), 0 4px 24px rgba(0,0,0,0.5)",
             transform: "rotateY(180deg)",
             backfaceVisibility: "hidden",
@@ -374,7 +374,7 @@ export default function BubbleCard({ bubble }: { bubble: Bubble }) {
             aria-label="Close info"
             className="absolute top-2.5 right-2.5 z-20 w-7 h-7 rounded-full flex items-center justify-center"
             style={{
-              background: "rgba(10,7,5,0.92)",
+              background: "rgba(10,9,20,0.92)",
               border: `1px solid ${theme.accent}70`,
               color: theme.accent,
               boxShadow: "0 2px 10px rgba(0,0,0,0.55)",

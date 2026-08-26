@@ -7,6 +7,7 @@ import AppHeader from "@/components/ui/AppHeader";
 import BubbleCard from "@/components/ui/BubbleCard";
 import { mockBubbles, filterChips } from "@/lib/mockData";
 import { Reveal, StaggerContainer, StaggerItem, AnimatedHeadline, EASE } from "@/components/motion/Reveal";
+import { Parallax } from "@/components/motion/Parallax";
 import { useSidebar } from "@/contexts/SidebarContext";
 
 export default function MyBubblesPage() {
@@ -23,14 +24,23 @@ export default function MyBubblesPage() {
 
   return (
     <div className="min-h-screen pb-12 relative">
-      <div
+      <Parallax
+        speed={10}
+        start="top top"
+        end="bottom bottom"
         className="pointer-events-none absolute inset-0 z-0"
-        style={{
-          background:
-            "radial-gradient(ellipse 80% 50% at 50% -10%, rgba(255,122,26,0.08), transparent 55%), linear-gradient(180deg, rgba(10,7,5,0.55) 0%, rgba(10,7,5,0.78) 40%, rgba(10,7,5,0.88) 100%)",
-        }}
-        aria-hidden
-      />
+      >
+        <div
+          className="absolute inset-x-0"
+          style={{
+            top: "-15%",
+            bottom: "-15%",
+            background:
+              "radial-gradient(ellipse 80% 50% at 50% -10%, rgba(255,122,26,0.08), transparent 55%), linear-gradient(180deg, rgba(10,7,5,0.55) 0%, rgba(10,7,5,0.78) 40%, rgba(10,7,5,0.88) 100%)",
+          }}
+          aria-hidden
+        />
+      </Parallax>
 
       <AppHeader title="Explore" />
 

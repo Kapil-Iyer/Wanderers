@@ -6,10 +6,13 @@
  * same flow as before (→ /home on confirm). No data model changes.
  */
 
-import { useState } from "react";
+import { useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import { motion, AnimatePresence } from "framer-motion";
+import { useGSAP } from "@gsap/react";
 import { Check } from "lucide-react";
+import VantaBackground from "@/components/motion/VantaBackground";
+import { gsap, prefersReducedMotion } from "@/lib/gsap";
 
 const ease = [0.25, 0.46, 0.45, 0.94] as const;
 
@@ -71,6 +74,14 @@ export default function OnboardingPage() {
   const [selected, setSelected] = useState<Set<string>>(new Set());
   const [confirmed, setConfirmed] = useState(false);
   const router = useRouter();
+  const heroRef = useRef<HTMLDivElement>(null);
+
+  // Same aurora fade-in as the landing hero, so the network reads as one
+  // continuous backdrop across the first two screens a user ever sees.
+  useGSAP(() => {
+    if (!heroRef.current || prefersReducedMotion()) return;
+    gsap.fromTo(heroRef.current, { opacity: 0 }, { opacity: 1, duration: 0.9, ease: "power2.out" });
+  }, { scope: heroRef });
 
   const toggle = (id: string) => {
     setSelected(prev => {
@@ -88,8 +99,18 @@ export default function OnboardingPage() {
 
   return (
     <div className="min-h-screen flex flex-col">
-      {/* Ambient background */}
-      <div className="fixed inset-0 pointer-events-none">
+      {/* Aurora network hero backdrop - Vanta.NET, scoped to this page only */}
+      <div ref={heroRef} className="fixed inset-0 pointer-events-none">
+        <VantaBackground effect="net" options={{ points: 7.0, maxDistance: 22.0, spacing: 22.0, showDots: true }} />
+        {/* dark scrim so the cards stay legible; network only shows at the margins */}
+        <div
+          className="absolute inset-0"
+          style={{
+            background:
+              "radial-gradient(ellipse 70% 60% at 50% 40%, rgba(5,5,9,0.82) 0%, rgba(5,5,9,0.55) 45%, transparent 78%)",
+          }}
+        />
+        {/* warm accent glow, kept from the original ambient treatment */}
         <div className="absolute top-0 left-1/2 -translate-x-1/2 w-[600px] h-[300px] rounded-full opacity-30"
           style={{ background: "radial-gradient(ellipse, rgba(255,122,26,0.12) 0%, transparent 70%)" }} />
       </div>
