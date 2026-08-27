@@ -3,6 +3,7 @@ import { createClient } from "@supabase/supabase-js";
 import { getSupabaseAdmin } from "@/lib/supabaseAdmin";
 import { clearDeviceTrustCookie, setDeviceTrustCookie } from "@/lib/deviceTrust";
 import { CAMPUS_EMAIL_ERROR, isEmailAllowed } from "@/lib/campusEmail";
+import type { TablesInsert } from "@/lib/database.types";
 
 /**
  * POST /api/auth/verify
@@ -58,7 +59,7 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ success: false, error: CAMPUS_EMAIL_ERROR }, { status: 403 });
     }
 
-    const upsertData: Record<string, unknown> = {
+    const upsertData: TablesInsert<"users"> = {
       id: data.user.id,
       email: data.user.email ?? emailTrimmed,
       campus_verified: true,
