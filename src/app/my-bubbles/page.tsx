@@ -8,8 +8,10 @@ import BubbleCard from "@/components/ui/BubbleCard";
 import { mockBubbles, filterChips } from "@/lib/mockData";
 import { Reveal, StaggerContainer, StaggerItem, AnimatedHeadline, EASE } from "@/components/motion/Reveal";
 import { useSidebar } from "@/contexts/SidebarContext";
+import { useRequireAuth } from "@/hooks/useRequireAuth";
 
 export default function MyBubblesPage() {
+  const { checking, authed } = useRequireAuth();
   const { expanded: sidebarExpanded } = useSidebar();
   const [activeFilter, setActiveFilter] = useState("All");
   const myBubbles = useMemo(() => mockBubbles.filter((_, i) => i % 2 === 0), []);
@@ -20,6 +22,8 @@ export default function MyBubblesPage() {
     if (activeFilter === "Starting Soon") return myBubbles.filter((b) => b.startingIn.includes("hr"));
     return myBubbles.filter((b) => b.category === activeFilter);
   }, [activeFilter, myBubbles]);
+
+  if (checking || !authed) return null;
 
   return (
     <div className="min-h-screen pb-12 relative">

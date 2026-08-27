@@ -21,6 +21,7 @@ import { Reveal, StaggerContainer, StaggerItem, AnimatedHeadline, CountUp, LineR
 import { Parallax } from "@/components/motion/Parallax";
 import { getCategoryTheme } from "@/lib/categoryThemes";
 import { useSidebar } from "@/contexts/SidebarContext";
+import { useRequireAuth } from "@/hooks/useRequireAuth";
 
 type UpcomingBubble = {
   id: string; emoji: string; title: string; startingIn: string;
@@ -56,6 +57,7 @@ function formatEventTime(iso: string): string {
 
 export default function HomePage() {
   const router = useRouter();
+  const { checking, authed } = useRequireAuth();
   const [activeFilter, setActiveFilter] = useState("All");
   const [createOpen, setCreateOpen] = useState(false);
   const [drawerOpen, setDrawerOpen] = useState(false);
@@ -231,6 +233,8 @@ export default function HomePage() {
   }, [activeFilter]);
 
   const scrollToMoments = () => momentsRef.current?.scrollIntoView({ behavior: "smooth", block: "start" });
+
+  if (checking || !authed) return null;
 
   return (
     <div className="min-h-screen pb-12">

@@ -24,6 +24,7 @@ export type BubbleConversation = Conversation & {
   zone?: string;
   participants?: BubbleParticipant[];
   joined?: number;
+  starred?: boolean;
 };
 
 type MineBubble = {
@@ -37,6 +38,7 @@ type MineBubble = {
   status?: string | null;
   expires_at?: string | null;
   members_count?: number;
+  starred?: boolean;
 };
 
 type ConversationsContextValue = {
@@ -46,6 +48,7 @@ type ConversationsContextValue = {
   addBubbleConversation: (bubble: Bubble) => void;
   removeBubbleFromJoined: (conversationId: string) => void;
   refreshJoinedBubbles: () => Promise<void>;
+  toggleStarred: (conversationId: string) => Promise<void>;
 };
 
 const ConversationsContext = createContext<ConversationsContextValue | null>(null);
@@ -80,6 +83,7 @@ function mineToConversation(b: MineBubble): BubbleConversation {
     duration: b.duration_minutes ? `${b.duration_minutes} min` : undefined,
     joined: b.members_count ?? 0,
     zone: b.zone ?? undefined,
+    starred: b.starred ?? false,
   };
 }
 
@@ -189,6 +193,36 @@ export function ConversationsProvider({ children }: { children: React.ReactNode 
     setJoinedConversations((prev) => prev.filter((c) => c.id !== conversationId));
   }, []);
 
+  // Per-person star: keeps this bubble in *your* conversations past the
+  // 5-day auto-cleanup window without affecting anyone else's view of it
+  // (see supabase/migrations/20260826_bubble_stars_and_cleanup.sql).
+  // Optimistic - flips immediately, rolls back if the request fails.
+  const toggleStarred = useCallback(async (conversationId: string) => {
+    const bubbleId = conversationId.replace(/^bubble-/, "");
+    const current = joinedConversations.find((c) => c.id === conversationId);
+    const nextStarred = !current?.starred;
+
+    setJoinedConversations((prev) =>
+      prev.map((c) => (c.id === conversationId ? { ...c, starred: nextStarred } : c))
+    );
+
+    try {
+      const { data } = await supabase.auth.getSession();
+      const token = data.session?.access_token;
+      if (!token) throw new Error("Not signed in");
+      const res = await fetch(`/api/bubbles/${bubbleId}/star`, {
+        method: nextStarred ? "POST" : "DELETE",
+        headers: { Authorization: `Bearer ${token}` },
+      });
+      if (!res.ok) throw new Error("Star request failed");
+    } catch {
+      // Roll back on failure.
+      setJoinedConversations((prev) =>
+        prev.map((c) => (c.id === conversationId ? { ...c, starred: !nextStarred } : c))
+      );
+    }
+  }, [joinedConversations]);
+
   const conversations: BubbleConversation[] = joinedConversations;
   const joinedBubbles = joinedConversations;
 
@@ -201,6 +235,7 @@ export function ConversationsProvider({ children }: { children: React.ReactNode 
         addBubbleConversation,
         removeBubbleFromJoined,
         refreshJoinedBubbles,
+        toggleStarred,
       }}
     >
       {children}

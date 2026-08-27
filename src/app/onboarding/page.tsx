@@ -13,6 +13,7 @@ import { useGSAP } from "@gsap/react";
 import { Check } from "lucide-react";
 import VantaBackground from "@/components/motion/VantaBackground";
 import { gsap, prefersReducedMotion } from "@/lib/gsap";
+import { useRequireAuth } from "@/hooks/useRequireAuth";
 
 const ease = [0.25, 0.46, 0.45, 0.94] as const;
 
@@ -71,6 +72,7 @@ const vibeCards = [
 ];
 
 export default function OnboardingPage() {
+  const { checking, authed } = useRequireAuth();
   const [selected, setSelected] = useState<Set<string>>(new Set());
   const [confirmed, setConfirmed] = useState(false);
   const router = useRouter();
@@ -96,6 +98,8 @@ export default function OnboardingPage() {
     setConfirmed(true);
     setTimeout(() => router.push("/home"), 600);
   };
+
+  if (checking || !authed) return null;
 
   return (
     <div className="min-h-screen flex flex-col">

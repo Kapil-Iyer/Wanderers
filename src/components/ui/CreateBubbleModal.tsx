@@ -109,14 +109,9 @@ export default function CreateBubbleModal({ open, onClose, onCreated, prefill }:
     }
   };
 
-  // Debounced auto-parse - fire 600ms after the user stops typing (min 6 chars).
-  // No eslint-disable: exhaustive-deps at worst warns (non-fatal); guards prevent loops.
-  useEffect(() => {
-    const text = smartInput.trim();
-    if (!open || view === "confirm" || parsing || text.length < 6) return;
-    const t = setTimeout(() => { handleParseIntent(); }, 600);
-    return () => clearTimeout(t);
-  }, [smartInput, open, view]); // eslint-disable-line
+  // Parsing only fires on explicit action - the Parse button click or Enter
+  // key (see the input's onKeyDown below). No auto-parse-while-typing: that
+  // used to fire mid-sentence and interrupt the user before they finished.
 
   // Unified create - used by both "Yes, ignite it" and the manual "Create Bubble"
   const submit = async () => {
