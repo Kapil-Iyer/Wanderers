@@ -10,7 +10,7 @@
  *   login   → POST /api/auth/login  {email,password,rememberDevice}
  *             → session if device trusted (7d), else OTP "verify" step
  *   verify  → POST /api/auth/verify {email,token,rememberDevice} → setSession → /home
- *   forgot  → POST /api/auth/forgot-password → email link (sign-in + change password)
+ *   forgot  → POST /api/auth/forgot-password → OTP email → verify → /home
  *
  * Campus gate: when enabled, only @uwaterloo.ca emails (client + server).
  * Set REQUIRE_UW_EMAIL=true (and NEXT_PUBLIC_REQUIRE_UW_EMAIL=true for this
@@ -50,6 +50,35 @@ async function sendOtpWithRetry(email: string, attempts = 3, delayMs = 1500): Pr
   return false;
 }
 
+async function requestForgotOtp(
+  email: string
+): Promise<{ ok: boolean; error?: string; devOtp?: string | null }> {
+  const res = await fetch("/api/auth/forgot-password", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ email }),
+  });
+  const data = await res.json().catch(() => ({}));
+  return {
+    ok: res.ok && data.success,
+    error: data.error,
+    devOtp: data.devOtp ?? null,
+  };
+}
+
+async function sendForgotOtpWithRetry(
+  email: string,
+  attempts = 3,
+  delayMs = 1500
+): Promise<{ ok: boolean; devOtp?: string | null }> {
+  for (let i = 0; i < attempts; i++) {
+    const result = await requestForgotOtp(email);
+    if (result.ok) return { ok: true, devOtp: result.devOtp };
+    if (i < attempts - 1) await new Promise((r) => setTimeout(r, delayMs));
+  }
+  return { ok: false };
+}
+
 const panelVariants = {
   enter:  { opacity: 0, filter: "blur(8px)", y: 16, scale: 0.97 },
   center: { opacity: 1, filter: "blur(0px)", y: 0,  scale: 1 },
@@ -57,10 +86,12 @@ const panelVariants = {
 };
 
 type Mode = "choice" | "signup" | "login" | "verify" | "forgot";
+type VerifyPurpose = "login" | "forgot";
 
 export default function AuthModal() {
   const [mode, setMode] = useState<Mode>("choice");
   const [pendingEmail, setPendingEmail] = useState("");
+  const [verifyPurpose, setVerifyPurpose] = useState<VerifyPurpose>("login");
   const [otp, setOtp] = useState("");
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -150,6 +181,7 @@ export default function AuthModal() {
           return;
         }
         setPendingEmail(email);
+        setVerifyPurpose("login");
         setMode("verify");
         return;
       }
@@ -161,6 +193,7 @@ export default function AuthModal() {
         throw new Error("Couldn't send the login code after a few tries - check your connection and try again.");
       }
       setPendingEmail(email);
+      setVerifyPurpose("login");
       setMode("verify");
       // Dev only: server skipped the real email send and returned the code directly.
       if (data.devOtp) {
@@ -182,22 +215,20 @@ export default function AuthModal() {
     if (!isEmailAllowed(email)) { setError(CAMPUS_EMAIL_ERROR); return; }
     setLoading(true);
     try {
-      const res = await fetch("/api/auth/forgot-password", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ email }),
-      });
-      const data = await res.json();
-      if (!res.ok || !data.success) throw new Error(data.error || "Failed to send email");
-      // Dev only: server skipped the real email send and returned the link directly.
-      setSuccess(
-        data.devRecoveryLink
-          ? `Dev mode: no email sent — copy this link: ${data.devRecoveryLink}`
-          : data.message || "Check your email - open the link to sign in and change your password."
-      );
-      setMode("login");
+      const { ok, devOtp } = await sendForgotOtpWithRetry(email);
+      if (!ok) {
+        throw new Error("Couldn't send the code after a few tries - check your connection and try again.");
+      }
+      setPendingEmail(email);
+      setVerifyPurpose("forgot");
+      setOtp("");
+      setMode("verify");
+      if (devOtp) {
+        setOtp(String(devOtp));
+        setSuccess(`Dev mode: OTP auto-filled (${devOtp}) — no email was sent.`);
+      }
     } catch (err) {
-      setError(err instanceof Error ? err.message : "Failed to send email");
+      setError(err instanceof Error ? err.message : "Failed to send code");
     } finally {
       setLoading(false);
     }
@@ -208,9 +239,18 @@ export default function AuthModal() {
     setError(null);
     setLoading(true);
     try {
-      const otpSent = await sendOtpWithRetry(pendingEmail);
-      if (!otpSent) throw new Error("Couldn't resend the code - please try again in a moment.");
-      setSuccess("Code resent!");
+      if (verifyPurpose === "forgot") {
+        const { ok, devOtp } = await sendForgotOtpWithRetry(pendingEmail);
+        if (!ok) throw new Error("Couldn't resend the code - please try again in a moment.");
+        if (devOtp) {
+          setOtp(String(devOtp));
+          setSuccess(`Dev mode: OTP auto-filled (${devOtp}) — no email was sent.`);
+        }
+      } else {
+        const otpSent = await sendOtpWithRetry(pendingEmail);
+        if (!otpSent) throw new Error("Couldn't resend the code - please try again in a moment.");
+      }
+      setSuccess((prev) => (prev?.startsWith("Dev mode") ? prev : "Code resent!"));
       setResendCooldown(30);
       const timer = setInterval(() => {
         setResendCooldown((prev) => {
@@ -398,11 +438,11 @@ export default function AuthModal() {
               transition={{ duration: 0.3, ease }} className="space-y-4" onSubmit={handleForgot} autoComplete="off">
               <Field id="forgotEmail" name="forgotEmail" type="email" icon={<Mail className="w-4 h-4" />} placeholder="you@uwaterloo.ca" label="Waterloo Email" required autoComplete="off" />
               <p className="text-xs leading-relaxed" style={{ color: "var(--color-text-muted)" }}>
-                We&apos;ll email a link to <span style={{ color: "var(--color-text-secondary)" }}>your Waterloo inbox</span>.
-                Opening it signs you in and lets you set a new password.
+                We&apos;ll send a 6-digit code to your <span style={{ color: "var(--color-text-secondary)" }}>@uwaterloo.ca</span> inbox.
+                Enter it on the next screen to sign in.
               </p>
               <GradientButton type="submit" loading={loading}>
-                {loading ? "Sending…" : "Send email"}
+                {loading ? "Sending…" : "Send code"}
               </GradientButton>
               <BackButton onClick={() => go("login")} label="Back to Login" />
             </motion.form>
@@ -418,7 +458,10 @@ export default function AuthModal() {
               <div>
                 <h2 className="text-xl font-semibold" style={{ color: "var(--color-text-primary)" }}>Check your email</h2>
                 <p className="text-sm mt-1" style={{ color: "var(--color-text-secondary)" }}>
-                  Sent a 6-digit code to <span style={{ color: "var(--color-text-primary)" }}>{pendingEmail}</span>
+                  {verifyPurpose === "forgot"
+                    ? "Enter the code we sent to sign back in."
+                    : "Enter the code to finish signing in."}{" "}
+                  <span style={{ color: "var(--color-text-primary)" }}>{pendingEmail}</span>
                 </p>
               </div>
               <input
@@ -430,13 +473,22 @@ export default function AuthModal() {
                 className="w-full text-center text-2xl tracking-[0.5em] h-14 rounded-2xl font-mono outline-none"
                 style={{ background: "rgba(255,255,255,0.04)", border: "1px solid rgba(139,92,246,0.25)", color: "var(--color-text-primary)" }}
               />
-              <GradientButton type="submit" loading={loading} disabled={otp.length < 6}>{loading ? "Verifying…" : "Verify Code"}</GradientButton>
+              <GradientButton type="submit" loading={loading} disabled={otp.length < 6}>
+                {loading ? "Verifying…" : verifyPurpose === "forgot" ? "Sign in" : "Verify Code"}
+              </GradientButton>
               <button type="button" onClick={handleResendOtp} disabled={resendCooldown > 0}
                 className="block w-full text-sm transition-colors disabled:opacity-40"
                 style={{ color: "var(--color-text-primary)" }}>
                 {resendCooldown > 0 ? `Resend code in ${resendCooldown}s` : "Resend code"}
               </button>
-              <BackButton onClick={() => { go("choice"); setOtp(""); setPendingEmail(""); setResendCooldown(0); }} />
+              <BackButton
+                onClick={() => {
+                  setOtp("");
+                  setPendingEmail("");
+                  setResendCooldown(0);
+                  go(verifyPurpose === "forgot" ? "forgot" : "choice");
+                }}
+              />
             </motion.form>
           )}
         </AnimatePresence>
