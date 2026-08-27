@@ -53,6 +53,15 @@ export async function GET(request: NextRequest) {
       );
     }
 
+    // This user's own stars - per-person, so only their rows matter for
+    // whether *they* see a bubble stay past the 5-day auto-cleanup window.
+    const { data: starred } = await admin
+      .from("bubble_stars")
+      .select("bubble_id")
+      .eq("user_id", user.id)
+      .in("bubble_id", bubbleIds);
+    const starredIds = new Set((starred ?? []).map((s) => s.bubble_id));
+
     const withCount = await Promise.all(
       (bubbles ?? []).map(async (b) => {
         const { count } = await admin
@@ -62,6 +71,7 @@ export async function GET(request: NextRequest) {
         return {
           ...b,
           members_count: count ?? 0,
+          starred: starredIds.has(b.id),
         };
       })
     );

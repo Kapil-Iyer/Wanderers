@@ -1,17 +1,18 @@
 "use client";
 
-import { useEffect } from "react";
+import { useEffect, useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { motion } from "framer-motion";
-import { MessageCircle, MapPin, ChevronRight, Users } from "lucide-react";
+import { motion, AnimatePresence } from "framer-motion";
+import { MessageCircle, MapPin, ChevronRight, ChevronDown, Star, Users } from "lucide-react";
 import BottomNav from "@/components/ui/BottomNav";
 import AppHeader from "@/components/ui/AppHeader";
 import { ProfileLink } from "@/components/ProfileLink";
-import { useConversations } from "@/contexts/ConversationsContext";
+import { useConversations, type BubbleConversation } from "@/contexts/ConversationsContext";
 import { useConnections } from "@/contexts/ConnectionsContext";
 import { Reveal, StaggerContainer, StaggerItem } from "@/components/motion/Reveal";
 import { useSidebar } from "@/contexts/SidebarContext";
+import { useRequireAuth } from "@/hooks/useRequireAuth";
 
 const panelStyle: React.CSSProperties = {
   background: "linear-gradient(165deg, rgba(36,28,22,0.92) 0%, rgba(18,13,10,0.96) 100%)",
@@ -20,18 +21,28 @@ const panelStyle: React.CSSProperties = {
 };
 
 export default function MessagesPage() {
+  const { checking, authed } = useRequireAuth();
   const router = useRouter();
   const { expanded: sidebarExpanded } = useSidebar();
-  const { conversations, loadingJoined, refreshJoinedBubbles } = useConversations();
+  const { conversations, loadingJoined, refreshJoinedBubbles, toggleStarred } = useConversations();
   const { getConnectedFriends } = useConnections();
   const circle = getConnectedFriends();
   const liveNow = circle.filter((f) => f.currentEvent);
+  // Active bubbles stay here regardless of starred - starring only matters
+  // once a bubble ends (that's what decides whether it survives the 5-day
+  // auto-cleanup). An ended+starred bubble moves to its own Starred section
+  // instead of Past; ended+unstarred stays in the collapsible Past section.
   const activeChats = conversations.filter((c) => c.lastMessage !== "Bubble ended");
   const endedChats = conversations.filter((c) => c.lastMessage === "Bubble ended");
+  const starredChats = endedChats.filter((c) => c.starred);
+  const pastChats = endedChats.filter((c) => !c.starred);
+  const [showPast, setShowPast] = useState(false);
 
   useEffect(() => {
     refreshJoinedBubbles();
   }, [refreshJoinedBubbles]);
+
+  if (checking || !authed) return null;
 
   return (
     <div className="min-h-screen pb-12 relative">
@@ -84,7 +95,7 @@ export default function MessagesPage() {
 
           {/* Bubble chats */}
           <section className="mb-10">
-            <div className="flex items-center gap-2 mb-3.5">
+            <div className="flex items-center gap-2 mb-1.5">
               <MessageCircle className="w-3.5 h-3.5" style={{ color: "#ff7a1a" }} />
               <h2
                 className="text-[11px] font-bold uppercase tracking-[0.16em]"
@@ -93,6 +104,9 @@ export default function MessagesPage() {
                 Bubble chats
               </h2>
             </div>
+            <p className="text-[11px] mb-3.5" style={{ color: "var(--color-text-muted)" }}>
+              Ended bubbles are removed 5 days after they expire - star one to keep it.
+            </p>
 
             {loadingJoined && conversations.length === 0 ? (
               <div className="rounded-2xl px-5 py-12 text-center" style={panelStyle}>
@@ -149,113 +163,80 @@ export default function MessagesPage() {
                 </div>
               </Reveal>
             ) : (
-              <div className="rounded-2xl overflow-hidden" style={panelStyle}>
-                <StaggerContainer amount={0.04}>
-                  {conversations.map((convo, i) => {
-                    const ended = convo.lastMessage === "Bubble ended";
-                    return (
-                      <StaggerItem key={convo.id}>
-                        <motion.button
-                          type="button"
-                          onClick={() => router.push(`/chat/${convo.id}`)}
-                          className="w-full flex items-center gap-3.5 px-4 py-3.5 text-left group"
-                          style={{
-                            borderTop: i === 0 ? "none" : "1px solid rgba(255,255,255,0.05)",
-                          }}
-                          whileHover={{ backgroundColor: "rgba(255,122,26,0.06)" }}
-                          transition={{ duration: 0.15 }}
+              <>
+                {activeChats.length > 0 && (
+                  <div className="rounded-2xl overflow-hidden mb-4" style={panelStyle}>
+                    <StaggerContainer amount={0.04}>
+                      {activeChats.map((convo, i) => (
+                        <StaggerItem key={convo.id}>
+                          <ConvoRow convo={convo} isFirst={i === 0} onOpen={router.push} onToggleStar={toggleStarred} />
+                        </StaggerItem>
+                      ))}
+                    </StaggerContainer>
+                  </div>
+                )}
+
+                {starredChats.length > 0 && (
+                  <div className="mb-4">
+                    <div className="flex items-center gap-2 mb-2 px-1">
+                      <Star className="w-3 h-3" style={{ color: "#ffb56b" }} fill="#ffb56b" />
+                      <span
+                        className="text-[11px] font-bold uppercase tracking-[0.14em]"
+                        style={{ color: "var(--color-text-muted)" }}
+                      >
+                        Starred · {starredChats.length}
+                      </span>
+                    </div>
+                    <div className="rounded-2xl overflow-hidden" style={panelStyle}>
+                      {starredChats.map((convo, i) => (
+                        <ConvoRow key={convo.id} convo={convo} isFirst={i === 0} onOpen={router.push} onToggleStar={toggleStarred} />
+                      ))}
+                    </div>
+                  </div>
+                )}
+
+                {pastChats.length > 0 && (
+                  <div>
+                    <motion.button
+                      type="button"
+                      onClick={() => setShowPast((v) => !v)}
+                      className="w-full flex items-center justify-between px-1 py-2 text-left"
+                      whileTap={{ scale: 0.99 }}
+                    >
+                      <span
+                        className="text-[11px] font-bold uppercase tracking-[0.14em]"
+                        style={{ color: "var(--color-text-muted)" }}
+                      >
+                        Past · {pastChats.length}
+                      </span>
+                      <motion.span
+                        animate={{ rotate: showPast ? 180 : 0 }}
+                        transition={{ duration: 0.2 }}
+                      >
+                        <ChevronDown className="w-4 h-4" style={{ color: "var(--color-text-muted)" }} />
+                      </motion.span>
+                    </motion.button>
+
+                    <AnimatePresence initial={false}>
+                      {showPast && (
+                        <motion.div
+                          initial={{ height: 0, opacity: 0 }}
+                          animate={{ height: "auto", opacity: 1 }}
+                          exit={{ height: 0, opacity: 0 }}
+                          transition={{ duration: 0.25 }}
+                          className="overflow-hidden"
                         >
-                          <div
-                            className="relative w-12 h-12 rounded-2xl flex items-center justify-center text-xl shrink-0"
-                            style={{
-                              background: ended
-                                ? "rgba(255,255,255,0.04)"
-                                : "linear-gradient(145deg, rgba(255,122,26,0.22), rgba(255,122,26,0.08))",
-                              border: ended
-                                ? "1px solid rgba(255,255,255,0.08)"
-                                : "1px solid rgba(255,122,26,0.3)",
-                              boxShadow: ended ? "none" : "0 4px 14px rgba(255,122,26,0.12)",
-                            }}
-                          >
-                            {convo.avatar.length <= 2 ? (
-                              <span
-                                className="text-xs font-bold"
-                                style={{ color: "var(--color-text-primary)" }}
-                              >
-                                {convo.avatar}
-                              </span>
-                            ) : (
-                              convo.avatar
-                            )}
-                            {convo.unread > 0 && (
-                              <span
-                                className="absolute -top-1 -right-1 min-w-[18px] h-[18px] px-1 rounded-full flex items-center justify-center text-[10px] font-bold"
-                                style={{
-                                  background: "linear-gradient(135deg, #ff7a1a, #ffb56b)",
-                                  color: "#2a1206",
-                                }}
-                              >
-                                {convo.unread}
-                              </span>
-                            )}
+                          <div className="rounded-2xl overflow-hidden mt-1" style={panelStyle}>
+                            {pastChats.map((convo, i) => (
+                              <ConvoRow key={convo.id} convo={convo} isFirst={i === 0} onOpen={router.push} onToggleStar={toggleStarred} />
+                            ))}
                           </div>
-
-                          <div className="flex-1 min-w-0">
-                            <div className="flex items-center gap-2">
-                              <span
-                                className="font-semibold text-[15px] truncate"
-                                style={{ color: "var(--color-text-primary)" }}
-                              >
-                                {convo.name}
-                              </span>
-                              {ended ? (
-                                <span
-                                  className="shrink-0 text-[9px] font-bold uppercase tracking-wider px-1.5 py-0.5 rounded-md"
-                                  style={{
-                                    background: "rgba(255,255,255,0.06)",
-                                    color: "var(--color-text-muted)",
-                                  }}
-                                >
-                                  Ended
-                                </span>
-                              ) : (
-                                <span
-                                  className="shrink-0 text-[9px] font-bold uppercase tracking-wider px-1.5 py-0.5 rounded-md"
-                                  style={{
-                                    background: "rgba(74,222,128,0.12)",
-                                    color: "#4ade80",
-                                  }}
-                                >
-                                  Live
-                                </span>
-                              )}
-                            </div>
-                            <p
-                              className="text-xs truncate mt-0.5"
-                              style={{ color: "var(--color-text-secondary)" }}
-                            >
-                              {convo.lastMessage}
-                            </p>
-                          </div>
-
-                          <div className="flex flex-col items-end gap-1 shrink-0">
-                            <span
-                              className="text-[10px] tabular-nums"
-                              style={{ color: "var(--color-text-muted)" }}
-                            >
-                              {convo.time}
-                            </span>
-                            <ChevronRight
-                              className="w-4 h-4 opacity-40 group-hover:opacity-80 transition-opacity"
-                              style={{ color: "#ffb56b" }}
-                            />
-                          </div>
-                        </motion.button>
-                      </StaggerItem>
-                    );
-                  })}
-                </StaggerContainer>
-              </div>
+                        </motion.div>
+                      )}
+                    </AnimatePresence>
+                  </div>
+                )}
+              </>
             )}
           </section>
 
@@ -361,5 +342,116 @@ export default function MessagesPage() {
 
       <BottomNav />
     </div>
+  );
+}
+
+/* Single bubble-chat row - shared between the Active and collapsible Past sections. */
+function ConvoRow({
+  convo,
+  isFirst,
+  onOpen,
+  onToggleStar,
+}: {
+  convo: BubbleConversation;
+  isFirst: boolean;
+  onOpen: (href: string) => void;
+  onToggleStar: (conversationId: string) => void;
+}) {
+  const ended = convo.lastMessage === "Bubble ended";
+  return (
+    <motion.button
+      type="button"
+      onClick={() => onOpen(`/chat/${convo.id}`)}
+      className="w-full flex items-center gap-3.5 px-4 py-3.5 text-left group"
+      style={{
+        borderTop: isFirst ? "none" : "1px solid rgba(255,255,255,0.05)",
+      }}
+      whileHover={{ backgroundColor: "rgba(255,122,26,0.06)" }}
+      transition={{ duration: 0.15 }}
+    >
+      <div
+        className="relative w-12 h-12 rounded-2xl flex items-center justify-center text-xl shrink-0"
+        style={{
+          background: ended
+            ? "rgba(255,255,255,0.04)"
+            : "linear-gradient(145deg, rgba(255,122,26,0.22), rgba(255,122,26,0.08))",
+          border: ended ? "1px solid rgba(255,255,255,0.08)" : "1px solid rgba(255,122,26,0.3)",
+          boxShadow: ended ? "none" : "0 4px 14px rgba(255,122,26,0.12)",
+        }}
+      >
+        {convo.avatar.length <= 2 ? (
+          <span className="text-xs font-bold" style={{ color: "var(--color-text-primary)" }}>
+            {convo.avatar}
+          </span>
+        ) : (
+          convo.avatar
+        )}
+        {convo.unread > 0 && (
+          <span
+            className="absolute -top-1 -right-1 min-w-[18px] h-[18px] px-1 rounded-full flex items-center justify-center text-[10px] font-bold"
+            style={{ background: "linear-gradient(135deg, #ff7a1a, #ffb56b)", color: "#2a1206" }}
+          >
+            {convo.unread}
+          </span>
+        )}
+      </div>
+
+      <div className="flex-1 min-w-0">
+        <div className="flex items-center gap-2">
+          <span className="font-semibold text-[15px] truncate" style={{ color: "var(--color-text-primary)" }}>
+            {convo.name}
+          </span>
+          {ended ? (
+            <span
+              className="shrink-0 text-[9px] font-bold uppercase tracking-wider px-1.5 py-0.5 rounded-md"
+              style={{ background: "rgba(255,255,255,0.06)", color: "var(--color-text-muted)" }}
+            >
+              Ended
+            </span>
+          ) : (
+            <span
+              className="shrink-0 text-[9px] font-bold uppercase tracking-wider px-1.5 py-0.5 rounded-md"
+              style={{ background: "rgba(74,222,128,0.12)", color: "#4ade80" }}
+            >
+              Live
+            </span>
+          )}
+        </div>
+        <p className="text-xs truncate mt-0.5" style={{ color: "var(--color-text-secondary)" }}>
+          {convo.lastMessage}
+        </p>
+      </div>
+
+      <div className="flex flex-col items-end gap-1 shrink-0">
+        <div className="flex items-center gap-2">
+          <span className="text-[10px] tabular-nums" style={{ color: "var(--color-text-muted)" }}>
+            {convo.time}
+          </span>
+          <button
+            type="button"
+            onClick={(e) => {
+              e.stopPropagation();
+              onToggleStar(convo.id);
+            }}
+            aria-label={convo.starred ? "Unstar this bubble" : "Star this bubble - keeps it after it ends"}
+            aria-pressed={!!convo.starred}
+            className="p-0.5 -m-0.5"
+          >
+            <Star
+              className="w-3.5 h-3.5 transition-colors"
+              style={{
+                color: convo.starred ? "#ffb56b" : "var(--color-text-muted)",
+                fill: convo.starred ? "#ffb56b" : "none",
+                opacity: convo.starred ? 1 : 0.5,
+              }}
+            />
+          </button>
+        </div>
+        <ChevronRight
+          className="w-4 h-4 opacity-40 group-hover:opacity-80 transition-opacity"
+          style={{ color: "#ffb56b" }}
+        />
+      </div>
+    </motion.button>
   );
 }

@@ -12,6 +12,7 @@ import { useConnections } from "@/contexts/ConnectionsContext";
 import { useSidebar } from "@/contexts/SidebarContext";
 import { supabase } from "@/lib/supabase";
 import { Parallax } from "@/components/motion/Parallax";
+import { useRequireAuth } from "@/hooks/useRequireAuth";
 
 const ease = [0.25, 0.46, 0.45, 0.94] as const;
 
@@ -42,6 +43,7 @@ function displayNameFromEmail(email: string | null | undefined): string {
 const journeyTimes = ["2 days ago", "5 days ago", "1 week ago", "2 weeks ago"];
 
 export default function ProfilePage() {
+  const { checking, authed } = useRequireAuth();
   const router = useRouter();
   const { expanded: sidebarExpanded } = useSidebar();
   const { connectionsCount, getConnectedFriends } = useConnections();
@@ -118,6 +120,8 @@ export default function ProfilePage() {
     { label: "Events Attended", value: "12", star: false },
     { label: "Vibe Rating", value: "4.9", star: true },
   ];
+
+  if (checking || !authed) return null;
 
   return (
     <div className="min-h-screen pb-12">
