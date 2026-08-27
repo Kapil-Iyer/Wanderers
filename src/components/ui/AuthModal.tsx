@@ -18,7 +18,7 @@
  * email gate in production. When off/missing, any valid email is allowed.
  */
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef, forwardRef } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { useRouter } from "next/navigation";
 import { Mail, User, Lock, Eye, EyeOff, ArrowLeft } from "lucide-react";
@@ -87,12 +87,15 @@ const panelVariants = {
 
 type Mode = "choice" | "signup" | "login" | "verify" | "forgot";
 type VerifyPurpose = "login" | "forgot";
+type ForgotStep = "email" | "code";
 
 export default function AuthModal() {
   const [mode, setMode] = useState<Mode>("choice");
+  const [forgotStep, setForgotStep] = useState<ForgotStep>("email");
   const [pendingEmail, setPendingEmail] = useState("");
   const [verifyPurpose, setVerifyPurpose] = useState<VerifyPurpose>("login");
   const [otp, setOtp] = useState("");
+  const otpInputRef = useRef<HTMLInputElement>(null);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [success, setSuccess] = useState<string | null>(null);
@@ -105,7 +108,19 @@ export default function AuthModal() {
 
   const router = useRouter();
 
-  const go = (m: Mode) => { setError(null); setMode(m); };
+  const go = (m: Mode) => {
+    setError(null);
+    setMode(m);
+    if (m !== "forgot") setForgotStep("email");
+  };
+
+  // Focus the code field whenever the OTP step appears.
+  useEffect(() => {
+    if ((mode === "verify" || (mode === "forgot" && forgotStep === "code")) && otpInputRef.current) {
+      const t = setTimeout(() => otpInputRef.current?.focus(), 120);
+      return () => clearTimeout(t);
+    }
+  }, [mode, forgotStep]);
 
   // auto-dismiss success toast (dev messages linger longer so there's time to copy the link/code)
   useEffect(() => {
@@ -222,7 +237,8 @@ export default function AuthModal() {
       setPendingEmail(email);
       setVerifyPurpose("forgot");
       setOtp("");
-      setMode("verify");
+      setForgotStep("code");
+      setSuccess("Code sent! Enter the 6 digits below.");
       if (devOtp) {
         setOtp(String(devOtp));
         setSuccess(`Dev mode: OTP auto-filled (${devOtp}) — no email was sent.`);
@@ -433,18 +449,60 @@ export default function AuthModal() {
             </motion.form>
           )}
 
-          {mode === "forgot" && (
-            <motion.form key="forgot" variants={panelVariants} initial="enter" animate="center" exit="exit"
+          {mode === "forgot" && forgotStep === "email" && (
+            <motion.form key="forgot-email" variants={panelVariants} initial="enter" animate="center" exit="exit"
               transition={{ duration: 0.3, ease }} className="space-y-4" onSubmit={handleForgot} autoComplete="off">
               <Field id="forgotEmail" name="forgotEmail" type="email" icon={<Mail className="w-4 h-4" />} placeholder="you@uwaterloo.ca" label="Waterloo Email" required autoComplete="off" />
               <p className="text-xs leading-relaxed" style={{ color: "var(--color-text-muted)" }}>
                 We&apos;ll send a 6-digit code to your <span style={{ color: "var(--color-text-secondary)" }}>@uwaterloo.ca</span> inbox.
-                Enter it on the next screen to sign in.
               </p>
               <GradientButton type="submit" loading={loading}>
                 {loading ? "Sending…" : "Send code"}
               </GradientButton>
               <BackButton onClick={() => go("login")} label="Back to Login" />
+            </motion.form>
+          )}
+
+          {mode === "forgot" && forgotStep === "code" && (
+            <motion.form key="forgot-code" variants={panelVariants} initial="enter" animate="center" exit="exit"
+              transition={{ duration: 0.3, ease }} className="space-y-5" onSubmit={handleVerify} autoComplete="off">
+              <div className="text-center">
+                <div className="w-16 h-16 rounded-full mx-auto flex items-center justify-center"
+                  style={{ background: "rgba(139,92,246,0.15)", border: "1px solid rgba(139,92,246,0.3)" }}>
+                  <Mail className="w-7 h-7" style={{ color: "#8b5cf6" }} />
+                </div>
+                <h2 className="text-xl font-semibold mt-4" style={{ color: "var(--color-text-primary)" }}>
+                  Enter your code
+                </h2>
+                <p className="text-sm mt-1" style={{ color: "var(--color-text-secondary)" }}>
+                  Sent to <span style={{ color: "var(--color-text-primary)" }}>{pendingEmail}</span>
+                </p>
+              </div>
+              <OtpField
+                ref={otpInputRef}
+                id="forgotOtp"
+                value={otp}
+                onChange={(value) => {
+                  setOtp(value);
+                  setError(null);
+                }}
+              />
+              <GradientButton type="submit" loading={loading} disabled={otp.length < 6}>
+                {loading ? "Signing in…" : "Sign in"}
+              </GradientButton>
+              <button type="button" onClick={handleResendOtp} disabled={resendCooldown > 0 || loading}
+                className="block w-full text-sm transition-colors disabled:opacity-40"
+                style={{ color: "var(--color-text-primary)" }}>
+                {resendCooldown > 0 ? `Resend code in ${resendCooldown}s` : "Resend code"}
+              </button>
+              <BackButton
+                onClick={() => {
+                  setOtp("");
+                  setForgotStep("email");
+                  setResendCooldown(0);
+                }}
+                label="Use a different email"
+              />
             </motion.form>
           )}
 
@@ -464,14 +522,14 @@ export default function AuthModal() {
                   <span style={{ color: "var(--color-text-primary)" }}>{pendingEmail}</span>
                 </p>
               </div>
-              <input
+              <OtpField
+                ref={otpInputRef}
+                id="loginOtp"
                 value={otp}
-                onChange={(e) => { setOtp(e.target.value.replace(/\D/g, "").slice(0, 6)); setError(null); }}
-                placeholder="000000"
-                maxLength={6}
-                inputMode="numeric"
-                className="w-full text-center text-2xl tracking-[0.5em] h-14 rounded-2xl font-mono outline-none"
-                style={{ background: "rgba(255,255,255,0.04)", border: "1px solid rgba(139,92,246,0.25)", color: "var(--color-text-primary)" }}
+                onChange={(value) => {
+                  setOtp(value);
+                  setError(null);
+                }}
               />
               <GradientButton type="submit" loading={loading} disabled={otp.length < 6}>
                 {loading ? "Verifying…" : verifyPurpose === "forgot" ? "Sign in" : "Verify Code"}
@@ -498,6 +556,49 @@ export default function AuthModal() {
 }
 
 /* ── Sub-components ── */
+
+const OtpField = forwardRef<
+  HTMLInputElement,
+  { id: string; value: string; onChange: (value: string) => void }
+>(function OtpField({ id, value, onChange }, ref) {
+  return (
+    <div className="space-y-1.5 text-left">
+      <label htmlFor={id} className="text-xs font-medium" style={{ color: "var(--color-text-secondary)" }}>
+        6-digit code
+      </label>
+      <input
+        ref={ref}
+        id={id}
+        name={id}
+        type="text"
+        value={value}
+        onChange={(e) => onChange(e.target.value.replace(/\D/g, "").slice(0, 6))}
+        placeholder="Enter 6-digit code"
+        maxLength={6}
+        inputMode="numeric"
+        autoComplete="one-time-code"
+        pattern="[0-9]*"
+        className="w-full text-center text-2xl tracking-[0.35em] h-14 rounded-2xl font-mono outline-none placeholder:tracking-normal placeholder:text-base placeholder:font-sans"
+        style={{
+          background: "rgba(255,255,255,0.06)",
+          border: "1px solid rgba(139,92,246,0.35)",
+          color: "var(--color-text-primary)",
+        }}
+        onFocus={(e) => {
+          e.target.style.borderColor = "rgba(224,51,158,0.55)";
+          e.target.style.boxShadow = "0 0 0 3px rgba(139,92,246,0.15)";
+        }}
+        onBlur={(e) => {
+          e.target.style.borderColor = "rgba(139,92,246,0.35)";
+          e.target.style.boxShadow = "none";
+        }}
+      />
+      <p className="text-[11px]" style={{ color: "var(--color-text-muted)" }}>
+        Check your Waterloo inbox (and spam) for the code.
+      </p>
+    </div>
+  );
+});
 
 function Field({
   id, name, type = "text", icon, placeholder, label, required, autoComplete, trailing,
