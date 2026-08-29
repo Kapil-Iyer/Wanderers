@@ -371,7 +371,7 @@ export default function ProfilePage() {
 
           {/* Log out */}
           <motion.button type="button"
-            onClick={() => router.push("/")}
+            onClick={() => router.push("/login")}
             className="w-full mt-8 h-11 rounded-full flex items-center justify-center gap-2 font-medium text-sm"
             style={{ background: "rgba(239,68,68,0.07)", border: "1px solid rgba(239,68,68,0.2)", color: "#f87171" }}
             initial={{ opacity: 0 }} animate={{ opacity: 1 }} transition={{ delay: 0.55, duration: 0.4 }}

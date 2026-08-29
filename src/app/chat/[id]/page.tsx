@@ -632,7 +632,7 @@ export default function ChatPage({ params }: { params: Promise<{ id: string }> }
                     type="button"
                     className="px-4 py-2 rounded-full text-xs font-bold"
                     style={{ background: "linear-gradient(135deg, #ff7a1a, #ffb56b)", color: "#2a1206" }}
-                    onClick={() => router.push("/")}
+                    onClick={() => router.push("/login")}
                   >
                     Go to sign in
                   </button>

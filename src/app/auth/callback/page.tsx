@@ -137,7 +137,7 @@ export default function AuthCallbackPage() {
               {message}
             </p>
             <a
-              href="/"
+              href="/login"
               className="mt-4 inline-block text-sm font-semibold"
               style={{ color: "#ffb56b" }}
             >

@@ -10,8 +10,8 @@
  * Deliberately skips itself in two cases, both to avoid a second concurrent
  * WebGL context:
  *   - the map overlay is open (it hosts its own Google Maps WebGL view)
- *   - on "/" and "/onboarding", which already mount their own denser,
- *     page-scoped VantaBackground hero
+ *   - on "/", "/login", and "/onboarding", which already mount their own
+ *     denser, page-scoped VantaBackground hero
  * In both cases (and under prefers-reduced-motion) it falls back to the
  * static PlexusBackground SVG instead of rendering nothing.
  */
@@ -24,7 +24,7 @@ import { useMapOverlay } from "@/contexts/MapOverlayContext";
 import VantaBackground from "@/components/motion/VantaBackground";
 import PlexusBackground from "@/components/PlexusBackground";
 
-const OWN_HERO_ROUTES = new Set(["/", "/onboarding"]);
+const OWN_HERO_ROUTES = new Set(["/", "/login", "/onboarding"]);
 
 export default function GlobalBackdrop() {
   const pathname = usePathname();
