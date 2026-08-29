@@ -39,3 +39,4 @@ __pycache__
 
 # Obsolete nested app (delete manually after closing IDE)
 /Fahh/
+.vercel

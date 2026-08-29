@@ -395,6 +395,14 @@ export default function AuthModal() {
                   @uwaterloo.ca email required
                 </p>
               )}
+              <button
+                type="button"
+                onClick={() => router.push("/home")}
+                className="block w-full text-center text-sm pt-1 transition-colors"
+                style={{ color: "var(--color-text-secondary)" }}
+              >
+                Continue as Guest →
+              </button>
             </motion.div>
           )}
 

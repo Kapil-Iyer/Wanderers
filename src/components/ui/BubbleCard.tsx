@@ -56,7 +56,7 @@ export default function BubbleCard({ bubble }: { bubble: Bubble }) {
       (await supabase.auth.getSession()).data.session?.access_token;
     if (!token) {
       toast.error("Sign in to join a bubble");
-      router.push("/");
+      router.push("/login");
       return;
     }
     setJoining(true);
@@ -86,7 +86,7 @@ export default function BubbleCard({ bubble }: { bubble: Bubble }) {
               ? "Session expired - sign in again"
               : err
           );
-          if (/unauth/i.test(err) || createRes.status === 401) router.push("/");
+          if (/unauth/i.test(err) || createRes.status === 401) router.push("/login");
           return;
         }
         const realId = createData.data.id as string;
@@ -122,7 +122,7 @@ export default function BubbleCard({ bubble }: { bubble: Bubble }) {
             ? "Session expired - sign in again"
             : err
         );
-        if (/unauth/i.test(err) || res.status === 401) router.push("/");
+        if (/unauth/i.test(err) || res.status === 401) router.push("/login");
         return;
       }
       const membersCount =

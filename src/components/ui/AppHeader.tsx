@@ -231,7 +231,9 @@ export default function AppHeader({
         <div className="flex items-center gap-3 shrink-0 min-w-0">
           <Link
             href="/home"
-            className="relative h-10 w-10 overflow-hidden rounded-xl shrink-0 transition-transform duration-200 hover:scale-105 hover:-rotate-1"
+            className={`relative h-10 w-10 overflow-hidden rounded-xl shrink-0 transition-transform duration-200 hover:scale-105 hover:-rotate-1 ${
+              sidebarExpanded ? "lg:hidden" : ""
+            }`}
             aria-label="Wanderers home"
             style={{
               border: "1px solid rgba(139,92,246,0.4)",
@@ -250,7 +252,11 @@ export default function AppHeader({
             />
           </Link>
           <div className="min-w-0">
-            <Link href="/home" className="block" aria-label="Wanderers home">
+            <Link
+              href="/home"
+              className={`block ${sidebarExpanded ? "lg:hidden" : ""}`}
+              aria-label="Wanderers home"
+            >
               <span className="font-display text-xl font-bold leading-none block tracking-tight">
                 <span className="text-gradient">Wanderers</span>
               </span>
