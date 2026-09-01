@@ -144,7 +144,12 @@ export default function ChatPage({ params }: { params: Promise<{ id: string }> }
 
   const refreshBubbleMeta = useCallback(async () => {
     if (!bubbleId) return;
-    const res = await fetch(`/api/bubbles/${bubbleId}`);
+    const { data: sessionData } = await supabase.auth.getSession();
+    const token = sessionData.session?.access_token;
+    if (!token) return;
+    const res = await fetch(`/api/bubbles/${bubbleId}`, {
+      headers: { Authorization: `Bearer ${token}` },
+    });
     const d = await res.json().catch(() => ({}));
     if (d?.success && d.data) {
       setBubbleInfo({ activity: d.data.activity, members_count: d.data.members_count });
@@ -202,7 +207,9 @@ export default function ChatPage({ params }: { params: Promise<{ id: string }> }
         // Keep Messages list in sync (Back should show this bubble)
         let activityTitle = "Bubble";
         try {
-          const metaRes = await fetch(`/api/bubbles/${bubbleId}`);
+          const metaRes = await fetch(`/api/bubbles/${bubbleId}`, {
+            headers: { Authorization: `Bearer ${token}` },
+          });
           const meta = await metaRes.json().catch(() => ({}));
           if (meta?.success && meta.data?.activity) {
             activityTitle = meta.data.activity;

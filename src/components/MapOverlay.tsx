@@ -52,8 +52,44 @@ import CampusModeModal from "@/components/map/CampusModeModal";
 import OffCampusWarningDialog from "@/components/map/OffCampusWarningDialog";
 import UserLocationMarker from "@/components/map/UserLocationMarker";
 import CampusBoundaryLayer from "@/components/map/CampusBoundaryLayer";
+import { useGuest } from "@/contexts/GuestContext";
+import { DEMO_MAP_MARKERS as GUEST_DEMO_MARKERS } from "@/lib/demoData";
 
 const DEMO_BUBBLES = MOCK_MAP_EVENTS;
+
+/** "Now" / "15 min" / "1 hr" -> minutes from now. */
+function parseMinutesFromNow(startingIn: string): number {
+  if (/^now$/i.test(startingIn.trim())) return 0;
+  const hrs = startingIn.match(/([\d.]+)\s*hr/i);
+  const mins = startingIn.match(/(\d+)\s*min/i);
+  return (hrs ? Number(hrs[1]) * 60 : 0) + (mins ? Number(mins[1]) : 0);
+}
+
+/** "2 hr" / "45 min" / "1.5 hr" -> minutes. */
+function parseDurationToMinutes(duration: string): number {
+  const hrs = duration.match(/([\d.]+)\s*hr/i);
+  const mins = duration.match(/(\d+)\s*min/i);
+  return (hrs ? Number(hrs[1]) * 60 : 0) + (mins ? Number(mins[1]) : 0) || 60;
+}
+
+/**
+ * Guest-mode map data: converts the same curated demo bubbles shown on Home
+ * (src/lib/demoData.ts) into the ApiBubble shape this file already knows how
+ * to render/cluster - no real /api/bubbles/list call ever happens for a
+ * guest, this is purely local data reshaped to fit the existing pipeline.
+ */
+function buildGuestApiBubbles(): ApiBubble[] {
+  const now = Date.now();
+  return GUEST_DEMO_MARKERS.map((b) => ({
+    id: b.id,
+    activity: b.title,
+    zone: b.zone ?? "",
+    start_time: new Date(now + parseMinutesFromNow(b.startingIn) * 60_000).toISOString(),
+    duration_minutes: parseDurationToMinutes(b.duration),
+    max_members: b.maxPeople,
+    members_count: b.joined,
+  }));
+}
 
 const ZONE_COORDS: Record<string, { lat: number; lng: number }> = {
   // ── Academic / indoor ──────────────────────────────────────────────────
@@ -83,6 +119,7 @@ const ZONE_COORDS: Record<string, { lat: number; lng: number }> = {
   "Chatime Waterloo":         { lat: 43.4730, lng: -80.5395 },
   "Pizza Nova Uptown":        { lat: 43.4660, lng: -80.5222 },
   "Waterloo Park Entrance":   { lat: 43.4677, lng: -80.5218 },
+  "Conestoga Mall":           { lat: 43.4990, lng: -80.5225 },
   "Uptown Waterloo":          { lat: 43.4645, lng: -80.5180 },
   "Laurel Creek":             { lat: 43.4700, lng: -80.5500 },
 };
@@ -765,6 +802,7 @@ function MapDiscoveryUI({ onClose }: MapOverlayProps) {
   const cardRefs = useRef<Record<string, HTMLDivElement | null>>({});
 
   const { addBubbleConversation } = useConversations();
+  const { isGuest, guestResolved } = useGuest();
 
   useEffect(() => {
     setCampusFilter(readCampusFilterFromUrl());
@@ -799,17 +837,29 @@ function MapDiscoveryUI({ onClose }: MapOverlayProps) {
   }, []);
 
   useEffect(() => {
+    if (!guestResolved) return;
     setListFetched(false);
-    fetch("/api/bubbles/list")
-      .then((r) => r.json())
-      .then((d: { success?: boolean; data?: ApiBubble[] }) => {
-        if (d?.success && Array.isArray(d.data)) setApiBubbles(d.data);
-        setListFetched(true);
-      })
-      .catch(() => setListFetched(true));
+
+    // Guests never hit a real Supabase-backed route - the map shows the same
+    // curated demo bubbles as Home, reshaped locally (see buildGuestApiBubbles
+    // above). No /api/bubbles/list or /api/bubbles/mine call happens at all.
+    if (isGuest) {
+      setApiBubbles(buildGuestApiBubbles());
+      setMyBubbleIds(new Set());
+      setListFetched(true);
+      return;
+    }
 
     supabase.auth.getSession().then(({ data }) => {
       const token = data?.session?.access_token;
+      fetch("/api/bubbles/list", token ? { headers: { Authorization: `Bearer ${token}` } } : undefined)
+        .then((r) => r.json())
+        .then((d: { success?: boolean; data?: ApiBubble[] }) => {
+          if (d?.success && Array.isArray(d.data)) setApiBubbles(d.data);
+          setListFetched(true);
+        })
+        .catch(() => setListFetched(true));
+
       if (!token) return;
       fetch("/api/bubbles/mine", { headers: { Authorization: `Bearer ${token}` } })
         .then((r) => r.json())
@@ -818,10 +868,10 @@ function MapDiscoveryUI({ onClose }: MapOverlayProps) {
         })
         .catch(() => {});
     });
-  }, [refreshList]);
+  }, [refreshList, isGuest, guestResolved]);
 
   useEffect(() => {
-    if (!listFetched || apiBubbles.length > 0 || autoSeedDone.current) return;
+    if (isGuest || !listFetched || apiBubbles.length > 0 || autoSeedDone.current) return;
     let cancelled = false;
     supabase.auth.getSession().then(({ data }) => {
       const token = data?.session?.access_token;
@@ -838,7 +888,7 @@ function MapDiscoveryUI({ onClose }: MapOverlayProps) {
     return () => {
       cancelled = true;
     };
-  }, [listFetched, apiBubbles.length]);
+  }, [listFetched, apiBubbles.length, isGuest]);
 
   const mapOptions = useMemo(() => {
     const base = buildMapOptions(mapId);
@@ -871,12 +921,15 @@ function MapDiscoveryUI({ onClose }: MapOverlayProps) {
             .filter((b): b is MapBubble => b.lat != null && b.lng != null)
             .map(tagOnCampus)
         : [];
+    // Guests only ever see their curated demo set - never padded out with
+    // the generic MOCK_MAP_EVENTS filler real users get when the DB is thin.
+    if (isGuest) return real;
     if (real.length === 0) return MOCK_MAP_EVENTS.map(tagOnCampus);
     if (real.length >= 10) return real;
     const realIds = new Set(real.map((b) => b.id));
     const extras = MOCK_MAP_EVENTS.filter((m) => !realIds.has(m.id)).map(tagOnCampus);
     return [...real, ...extras].slice(0, Math.max(10, real.length));
-  }, [apiBubbles]);
+  }, [apiBubbles, isGuest]);
 
   const filteredBubbles = useMemo(
     () =>
@@ -932,6 +985,13 @@ function MapDiscoveryUI({ onClose }: MapOverlayProps) {
 
   const handleJoin = useCallback(
     async (id: string) => {
+      if (isGuest) {
+        toast("Create a free account to start your own bubble", {
+          action: { label: "Sign Up", onClick: () => router.push("/login") },
+        });
+        return;
+      }
+
       const { data: session } = await supabase.auth.getSession();
       const token = session?.session?.access_token;
       if (!token) {
@@ -1048,11 +1108,17 @@ function MapDiscoveryUI({ onClose }: MapOverlayProps) {
         setJoiningId(null);
       }
     },
-    [apiBubbles, addBubbleConversation, onClose, router]
+    [apiBubbles, addBubbleConversation, onClose, router, isGuest]
   );
 
   const handleOpenChat = useCallback(
     (id: string) => {
+      if (isGuest) {
+        toast("Create a free account to start your own bubble", {
+          action: { label: "Sign Up", onClick: () => router.push("/login") },
+        });
+        return;
+      }
       const mockBubble = getMockEventById(id);
       if (mockBubble) {
         addBubbleConversation(mockBubble);
@@ -1070,7 +1136,7 @@ function MapDiscoveryUI({ onClose }: MapOverlayProps) {
       router.push("/messages");
       router.push(`/chat/bubble-${id}`);
     },
-    [apiBubbles, addBubbleConversation, onClose, router]
+    [apiBubbles, addBubbleConversation, onClose, router, isGuest]
   );
 
   const handleSeedDemo = useCallback(async () => {

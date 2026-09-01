@@ -13,6 +13,8 @@ import { useConnections } from "@/contexts/ConnectionsContext";
 import { Reveal, StaggerContainer, StaggerItem } from "@/components/motion/Reveal";
 import { useSidebar } from "@/contexts/SidebarContext";
 import { useRequireAuth } from "@/hooks/useRequireAuth";
+import { useGuest } from "@/contexts/GuestContext";
+import GuestLocked from "@/components/ui/GuestLocked";
 
 const panelStyle: React.CSSProperties = {
   background: "linear-gradient(165deg, rgba(36,28,22,0.92) 0%, rgba(18,13,10,0.96) 100%)",
@@ -22,6 +24,7 @@ const panelStyle: React.CSSProperties = {
 
 export default function MessagesPage() {
   const { checking, authed } = useRequireAuth();
+  const { isGuest, guestResolved } = useGuest();
   const router = useRouter();
   const { expanded: sidebarExpanded } = useSidebar();
   const { conversations, loadingJoined, refreshJoinedBubbles, toggleStarred } = useConversations();
@@ -39,8 +42,9 @@ export default function MessagesPage() {
   const [showPast, setShowPast] = useState(false);
 
   useEffect(() => {
+    if (!guestResolved || isGuest) return;
     refreshJoinedBubbles();
-  }, [refreshJoinedBubbles]);
+  }, [refreshJoinedBubbles, isGuest, guestResolved]);
 
   if (checking || !authed) return null;
 
@@ -93,6 +97,10 @@ export default function MessagesPage() {
             </motion.p>
           </section>
 
+          {isGuest ? (
+            <GuestLocked message="Sign up with your UWaterloo email to access real-time chat" />
+          ) : (
+          <>
           {/* Bubble chats */}
           <section className="mb-10">
             <div className="flex items-center gap-2 mb-1.5">
@@ -336,6 +344,8 @@ export default function MessagesPage() {
                 ))}
               </StaggerContainer>
             </section>
+          )}
+          </>
           )}
         </div>
       </div>

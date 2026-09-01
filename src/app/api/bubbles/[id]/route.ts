@@ -1,15 +1,22 @@
 import { NextRequest, NextResponse } from "next/server";
 import { getSupabaseAdmin } from "@/lib/supabaseAdmin";
+import { getAuthUser } from "@/lib/auth";
 
 /**
  * GET /api/bubbles/[id]
- * Return one bubble's public info (for chat header when opened from Home).
+ * Return one bubble's info (for the chat header when opened from Home).
+ * Auth required - real activity/status for a real bubble.
  */
 export async function GET(
-  _request: NextRequest,
+  request: NextRequest,
   context: { params: Promise<{ id: string }> }
 ) {
   try {
+    const user = await getAuthUser(request);
+    if (!user) {
+      return NextResponse.json({ success: false, error: "Unauthenticated" }, { status: 401 });
+    }
+
     const { id } = await context.params;
     if (!id) {
       return NextResponse.json({ success: false, error: "id required" }, { status: 400 });

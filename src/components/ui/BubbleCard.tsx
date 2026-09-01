@@ -29,7 +29,7 @@ function parseDurationMinutes(duration: string): number {
   return (hrs ? Number(hrs[1]) * 60 : 0) + (mins ? Number(mins[1]) : 0) || 60;
 }
 
-export default function BubbleCard({ bubble }: { bubble: Bubble }) {
+export default function BubbleCard({ bubble, guestMode = false }: { bubble: Bubble; guestMode?: boolean }) {
   const mapOverlay = useMapOverlay();
   const router = useRouter();
   const { addBubbleConversation } = useConversations();
@@ -50,6 +50,14 @@ export default function BubbleCard({ bubble }: { bubble: Bubble }) {
 
   const handleJoin = async () => {
     if (joining) return;
+    // Demo cards shown to guests (see src/lib/demoData.ts) never touch the
+    // network - real bubble creation/joining requires a real account.
+    if (guestMode) {
+      toast("Create a free account to start your own bubble", {
+        action: { label: "Sign Up", onClick: () => router.push("/login") },
+      });
+      return;
+    }
     const { data: refreshed } = await supabase.auth.refreshSession();
     const token =
       refreshed.session?.access_token ??

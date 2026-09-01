@@ -1,24 +1,31 @@
-import { NextResponse } from "next/server";
+import { NextRequest, NextResponse } from "next/server";
 import { getSupabaseAdmin } from "@/lib/supabaseAdmin";
+import { getAuthUser } from "@/lib/auth";
 
 /**
  * GET /api/bubbles/list
- * List active bubbles for the "Active Nearby" feed.
+ * List active bubbles for the "Active Nearby" feed / map.
  *
  * - status in ('open', 'active') AND expires_at > now()  (excludes 'expired')
  * - joins users to include creator_name
  * - includes members_count (from bubble_members)
  * - ordered by start_time ascending
  *
- * Public read (no auth) - mirrors campus activity; the home feed can call it
- * before or after sign-in. All columns the UI needs are returned.
+ * Auth required - these are real, student-created bubbles (activity,
+ * creator name, location). Guests see a hardcoded demo set on the frontend
+ * instead of ever calling this route (see src/lib/demoData.ts).
  *
  * NOTE: kept 'active' alongside 'open' so bubbles don't vanish from the feed the
  * moment a 2nd person joins (join route flips status → 'active'). Only 'expired'
  * bubbles are excluded.
  */
-export async function GET() {
+export async function GET(request: NextRequest) {
   try {
+    const user = await getAuthUser(request);
+    if (!user) {
+      return NextResponse.json({ success: false, error: "Unauthenticated" }, { status: 401 });
+    }
+
     const admin = getSupabaseAdmin();
     const now = new Date().toISOString();
 

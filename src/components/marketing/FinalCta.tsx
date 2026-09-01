@@ -2,9 +2,11 @@
 
 import { useRouter } from "next/navigation";
 import { Reveal } from "@/components/marketing/Reveal";
+import { useGuest } from "@/contexts/GuestContext";
 
 export function FinalCta() {
   const router = useRouter();
+  const { enterGuestMode } = useGuest();
 
   return (
     <section className="relative mx-auto max-w-4xl px-6 py-28 text-center">
@@ -25,7 +27,10 @@ export function FinalCta() {
           </button>
           <button
             type="button"
-            onClick={() => router.push("/home")}
+            onClick={() => {
+              enterGuestMode();
+              router.push("/home");
+            }}
             className="h-12 rounded-full px-7 text-sm font-semibold transition-colors"
             style={{ border: "1px solid var(--color-border)", color: "var(--color-text-primary)", background: "var(--color-surface)" }}
           >
