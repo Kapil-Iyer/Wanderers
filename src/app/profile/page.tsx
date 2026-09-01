@@ -13,6 +13,8 @@ import { useSidebar } from "@/contexts/SidebarContext";
 import { supabase } from "@/lib/supabase";
 import { Parallax } from "@/components/motion/Parallax";
 import { useRequireAuth } from "@/hooks/useRequireAuth";
+import { useGuest } from "@/contexts/GuestContext";
+import { DEMO_PROFILE } from "@/lib/demoData";
 
 const ease = [0.25, 0.46, 0.45, 0.94] as const;
 
@@ -44,17 +46,25 @@ const journeyTimes = ["2 days ago", "5 days ago", "1 week ago", "2 weeks ago"];
 
 export default function ProfilePage() {
   const { checking, authed } = useRequireAuth();
+  const { isGuest, guestResolved, exitGuestMode } = useGuest();
   const router = useRouter();
   const { expanded: sidebarExpanded } = useSidebar();
   const { connectionsCount, getConnectedFriends } = useConnections();
   const connectedFriends = getConnectedFriends();
   const [editingInterests, setEditingInterests] = useState(false);
-  const [userInterests, setUserInterests] = useState(interestOptions.slice(0, 6));
+  const [userInterests, setUserInterests] = useState(
+    isGuest ? DEMO_PROFILE.interests : interestOptions.slice(0, 6)
+  );
   const [customInterest, setCustomInterest] = useState("");
-  const [displayName, setDisplayName] = useState<string | null>(null);
-  const [vibeTags, setVibeTags] = useState<string[]>(["Waterloo"]);
+  const [displayName, setDisplayName] = useState<string | null>(isGuest ? DEMO_PROFILE.name : null);
+  const [vibeTags, setVibeTags] = useState<string[]>(isGuest ? DEMO_PROFILE.vibeTags : ["Waterloo"]);
 
   useEffect(() => {
+    if (!guestResolved) return;
+    // Guest mode never touches Supabase - the demo profile above is already
+    // the full state, no real session/name lookup happens.
+    if (isGuest) return;
+
     let cancelled = false;
 
     (async () => {
@@ -94,11 +104,11 @@ export default function ProfilePage() {
     return () => {
       cancelled = true;
     };
-  }, []);
+  }, [isGuest, guestResolved]);
 
   const initials = useMemo(
-    () => getInitials(displayName ?? "Wanderer"),
-    [displayName]
+    () => (isGuest ? DEMO_PROFILE.initials : getInitials(displayName ?? "Wanderer")),
+    [displayName, isGuest]
   );
 
   const toggleInterest = (interest: string) => {
@@ -115,11 +125,13 @@ export default function ProfilePage() {
     }
   };
 
-  const stats = [
-    { label: "Connections", value: String(connectionsCount), star: false },
-    { label: "Events Attended", value: "12", star: false },
-    { label: "Vibe Rating", value: "4.9", star: true },
-  ];
+  const stats = isGuest
+    ? DEMO_PROFILE.stats
+    : [
+        { label: "Connections", value: String(connectionsCount), star: false },
+        { label: "Events Attended", value: "12", star: false },
+        { label: "Vibe Rating", value: "4.9", star: true },
+      ];
 
   if (checking || !authed) return null;
 
@@ -224,8 +236,8 @@ export default function ProfilePage() {
             ))}
           </motion.div>
 
-          {/* Connections */}
-          {connectedFriends.length > 0 && (
+          {/* Connections - hidden for guests, no real friends to show */}
+          {!isGuest && connectedFriends.length > 0 && (
             <Section label="Connections" delay={0.16}>
               <div className="flex gap-3 overflow-x-auto pb-2 -mx-4 px-4">
                 {connectedFriends.map((friend, i) => (
@@ -373,9 +385,12 @@ export default function ProfilePage() {
             </div>
           </Section>
 
-          {/* Log out */}
+          {/* Log out / Sign up */}
           <motion.button type="button"
-            onClick={() => router.push("/login")}
+            onClick={() => {
+              if (isGuest) exitGuestMode();
+              router.push("/login");
+            }}
             className="w-full mt-8 h-11 rounded-full flex items-center justify-center gap-2 font-medium text-sm"
             style={{ background: "rgba(239,68,68,0.07)", border: "1px solid rgba(239,68,68,0.2)", color: "#f87171" }}
             initial={{ opacity: 0 }} animate={{ opacity: 1 }} transition={{ delay: 0.55, duration: 0.4 }}
@@ -383,7 +398,7 @@ export default function ProfilePage() {
             whileTap={{ scale: 0.97 }}
           >
             <LogOut className="w-4 h-4" />
-            Log Out
+            {isGuest ? "Sign Up" : "Log Out"}
           </motion.button>
         </div>
       </div>

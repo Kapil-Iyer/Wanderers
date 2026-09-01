@@ -23,6 +23,7 @@ import { motion, AnimatePresence } from "framer-motion";
 import { useRouter } from "next/navigation";
 import { Mail, User, Lock, Eye, EyeOff, ArrowLeft } from "lucide-react";
 import { CAMPUS_EMAIL_ERROR, isEmailAllowed, isCampusGateEnabled } from "@/lib/campusEmail";
+import { useGuest } from "@/contexts/GuestContext";
 
 const ease = [0.25, 0.46, 0.45, 0.94] as const;
 
@@ -107,6 +108,7 @@ export default function AuthModal() {
   const [rememberDevice, setRememberDevice] = useState(true);
 
   const router = useRouter();
+  const { enterGuestMode } = useGuest();
 
   const go = (m: Mode) => {
     setError(null);
@@ -397,7 +399,10 @@ export default function AuthModal() {
               )}
               <button
                 type="button"
-                onClick={() => router.push("/home")}
+                onClick={() => {
+                  enterGuestMode();
+                  router.push("/home");
+                }}
                 className="block w-full text-center text-sm pt-1 transition-colors"
                 style={{ color: "var(--color-text-secondary)" }}
               >

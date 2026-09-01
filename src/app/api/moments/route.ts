@@ -1,9 +1,18 @@
-import { NextResponse } from 'next/server';
+import { NextRequest, NextResponse } from 'next/server';
 import { getSupabaseAdmin } from '@/lib/supabaseAdmin';
+import { getAuthUser } from '@/lib/auth';
 
-/** GET /api/moments - List Wander Moments (meetup_photos) for feed. No auth required. */
-export async function GET() {
+/**
+ * GET /api/moments - List Wander Moments (meetup_photos) for feed.
+ * Auth required - these are real students' photos, captions, and names.
+ */
+export async function GET(request: NextRequest) {
   try {
+    const user = await getAuthUser(request);
+    if (!user) {
+      return NextResponse.json({ success: false, error: 'Unauthenticated' }, { status: 401 });
+    }
+
     const admin = getSupabaseAdmin();
     const { data: moments, error } = await admin
       .from('meetup_photos')

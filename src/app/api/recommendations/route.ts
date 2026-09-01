@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { getSupabaseAdmin } from "@/lib/supabaseAdmin";
+import { getAuthUser } from "@/lib/auth";
 
 /** Map activity name to emoji for cards. */
 function activityEmoji(activity: string): string {
@@ -41,11 +42,17 @@ export type RecommendedBubbleItem = {
 
 /**
  * GET /api/recommendations
- * Returns bubbles recommended for the user.
+ * Returns bubbles recommended for the user. Auth required - real bubble
+ * activity, zone, and member counts are real student data.
  * - If RECOMMENDATIONS_API_URL is set: fetches bubbles from DB, POSTs to FastAPI /recommend, maps response to recommended_bubbles.
  * - Else: fallback from DB (open/active, non-expired), same shape for "Recommended for you" section.
  */
 export async function GET(request: NextRequest) {
+  const user = await getAuthUser(request);
+  if (!user) {
+    return NextResponse.json({ success: false, error: "Unauthenticated", recommended_bubbles: [] }, { status: 401 });
+  }
+
   const apiBase = process.env.RECOMMENDATIONS_API_URL?.replace(/\/$/, "");
   const recommendUrl = apiBase ? `${apiBase}/recommend` : null;
 

@@ -22,6 +22,9 @@ import { Parallax } from "@/components/motion/Parallax";
 import { getCategoryTheme } from "@/lib/categoryThemes";
 import { useSidebar } from "@/contexts/SidebarContext";
 import { useRequireAuth } from "@/hooks/useRequireAuth";
+import { useGuest } from "@/contexts/GuestContext";
+import { DEMO_BUBBLES, GUEST_INITIALS } from "@/lib/demoData";
+import { toast } from "sonner";
 
 type UpcomingBubble = {
   id: string; emoji: string; title: string; startingIn: string;
@@ -58,6 +61,7 @@ function formatEventTime(iso: string): string {
 export default function HomePage() {
   const router = useRouter();
   const { checking, authed } = useRequireAuth();
+  const { isGuest, guestResolved } = useGuest();
   const [activeFilter, setActiveFilter] = useState("All");
   const [createOpen, setCreateOpen] = useState(false);
   const [drawerOpen, setDrawerOpen] = useState(false);
@@ -65,7 +69,7 @@ export default function HomePage() {
   const [feedPosts, setFeedPosts] = useState<FeedPostType[]>(mockFeedPosts);
   const defaultUpcoming = useMemo<UpcomingBubble[]>(
     () =>
-      mockBubbles.slice(0, 6).map((b) => ({
+      (isGuest ? DEMO_BUBBLES : mockBubbles).slice(0, 6).map((b) => ({
         id: b.id,
         emoji: b.emoji,
         title: b.title,
@@ -74,7 +78,7 @@ export default function HomePage() {
         maxPeople: b.maxPeople,
         recommendationReason: "For you",
       })),
-    []
+    [isGuest]
   );
   const [upcomingForYou, setUpcomingForYou] = useState<UpcomingBubble[]>(defaultUpcoming);
   const [momentIndex, setMomentIndex] = useState(0);
@@ -95,6 +99,11 @@ export default function HomePage() {
   }, [router]);
 
   useEffect(() => {
+    if (!guestResolved) return;
+    if (isGuest) {
+      setProfileInitials(GUEST_INITIALS);
+      return;
+    }
     let cancelled = false;
     import("@/lib/supabase")
       .then((m) => m.supabase.auth.getSession())
@@ -120,7 +129,7 @@ export default function HomePage() {
     return () => {
       cancelled = true;
     };
-  }, []);
+  }, [isGuest, guestResolved]);
 
   const { expanded: sidebarExpanded } = useSidebar();
   const upcomingRef = useRef<HTMLDivElement>(null);
@@ -129,15 +138,35 @@ export default function HomePage() {
   const aboutRef = useRef<HTMLDivElement>(null);
   const { filteredConnectionRequests } = useConnections();
   const { joinedBubbles, removeBubbleFromJoined } = useConversations();
-  const pendingCount = filteredConnectionRequests.length;
+  // Guests have no real connections, pending or otherwise.
+  const pendingCount = isGuest ? 0 : filteredConnectionRequests.length;
 
-  // Live hero stats (derived from current bubble set)
-  const happeningNow = useMemo(() => mockBubbles.filter((b) => b.startingIn.includes("min")), []);
+  // Live hero stats (derived from current bubble set) - demo bubbles for
+  // guests so the numbers match what they're actually looking at below.
+  const happeningNow = useMemo(
+    () => (isGuest ? DEMO_BUBBLES : mockBubbles).filter((b) => b.startingIn.includes("min") || b.startingIn === "Now"),
+    [isGuest]
+  );
   const liveBubbleCount = happeningNow.length;
-  const wanderersOut = useMemo(() => mockBubbles.reduce((sum, b) => sum + b.joined, 0), []);
+  const wanderersOut = useMemo(
+    () => (isGuest ? DEMO_BUBBLES : mockBubbles).reduce((sum, b) => sum + b.joined, 0),
+    [isGuest]
+  );
 
   useEffect(() => {
-    fetch("/api/moments")
+    if (!guestResolved) return;
+    // Guests never call a Supabase-backed route - real Wander Moments have
+    // real usernames/photos attached to real accounts.
+    if (isGuest) {
+      setFeedPosts(mockFeedPosts);
+      return;
+    }
+    import("@/lib/supabase")
+      .then((m) => m.supabase.auth.getSession())
+      .then(({ data }) => {
+        const token = data.session?.access_token;
+        return fetch("/api/moments", token ? { headers: { Authorization: `Bearer ${token}` } } : undefined);
+      })
       .then((r) => r.json())
       .then((data: {
         success?: boolean;
@@ -170,7 +199,7 @@ export default function HomePage() {
         }
       })
       .catch(() => setFeedPosts(mockFeedPosts));
-  }, []);
+  }, [isGuest, guestResolved]);
 
   useEffect(() => {
     if (feedPosts.length <= 1 || momentsPaused) return;
@@ -179,12 +208,20 @@ export default function HomePage() {
   }, [feedPosts.length, momentsPaused]);
 
   useEffect(() => {
+    if (!guestResolved) return;
+    // Guests get the demo catalog (already the fallback below) - never hit
+    // a real recommendations call.
+    if (isGuest) {
+      setUpcomingForYou(defaultUpcoming);
+      return;
+    }
     import("@/lib/supabase")
       .then((m) => m.supabase.auth.getSession())
       .then(({ data }) => {
         const userId = data?.session?.user?.id;
+        const token = data?.session?.access_token;
         const url = userId ? `/api/recommendations?user_id=${encodeURIComponent(userId)}` : "/api/recommendations";
-        return fetch(url).then((r) => {
+        return fetch(url, token ? { headers: { Authorization: `Bearer ${token}` } } : undefined).then((r) => {
           if (!r.ok) throw new Error("recommendations failed");
           return r.json();
         });
@@ -202,26 +239,30 @@ export default function HomePage() {
         }
       })
       .catch(() => setUpcomingForYou(defaultUpcoming));
-  }, [defaultUpcoming]);
+  }, [defaultUpcoming, isGuest, guestResolved]);
 
   const addPost = (post: Omit<FeedPostType, "id" | "timestamp"> & { imageUrl?: string }) => {
     const { imageUrl, ...rest } = post;
     setFeedPosts((prev) => [{ ...rest, ...(imageUrl && { imageUrl }), id: `f-${Date.now()}`, timestamp: "JUST NOW" }, ...prev]);
   };
 
-  // Happening on Campus - upcoming campus events (public; falls back server-side)
+  // Happening on Campus - upcoming campus events (public; falls back server-side).
+  // Guests skip this too - guest mode makes zero backend calls, full stop,
+  // even to endpoints that don't require auth.
   useEffect(() => {
+    if (!guestResolved || isGuest) return;
     fetch("/api/campus-events")
       .then((r) => r.json())
       .then((d: { success?: boolean; data?: CampusEvent[] }) => {
         if (d?.success && Array.isArray(d.data)) setCampusEvents(d.data.slice(0, 3));
       })
       .catch(() => {});
-  }, []);
+  }, [isGuest, guestResolved]);
 
   const filteredBubbles = useMemo(() => {
     // Startable campus catalog - always 0 members until someone starts (matches Explore).
-    const source = mockBubbles;
+    // Guests only ever see the curated demo set, never the real/mock catalog.
+    const source = isGuest ? DEMO_BUBBLES : mockBubbles;
     if (activeFilter === "Happening Now") {
       return source.filter((b) => b.startingIn.includes("min") || b.startingIn === "Now");
     }
@@ -230,7 +271,7 @@ export default function HomePage() {
     }
     if (activeFilter === "All") return source;
     return source.filter((b) => b.category === activeFilter);
-  }, [activeFilter]);
+  }, [activeFilter, isGuest]);
 
   const scrollToMoments = () => momentsRef.current?.scrollIntoView({ behavior: "smooth", block: "start" });
 
@@ -245,6 +286,12 @@ export default function HomePage() {
         onNotificationsClick={() => setDrawerOpen(true)}
         profileInitials={profileInitials}
         onStartSomething={() => {
+          if (isGuest) {
+            toast("Create a free account to start your own bubble", {
+              action: { label: "Sign Up", onClick: () => router.push("/login") },
+            });
+            return;
+          }
           setPrefill(undefined);
           setCreateOpen(true);
         }}
@@ -353,7 +400,7 @@ export default function HomePage() {
                 </motion.div>
                 <div className="flex flex-col gap-3">
                   {happeningNow.slice(0, 4).map((b, i) => (
-                    <LiveTickerCard key={b.id} bubble={b} index={i} />
+                    <LiveTickerCard key={b.id} bubble={b} index={i} isGuest={isGuest} />
                   ))}
                 </div>
               </div>
@@ -389,7 +436,17 @@ export default function HomePage() {
                   whileHover={{ y: -6, scale: 1.02, boxShadow: "0 20px 48px -16px rgba(255,122,26,0.3)" }}
                   transition={{ type: "spring", stiffness: 300, damping: 22 }}
                 >
-                  <Link href={`/chat/bubble-${b.id}`} className="block">
+                  <Link
+                    href={`/chat/bubble-${b.id}`}
+                    className="block"
+                    onClick={(e) => {
+                      if (!isGuest) return;
+                      e.preventDefault();
+                      toast("Create a free account to start your own bubble", {
+                        action: { label: "Sign Up", onClick: () => router.push("/login") },
+                      });
+                    }}
+                  >
                     <div className="h-24 flex items-center justify-center relative"
                       style={{ background: "linear-gradient(135deg, rgba(255,122,26,0.22), rgba(255,181,107,0.1)), rgba(8,6,4,0.97)" }}>
                       <span className="text-4xl">{b.emoji}</span>
@@ -492,7 +549,7 @@ export default function HomePage() {
                 >
                   {filteredBubbles.map((bubble) => (
                     <StaggerItem key={bubble.id} className="h-full">
-                      <BubbleCard bubble={bubble} />
+                      <BubbleCard bubble={bubble} guestMode={isGuest} />
                     </StaggerItem>
                   ))}
                 </StaggerContainer>
@@ -681,9 +738,18 @@ function SectionHeader({ kicker, title }: { kicker: string; title: string }) {
 }
 
 /* Compact live card for the hero's "What's happening" panel */
-function LiveTickerCard({ bubble, index }: { bubble: (typeof mockBubbles)[number]; index: number }) {
+function LiveTickerCard({
+  bubble,
+  index,
+  isGuest,
+}: {
+  bubble: (typeof mockBubbles)[number];
+  index: number;
+  isGuest: boolean;
+}) {
   const reduce = useReducedMotion();
   const theme = getCategoryTheme(bubble.category);
+  const router = useRouter();
   return (
     <motion.div
       initial={reduce ? { opacity: 0 } : { opacity: 0, filter: "blur(10px)", y: 20 }}
@@ -693,6 +759,13 @@ function LiveTickerCard({ bubble, index }: { bubble: (typeof mockBubbles)[number
     >
       <Link
         href={`/chat/bubble-${bubble.id}`}
+        onClick={(e) => {
+          if (!isGuest) return;
+          e.preventDefault();
+          toast("Create a free account to start your own bubble", {
+            action: { label: "Sign Up", onClick: () => router.push("/login") },
+          });
+        }}
         className="flex items-center gap-3.5 p-3.5 rounded-2xl relative overflow-hidden"
         style={{
           background: "rgba(10,9,8,0.72)",

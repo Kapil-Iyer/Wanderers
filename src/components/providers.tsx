@@ -18,6 +18,7 @@ import { ConversationsProvider } from "@/contexts/ConversationsContext";
 import { ProfileOverlayProvider } from "@/contexts/ProfileOverlayContext";
 import { ConnectionsProvider } from "@/contexts/ConnectionsContext";
 import { SidebarProvider } from "@/contexts/SidebarContext";
+import { GuestProvider } from "@/contexts/GuestContext";
 import MapOverlayClient from "./MapOverlayClient";
 import ProfileOverlayClient from "./ProfileOverlayClient";
 import CursorGlow from "@/components/motion/CursorGlow";
@@ -29,6 +30,7 @@ export function Providers({ children }: { children: React.ReactNode }) {
   return (
     <QueryClientProvider client={queryClient}>
       <TooltipProvider>
+        <GuestProvider>
         <SidebarProvider>
         <ConversationsProvider>
         <ConnectionsProvider>
@@ -46,6 +48,7 @@ export function Providers({ children }: { children: React.ReactNode }) {
         </ConnectionsProvider>
         </ConversationsProvider>
         </SidebarProvider>
+        </GuestProvider>
       </TooltipProvider>
     </QueryClientProvider>
   );
