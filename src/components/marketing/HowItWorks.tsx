@@ -10,8 +10,12 @@ const steps = [
 ];
 
 export function HowItWorks() {
+  // Tight top padding is intentional: the hero stops at 82svh so this heading
+  // peeks above the fold as a scroll affordance. That 82svh also has to stay
+  // below Reveal's ScrollTrigger start ("top 88%"), otherwise this block sits
+  // in view at opacity 0 until the visitor scrolls and the peek shows blank.
   return (
-    <section id="how-it-works" className="mx-auto max-w-6xl px-6 py-28">
+    <section id="how-it-works" className="mx-auto max-w-6xl px-6 pb-28 pt-8">
       <Reveal>
         <span className="text-xs font-semibold uppercase tracking-[0.15em]" style={{ color: "var(--color-accent-start)" }}>
           The problem
