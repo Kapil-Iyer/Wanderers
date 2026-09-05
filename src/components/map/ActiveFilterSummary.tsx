@@ -3,19 +3,27 @@
 import type { CategoryFilterId } from "@/lib/eventCategories";
 import { CATEGORY_FILTERS } from "@/lib/eventCategories";
 import type { CampusFilterId } from "@/lib/mapFilterUrl";
+import {
+  describeTimeFilter,
+  isTimeFilterActive,
+  type MapTimeFilter,
+} from "@/lib/mapTimeFilter";
 
 type ActiveFilterSummaryProps = {
   campusFilter: CampusFilterId;
   categoryFilter: CategoryFilterId;
+  timeFilter: MapTimeFilter;
   onClear: () => void;
 };
 
 export default function ActiveFilterSummary({
   campusFilter,
   categoryFilter,
+  timeFilter,
   onClear,
 }: ActiveFilterSummaryProps) {
-  const hasActiveFilters = campusFilter !== "all" || categoryFilter !== "all";
+  const hasActiveFilters =
+    campusFilter !== "all" || categoryFilter !== "all" || isTimeFilterActive(timeFilter);
   if (!hasActiveFilters) return null;
 
   const categoryLabel = CATEGORY_FILTERS.find((f) => f.id === categoryFilter)?.label;
@@ -25,7 +33,7 @@ export default function ActiveFilterSummary({
       {campusFilter === "on" && (
         <span
           className="rounded-full px-2 py-0.5 text-[10px] font-medium"
-          style={{ backgroundColor: "rgba(99,102,241,0.15)", color: "#818cf8" }}
+          style={{ backgroundColor: "var(--panel-info-bg)", color: "var(--panel-info-fg)" }}
         >
           🏫 On campus
         </span>
@@ -33,7 +41,7 @@ export default function ActiveFilterSummary({
       {campusFilter === "off" && (
         <span
           className="rounded-full px-2 py-0.5 text-[10px] font-medium"
-          style={{ backgroundColor: "rgba(245,158,11,0.15)", color: "#fbbf24" }}
+          style={{ backgroundColor: "var(--panel-warn-bg)", color: "var(--panel-warn-fg)" }}
         >
           🌍 Off campus
         </span>
@@ -46,6 +54,15 @@ export default function ActiveFilterSummary({
           {categoryLabel}
         </span>
       )}
+      {describeTimeFilter(timeFilter).map((label) => (
+        <span
+          key={label}
+          className="rounded-full px-2 py-0.5 text-[10px] font-medium"
+          style={{ backgroundColor: "var(--panel-time-bg)", color: "var(--panel-time-fg)" }}
+        >
+          {label}
+        </span>
+      ))}
       <button
         type="button"
         onClick={onClear}

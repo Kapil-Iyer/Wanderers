@@ -31,43 +31,25 @@ export type CampusPolygonStyle = {
 };
 
 export function getCampusPolygonStyle(
-  theme: "dark" | "light",
-  mapType: "roadmap" | "satellite"
+  _theme: "dark" | "light",
+  _mapType: "roadmap" | "satellite"
 ): CampusPolygonStyle {
-  if (mapType === "satellite") {
-    return {
-      strokeColor: "#a5b4fc",
-      strokeOpacity: 1.0,
-      strokeWeight: 3,
-      fillColor: "#a5b4fc",
-      fillOpacity: 0.04,
-    };
-  }
-  if (theme === "light") {
-    return {
-      strokeColor: "#4f46e5",
-      strokeOpacity: 0.85,
-      strokeWeight: 2.5,
-      fillColor: "#4f46e5",
-      fillOpacity: 0.04,
-    };
-  }
+  // Ember Aurora boundary — brand magenta frame, not a debug overlay.
+  // Google Maps needs hex colors plus separate opacity; rgba() floods the shape.
   return {
-    strokeColor: "#6366f1",
-    strokeOpacity: 0.9,
-    strokeWeight: 2.5,
-    fillColor: "#6366f1",
-    fillOpacity: 0.04,
+    strokeColor: "#E0339E",
+    strokeOpacity: 0.6,
+    strokeWeight: 1.5,
+    fillColor: "#E0339E",
+    fillOpacity: 0.05,
   };
 }
 
 export function getCampusLabelColor(
-  theme: "dark" | "light",
-  mapType: "roadmap" | "satellite"
+  _theme: "dark" | "light",
+  _mapType: "roadmap" | "satellite"
 ): string {
-  if (mapType === "satellite") return "#c7d2fe";
-  if (theme === "light") return "#4f46e5";
-  return "#6366f1";
+  return "#E0339E";
 }
 
 export const CAMPUS_MODE_CENTER = { lat: 43.4723, lng: -80.5449 };
