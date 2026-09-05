@@ -23,6 +23,8 @@ import { getCategoryTheme } from "@/lib/categoryThemes";
 import { useSidebar } from "@/contexts/SidebarContext";
 import { useRequireAuth } from "@/hooks/useRequireAuth";
 import { useGuest } from "@/contexts/GuestContext";
+import { useMapOverlay } from "@/contexts/MapOverlayContext";
+import { resolveZoneCoords } from "@/lib/zoneCoords";
 import { DEMO_BUBBLES, GUEST_INITIALS } from "@/lib/demoData";
 import { toast } from "sonner";
 
@@ -86,6 +88,7 @@ export default function HomePage() {
   const [campusEvents, setCampusEvents] = useState<CampusEvent[]>([]);
   const [prefill, setPrefill] = useState<{ activity?: string; zone?: string } | undefined>();
   const [profileInitials, setProfileInitials] = useState("?");
+  const mapOverlay = useMapOverlay();
 
   // Header / deep-link: /home?create=1 opens the create modal
   useEffect(() => {
@@ -525,6 +528,13 @@ export default function HomePage() {
                           setPrefill({ activity: ev.title, zone: ev.zone ?? ev.location });
                           setCreateOpen(true);
                         }}
+                        onViewOnMap={
+                          // Campus events have no coordinates, so the button only
+                          // appears when the building is one the map knows about.
+                          mapOverlay && resolveZoneCoords(ev.zone ?? ev.location)
+                            ? () => mapOverlay.openMap({ zone: ev.zone ?? ev.location })
+                            : undefined
+                        }
                       />
                     ))}
                   </div>

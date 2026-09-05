@@ -32,5 +32,5 @@ const MapOverlay = dynamic(() => importMapOverlay(), { ssr: false });
 export default function MapOverlayClient() {
   const ctx = useMapOverlay();
   if (!ctx || !ctx.isOpen) return null;
-  return <MapOverlay onClose={ctx.closeMap} />;
+  return <MapOverlay onClose={ctx.closeMap} focusTarget={ctx.focusTarget} />;
 }

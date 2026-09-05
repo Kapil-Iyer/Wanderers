@@ -25,9 +25,11 @@ import {
 } from "@/lib/mapStyles";
 import { applyCampusModeToMap, isOnCampus } from "@/lib/campusBounds";
 import {
+  animateMapCamera,
   applyOffCampusMapView,
   DEFAULT_MAP_CENTER,
   DEFAULT_MAP_ZOOM,
+  FOCUS_MAP_ZOOM,
   fitMapToBubbles,
 } from "@/lib/mapCamera";
 import { getUwBounds } from "@/lib/campusBounds";
@@ -69,6 +71,8 @@ import CreateBubbleModal from "@/components/ui/CreateBubbleModal";
 import MapsAuthNotice from "@/components/map/MapsAuthNotice";
 import { useMapsAuthFailure } from "@/hooks/useMapsAuthFailure";
 import { useGuest } from "@/contexts/GuestContext";
+import type { MapFocusTarget } from "@/contexts/MapOverlayContext";
+import { ZONE_COORDS, resolveZoneCoords } from "@/lib/zoneCoords";
 import { DEMO_MAP_MARKERS as GUEST_DEMO_MARKERS } from "@/lib/demoData";
 
 const DEMO_BUBBLES = MOCK_MAP_EVENTS;
@@ -106,39 +110,6 @@ function buildGuestApiBubbles(): ApiBubble[] {
     members_count: b.joined,
   }));
 }
-
-const ZONE_COORDS: Record<string, { lat: number; lng: number }> = {
-  // ── Academic / indoor ──────────────────────────────────────────────────
-  PAC:                        { lat: 43.4738, lng: -80.5468 },
-  "PAC Courts":               { lat: 43.4736, lng: -80.5470 },
-  "PAC Pool":                 { lat: 43.4740, lng: -80.5465 },
-  "PAC Gym":                  { lat: 43.4738, lng: -80.5468 },
-  SLC:                        { lat: 43.4718, lng: -80.5442 },
-  "SLC Atrium":               { lat: 43.4720, lng: -80.5438 },
-  "SLC Game Room":            { lat: 43.4718, lng: -80.5442 },
-  "SLC Turnkey Desk":         { lat: 43.4717, lng: -80.5444 },
-  "Bomber Bar (SLC)":         { lat: 43.4716, lng: -80.5446 },
-  DC:                         { lat: 43.4725, lng: -80.5430 },
-  "DC Library 2nd Floor":     { lat: 43.4725, lng: -80.5430 },
-  "Dana Porter Library":      { lat: 43.4709, lng: -80.5430 },
-  MC:                         { lat: 43.4724, lng: -80.5421 },
-  "MC Study Hall":            { lat: 43.4724, lng: -80.5421 },
-  EV3:                        { lat: 43.4729, lng: -80.5418 },
-  "EV3 Atrium":               { lat: 43.4729, lng: -80.5418 },
-  // ── Outdoor campus ────────────────────────────────────────────────────
-  "Peter Russell Rock Garden":{ lat: 43.4672, lng: -80.5415 },
-  "Columbia Fields":          { lat: 43.4755, lng: -80.5480 },
-  "Columbia Lake":            { lat: 43.4700, lng: -80.5558 },
-  "REV Quad":                 { lat: 43.4699, lng: -80.5537 },
-  "Village 1 Rec Room":       { lat: 43.4700, lng: -80.5492 },
-  // ── Off-campus / uptown ───────────────────────────────────────────────
-  "Chatime Waterloo":         { lat: 43.4730, lng: -80.5395 },
-  "Pizza Nova Uptown":        { lat: 43.4660, lng: -80.5222 },
-  "Waterloo Park Entrance":   { lat: 43.4677, lng: -80.5218 },
-  "Conestoga Mall":           { lat: 43.4990, lng: -80.5225 },
-  "Uptown Waterloo":          { lat: 43.4645, lng: -80.5180 },
-  "Laurel Creek":             { lat: 43.4700, lng: -80.5500 },
-};
 
 const MAP_CONTAINER_STYLE = { width: "100%", height: "100%" };
 const MAP_TYPE_STORAGE_KEY = "wanderers-map-type";
@@ -205,6 +176,8 @@ type SortMode = "soonest" | "nearest";
 
 type MapOverlayProps = {
   onClose: () => void;
+  /** Where to land when the overlay opens, set by whatever launched it. */
+  focusTarget?: MapFocusTarget | null;
 };
 
 function MapDiscoveryContent({
@@ -242,6 +215,7 @@ function MapDiscoveryContent({
   onStartSomething,
   authFailed,
   mapsErrorCode,
+  focusTarget,
 }: {
   onClose: () => void;
   sortedBubbles: MapBubble[];
@@ -277,6 +251,7 @@ function MapDiscoveryContent({
   onStartSomething: () => void;
   authFailed: boolean;
   mapsErrorCode: string | null;
+  focusTarget?: MapFocusTarget | null;
 }) {
   const {
     hoveredEventId,
@@ -389,6 +364,40 @@ function MapDiscoveryContent({
     unlockEvent();
     recomputeClusters();
   }, [recomputeClusters, campusFilter, filteredBubbleKey, unlockEvent]);
+
+  /**
+   * Land on whatever opened the map. Declared after the unlock effect above so
+   * that when bubbles arrive and both re-run, this one wins. The ref makes it
+   * a once-per-open action rather than something that fights the user's panning.
+   */
+  const appliedFocusRef = useRef(false);
+  useEffect(() => {
+    if (appliedFocusRef.current || !focusTarget || !mapInstance) return;
+
+    if (focusTarget.bubbleId) {
+      if (filteredBubbles.some((b) => b.id === focusTarget.bubbleId)) {
+        appliedFocusRef.current = true;
+        focusEvent(focusTarget.bubbleId, { fromClick: true });
+        return;
+      }
+      // Bubbles may still be loading; wait rather than burning the one shot.
+      if (isLoading) return;
+    }
+
+    const coords = resolveZoneCoords(focusTarget.zone);
+    if (coords) {
+      appliedFocusRef.current = true;
+      animateMapCamera(mapInstance, coords, FOCUS_MAP_ZOOM);
+      setMapZoom(FOCUS_MAP_ZOOM);
+    }
+  }, [
+    focusTarget,
+    mapInstance,
+    filteredBubbles,
+    isLoading,
+    focusEvent,
+    setMapZoom,
+  ]);
 
   useEffect(() => {
     const map = mapRef.current;
@@ -914,7 +923,7 @@ function MapDiscoveryContent({
   );
 }
 
-function MapDiscoveryUI({ onClose }: MapOverlayProps) {
+function MapDiscoveryUI({ onClose, focusTarget }: MapOverlayProps) {
   const router = useRouter();
   const { filter, setFilter } = useMapFilter();
   const [campusFilter, setCampusFilter] = useState<CampusFilterId>("all");
@@ -1412,6 +1421,7 @@ function MapDiscoveryUI({ onClose }: MapOverlayProps) {
         hasActiveFilters={hasActiveFilters}
         authFailed={authFailed}
         mapsErrorCode={mapsErrorCode}
+        focusTarget={focusTarget}
         isLoading={!listFetched}
         onStartSomething={() => {
           if (isGuest) {

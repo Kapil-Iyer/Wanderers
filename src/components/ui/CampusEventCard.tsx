@@ -25,6 +25,8 @@ type CampusEventCardProps = {
   timeLabel: string;
   organizer?: string | null;
   onStartBubble: () => void;
+  /** Omitted when the event's location can't be placed on the campus map. */
+  onViewOnMap?: () => void;
 };
 
 export default function CampusEventCard({
@@ -34,6 +36,7 @@ export default function CampusEventCard({
   timeLabel,
   organizer,
   onStartBubble,
+  onViewOnMap,
 }: CampusEventCardProps) {
   const [flipped, setFlipped] = useState(false);
   const accent = "#a78bfa";
@@ -142,20 +145,36 @@ export default function CampusEventCard({
                 : "Official campus event - start a bubble and go together."}
             </p>
 
-            <motion.button
-              type="button"
-              onClick={onStartBubble}
-              className="mt-2.5 w-full h-9 rounded-full text-xs font-bold flex items-center justify-center gap-1.5 shrink-0"
-              style={{
-                background: "linear-gradient(135deg, #8b5cf6, #E0339E)",
-                color: "#fff",
-                boxShadow: "0 0 14px rgba(139,92,246,0.32)",
-              }}
-              whileHover={{ scale: 1.02 }}
-              whileTap={{ scale: 0.97 }}
-            >
-              Start a bubble <ArrowRight className="w-3.5 h-3.5" />
-            </motion.button>
+            <div className="mt-2.5 flex items-center gap-2 shrink-0">
+              <motion.button
+                type="button"
+                onClick={onStartBubble}
+                className="flex-1 min-w-0 h-9 rounded-full text-xs font-bold flex items-center justify-center gap-1.5"
+                style={{
+                  background: "linear-gradient(135deg, #8b5cf6, #E0339E)",
+                  color: "#fff",
+                  boxShadow: "0 0 14px rgba(139,92,246,0.32)",
+                }}
+                whileHover={{ scale: 1.02 }}
+                whileTap={{ scale: 0.97 }}
+              >
+                Start a bubble <ArrowRight className="w-3.5 h-3.5" />
+              </motion.button>
+              {onViewOnMap && (
+                <button
+                  type="button"
+                  onClick={onViewOnMap}
+                  className="h-9 px-2.5 rounded-full text-[11px] font-semibold shrink-0"
+                  style={{
+                    background: "rgba(255,255,255,0.04)",
+                    border: "1px solid rgba(255,255,255,0.1)",
+                    color: "var(--color-text-secondary)",
+                  }}
+                >
+                  Map
+                </button>
+              )}
+            </div>
           </div>
         </motion.div>
 
