@@ -4,7 +4,9 @@ import { createContext, useCallback, useContext, useMemo, useState } from "react
 
 export type MapTheme = "dark" | "light";
 
-const STORAGE_KEY = "wanderers-theme";
+// v2 key: resets anyone stuck on a previously stored "light" preference so the
+// map always opens in its dark cinematic default.
+const STORAGE_KEY = "wanderers-map-theme-v2";
 
 function readStoredTheme(): MapTheme {
   if (typeof window === "undefined") return "dark";

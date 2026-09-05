@@ -3,7 +3,6 @@
 import { useRef, useCallback } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { MapPin, Clock, X, ExternalLink } from "lucide-react";
-import { getCategoryTheme } from "@/lib/eventCategories";
 import { useUserLocation } from "@/contexts/UserLocationContext";
 import { formatDistance, haversineDistance, openGoogleMapsDirections } from "@/lib/distance";
 
@@ -36,7 +35,7 @@ export type EventPillProps = {
 export default function EventPill({
   emoji,
   title,
-  category,
+  category: _category,
   zone,
   lat,
   lng,
@@ -56,7 +55,6 @@ export default function EventPill({
   onClose,
   onSelect,
 }: EventPillProps) {
-  const theme = getCategoryTheme(category);
   const { userLocation, locationStatus } = useUserLocation();
   const spotsLeft = Math.max(0, maxPeople - joined);
   const distanceLabel =
@@ -69,6 +67,7 @@ export default function EventPill({
   const tapTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   const avatars = PLACEHOLDER_AVATARS.slice(0, Math.min(joined || 1, 4));
+  const selected = isActive || isLocked;
 
   const handlePointerEnter = useCallback(() => {
     onHoverStart();
@@ -112,12 +111,10 @@ export default function EventPill({
     [isExpanded, isLocked, onHoverStart, onJoin, onSelect, title]
   );
 
-  const showGlow = isHovered || isActive || isLocked;
-
   return (
     <div
-      className={`pointer-events-auto select-none event-pill-cursor relative w-max min-w-[80px] ${
-        isActive || isHovered || isLocked ? "z-30" : "z-10"
+      className={`pointer-events-auto select-none event-pill-cursor relative ${
+        selected || isHovered ? "z-30" : "z-10"
       }`}
       onMouseEnter={handlePointerEnter}
       onMouseLeave={handlePointerLeave}
@@ -131,19 +128,22 @@ export default function EventPill({
             animate={{ opacity: 1, scale: 1, y: 0 }}
             exit={{ opacity: 0, scale: 0.88, y: 6 }}
             transition={{ duration: 0.2, ease: "easeOut" }}
-            className="absolute bottom-full left-1/2 mb-1.5 w-[240px] -translate-x-1/2"
+            className="absolute bottom-full left-1/2 mb-2 w-[240px] -translate-x-1/2"
             onMouseEnter={handlePointerEnter}
             onMouseLeave={handlePointerLeave}
           >
             <div
-              className="relative overflow-hidden rounded-xl border border-white/10 bg-[rgba(15,17,35,0.92)] backdrop-blur-[10px]"
+              className="relative overflow-hidden rounded-xl border backdrop-blur-[12px]"
               style={{
-                boxShadow: `0 12px 40px -8px ${theme.glow}, 0 4px 20px rgba(0,0,0,0.4), 0 0 0 1px rgba(255,255,255,0.05)`,
+                background: "rgba(17, 10, 21, 0.93)",
+                borderColor: "rgba(224, 51, 158, 0.35)",
+                boxShadow:
+                  "0 12px 40px -8px rgba(224, 51, 158, 0.28), 0 4px 20px rgba(0,0,0,0.45)",
               }}
             >
               <div
-                className="absolute inset-x-0 top-0 h-[3px]"
-                style={{ backgroundColor: theme.border }}
+                className="absolute inset-x-0 top-0 h-[2px]"
+                style={{ background: "linear-gradient(90deg, #FF5A36, #E0339E 60%, #8b5cf6)" }}
               />
 
               {isLocked && onClose && (
@@ -190,7 +190,7 @@ export default function EventPill({
                         {avatars.map((av, i) => (
                           <span
                             key={i}
-                            className="flex h-6 w-6 items-center justify-center rounded-full border border-[#0f1117] bg-white/10 text-xs"
+                            className="flex h-6 w-6 items-center justify-center rounded-full border border-[#0b0710] bg-white/10 text-xs"
                           >
                             {av}
                           </span>
@@ -199,8 +199,8 @@ export default function EventPill({
                       <span
                         className="rounded-full px-2 py-0.5 text-[10px] font-medium tabular-nums"
                         style={{
-                          backgroundColor: `${theme.border}33`,
-                          color: theme.border,
+                          backgroundColor: "rgba(224, 51, 158, 0.2)",
+                          color: "#f9a8d4",
                         }}
                       >
                         {joined}/{maxPeople} spots
@@ -211,7 +211,9 @@ export default function EventPill({
                       <div className="h-1 overflow-hidden rounded-full bg-white/10">
                         <motion.div
                           className="h-full rounded-full"
-                          style={{ backgroundColor: theme.border }}
+                          style={{
+                            background: "linear-gradient(90deg, #FF5A36, #E0339E 60%, #8b5cf6)",
+                          }}
                           initial={{ width: 0 }}
                           animate={{ width: `${fillPct}%` }}
                           transition={{ duration: 0.4, ease: "easeOut" }}
@@ -226,9 +228,10 @@ export default function EventPill({
                         e.stopPropagation();
                         onJoin();
                       }}
-                      className="mt-3 w-full rounded-lg py-2.5 text-[13px] font-bold text-white transition disabled:opacity-50"
+                      className="mt-3 w-full rounded-lg py-2.5 text-[13px] font-bold transition disabled:opacity-50"
                       style={{
-                        background: `linear-gradient(135deg, ${theme.gradientFrom}, ${theme.gradientTo})`,
+                        background: "linear-gradient(135deg, #FF5A36, #E0339E 60%, #8b5cf6)",
+                        color: "#ffffff",
                       }}
                     >
                       {isJoining
@@ -246,7 +249,7 @@ export default function EventPill({
                         e.stopPropagation();
                         openGoogleMapsDirections(lat, lng);
                       }}
-                      className="mt-2.5 flex w-full items-center justify-center gap-1 text-xs text-[#6366f1] underline-offset-2 transition hover:underline"
+                      className="mt-2.5 flex w-full items-center justify-center gap-1 text-xs text-[#f9a8d4] underline-offset-2 transition hover:underline"
                     >
                       Open in Google Maps
                       <ExternalLink className="h-3 w-3" />
@@ -268,7 +271,7 @@ export default function EventPill({
                         e.stopPropagation();
                         openGoogleMapsDirections(lat, lng);
                       }}
-                      className="mt-2 flex w-full items-center justify-center gap-1 text-xs text-[#6366f1] underline-offset-2 transition hover:underline"
+                      className="mt-2 flex w-full items-center justify-center gap-1 text-xs text-[#f9a8d4] underline-offset-2 transition hover:underline"
                     >
                       Open in Google Maps
                       <ExternalLink className="h-3 w-3" />
@@ -281,60 +284,42 @@ export default function EventPill({
         )}
       </AnimatePresence>
 
+      {/* Premium circular marker — map focal point */}
       <motion.div
-        initial={{ opacity: 0, scale: 0.9 }}
+        initial={{ opacity: 0, scale: 0.85 }}
         animate={{
           opacity: 1,
-          scale: 1,
-          y: isExpanded ? 0 : [0, -3, 0],
+          scale: isHovered || selected ? 1.15 : 1,
+          y: isExpanded ? 0 : [0, -2, 0],
         }}
         transition={
-          isExpanded
-            ? { type: "spring", stiffness: 420, damping: 32 }
+          isHovered || selected
+            ? { type: "spring", stiffness: 420, damping: 22 }
             : {
-                y: { duration: 3, repeat: Infinity, ease: "easeInOut", delay: floatDelay },
-                opacity: { duration: 0.3 },
+                y: { duration: 3.2, repeat: Infinity, ease: "easeInOut", delay: floatDelay },
+                opacity: { duration: 0.25 },
               }
         }
-        className={`relative w-max min-w-[80px] max-w-[120px] transition-shadow duration-300`}
+        className={`relative flex h-11 w-11 items-center justify-center rounded-full border backdrop-blur-[10px] ${
+          selected ? "animate-pulse-marker" : ""
+        }`}
         style={{
-          boxShadow: showGlow
-            ? `0 0 14px ${theme.glow}, 0 4px 20px rgba(0,0,0,0.4), 0 0 0 1px ${theme.border}44`
-            : "0 4px 20px rgba(0,0,0,0.4), 0 0 0 1px rgba(255,255,255,0.05)",
+          background: "rgba(17, 10, 21, 0.85)",
+          borderColor:
+            isHovered || selected
+              ? "rgba(224, 51, 158, 1)"
+              : "rgba(224, 51, 158, 0.45)",
+          boxShadow: selected
+            ? undefined
+            : isHovered
+              ? "0 0 18px rgba(224, 51, 158, 0.5), 0 4px 16px rgba(0,0,0,0.4)"
+              : "0 0 12px rgba(224, 51, 158, 0.25), 0 4px 14px rgba(0,0,0,0.4)",
         }}
+        title={title}
       >
-        <div
-          className="relative overflow-hidden rounded-[20px] border border-white/[0.08] bg-[rgba(15,17,35,0.85)] backdrop-blur-[10px]"
-        >
-          <div
-            className="absolute inset-x-0 top-0 h-[3px]"
-            style={{ backgroundColor: theme.border }}
-          />
-          <div className="flex min-w-0 items-center gap-1.5 px-2.5 py-1.5">
-            <span className="shrink-0 text-base leading-none">{emoji}</span>
-            <span className="min-w-0 flex-1 truncate text-xs font-semibold text-white">{title}</span>
-            <span
-              className="shrink-0 rounded-full px-1.5 py-0.5 text-[10px] font-semibold tabular-nums"
-              style={{
-                backgroundColor: `${theme.border}33`,
-                color: theme.border,
-              }}
-            >
-              {joined}/{maxPeople}
-            </span>
-          </div>
-        </div>
-
-        {/* Chat-bubble anchor notch */}
-        <div
-          className="mx-auto h-0 w-0"
-          style={{
-            borderLeft: "6px solid transparent",
-            borderRight: "6px solid transparent",
-            borderTop: `6px solid rgba(15,17,35,0.85)`,
-            filter: "drop-shadow(0 2px 2px rgba(0,0,0,0.3))",
-          }}
-        />
+        <span className="leading-none" style={{ fontSize: 20 }} aria-hidden>
+          {emoji}
+        </span>
       </motion.div>
     </div>
   );

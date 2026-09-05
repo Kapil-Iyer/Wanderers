@@ -13,17 +13,25 @@ export default function ClusterPill({ count, onClick }: ClusterPillProps) {
       type="button"
       initial={{ opacity: 0, scale: 0.8 }}
       animate={{ opacity: 1, scale: 1 }}
+      whileHover={{ scale: 1.1 }}
       whileTap={{ scale: 0.95 }}
+      transition={{ type: "spring", stiffness: 420, damping: 28 }}
       onClick={(e) => {
         e.stopPropagation();
         onClick();
       }}
-      className="pointer-events-auto flex items-center gap-1.5 rounded-full border border-white/15 bg-[rgba(15,17,35,0.85)] px-3 py-1.5 text-xs font-semibold text-white shadow-[0_4px_20px_rgba(0,0,0,0.4)] backdrop-blur-[10px] hover:border-white/25"
+      className="pointer-events-auto flex h-10 w-10 items-center justify-center rounded-full border text-sm font-bold tabular-nums"
+      style={{
+        background: "rgba(17, 10, 21, 0.92)",
+        borderColor: "rgba(224, 51, 158, 0.55)",
+        color: "#f9a8d4",
+        boxShadow:
+          "0 0 0 1px rgba(224, 51, 158, 0.22), 0 4px 18px rgba(0, 0, 0, 0.45), 0 0 16px rgba(224, 51, 158, 0.22)",
+        backdropFilter: "blur(10px)",
+      }}
+      aria-label={`${count} nearby events`}
     >
-      <span className="flex h-5 min-w-[20px] items-center justify-center rounded-full bg-white/15 px-1 text-[10px] font-bold">
-        {count}
-      </span>
-      nearby
+      {count}
     </motion.button>
   );
 }

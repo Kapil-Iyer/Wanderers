@@ -7,6 +7,7 @@ export const CATEGORY_FILTERS: { id: CategoryFilterId; label: string; emoji?: st
   { id: "gaming", label: "Gaming", emoji: "🎮" },
   { id: "food", label: "Food", emoji: "🍕" },
   { id: "music", label: "Music", emoji: "🎵" },
+  { id: "social", label: "Social", emoji: "🎉" },
 ];
 
 export type CategoryTheme = {

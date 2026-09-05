@@ -1,75 +1,176 @@
 /**
- * Professional dark map style for Waterloo, ON.
- * Roads are legible, parks and schools visible, business clutter hidden.
- * Palette: deep navy base, slate road labels, teal-tinted accent on highways.
+ * Premium cinematic dark map style — warm-plum ink canvas matching the app's
+ * Ember Aurora palette, so the map recedes behind activity cards and markers.
+ *
+ * Detail parity with light mode is deliberate: streets, street names, building
+ * footprints, parks and transit all stay visible so the map is navigable. What
+ * stays hidden is only POI/transit *icons*, since Google's coloured glyphs
+ * compete with the event markers that are meant to be the focal point.
  */
 export const DARK_MAP_STYLES: google.maps.MapTypeStyle[] = [
-  // ── Base geometry ──────────────────────────────────────────────
-  { elementType: "geometry", stylers: [{ color: "#0d1018" }] },
+  { elementType: "geometry", stylers: [{ color: "#0f0a14" }] },
+  { elementType: "labels.text.fill", stylers: [{ color: "#8a7597" }] },
+  { elementType: "labels.text.stroke", stylers: [{ color: "#0b0710" }] },
 
-  // ── Labels: icons off, text subtle by default ──────────────────
-  { elementType: "labels.icon", stylers: [{ visibility: "off" }] },
-  { elementType: "labels.text.fill", stylers: [{ color: "#3d4560" }] },
-  { elementType: "labels.text.stroke", stylers: [{ color: "#0a0d14" }] },
+  {
+    featureType: "administrative",
+    elementType: "geometry",
+    stylers: [{ color: "#0f0a14" }],
+  },
+  {
+    featureType: "administrative",
+    elementType: "geometry.stroke",
+    stylers: [{ color: "#2c1c33" }],
+  },
+  {
+    featureType: "administrative.locality",
+    elementType: "labels.text.fill",
+    stylers: [{ color: "#b199bf" }, { visibility: "on" }],
+  },
+  {
+    featureType: "administrative.neighborhood",
+    elementType: "labels.text.fill",
+    stylers: [{ color: "#8a7597" }, { visibility: "on" }],
+  },
 
-  // ── Administrative ─────────────────────────────────────────────
-  { featureType: "administrative", elementType: "geometry", stylers: [{ color: "#181c28" }] },
-  { featureType: "administrative.land_parcel", stylers: [{ visibility: "off" }] },
-  { featureType: "administrative.neighborhood", elementType: "labels", stylers: [{ visibility: "off" }] },
-  { featureType: "administrative.country", elementType: "labels", stylers: [{ visibility: "off" }] },
-  { featureType: "administrative.province", elementType: "labels", stylers: [{ visibility: "off" }] },
-  // Show city name (e.g. "Waterloo") at low zoom
-  { featureType: "administrative.locality", elementType: "labels.text.fill", stylers: [{ color: "#6b7a9e" }] },
+  // Building footprints — the blocks that make campus legible at high zoom.
+  {
+    featureType: "landscape.man_made",
+    elementType: "geometry.fill",
+    stylers: [{ color: "#181020" }, { visibility: "on" }],
+  },
+  {
+    featureType: "landscape.man_made",
+    elementType: "geometry.stroke",
+    stylers: [{ color: "#2a1c34" }, { visibility: "on" }],
+  },
+  {
+    featureType: "landscape.natural",
+    elementType: "geometry.fill",
+    stylers: [{ color: "#110c17" }],
+  },
 
-  // ── Landscape ──────────────────────────────────────────────────
-  { featureType: "landscape", elementType: "geometry", stylers: [{ color: "#10131e" }] },
-  { featureType: "landscape.man_made", elementType: "geometry", stylers: [{ color: "#121620" }] },
-  { featureType: "landscape.natural", elementType: "geometry", stylers: [{ color: "#0c1016" }] },
-  { featureType: "landscape", elementType: "labels", stylers: [{ visibility: "off" }] },
+  {
+    featureType: "poi",
+    elementType: "geometry.fill",
+    stylers: [{ color: "#1a1123" }, { visibility: "on" }],
+  },
+  {
+    featureType: "poi",
+    elementType: "labels.text.fill",
+    stylers: [{ color: "#8b7898" }, { visibility: "on" }],
+  },
+  { featureType: "poi", elementType: "labels.icon", stylers: [{ visibility: "off" }] },
+  {
+    featureType: "poi.park",
+    elementType: "geometry.fill",
+    stylers: [{ color: "#12211b" }, { visibility: "on" }],
+  },
+  {
+    featureType: "poi.park",
+    elementType: "labels.text.fill",
+    stylers: [{ color: "#71947f" }],
+  },
+  {
+    featureType: "poi.school",
+    elementType: "geometry.fill",
+    stylers: [{ color: "#1c1226" }],
+  },
 
-  // ── POI - mostly hidden; parks & schools shown ─────────────────
-  { featureType: "poi", stylers: [{ visibility: "off" }] },
-  // Parks: dark green fill + subtle label
-  { featureType: "poi.park", elementType: "geometry", stylers: [{ visibility: "on" }, { color: "#0d1d13" }] },
-  { featureType: "poi.park", elementType: "labels.text", stylers: [{ visibility: "on" }] },
-  { featureType: "poi.park", elementType: "labels.text.fill", stylers: [{ color: "#3a6349" }] },
-  // Schools/university: dark indigo fill + slate label (UW buildings show up nicely)
-  { featureType: "poi.school", elementType: "geometry", stylers: [{ visibility: "on" }, { color: "#131826" }] },
-  { featureType: "poi.school", elementType: "labels.text", stylers: [{ visibility: "on" }] },
-  { featureType: "poi.school", elementType: "labels.text.fill", stylers: [{ color: "#4d5e8e" }] },
+  {
+    featureType: "road",
+    elementType: "geometry.fill",
+    stylers: [{ color: "#241730" }],
+  },
+  {
+    featureType: "road",
+    elementType: "geometry.stroke",
+    stylers: [{ color: "#0b0710" }],
+  },
+  {
+    featureType: "road",
+    elementType: "labels.text.fill",
+    stylers: [{ color: "#9c88a9" }, { visibility: "on" }],
+  },
+  {
+    featureType: "road",
+    elementType: "labels.text.stroke",
+    stylers: [{ color: "#0b0710" }],
+  },
+  { featureType: "road", elementType: "labels.icon", stylers: [{ visibility: "off" }] },
+  {
+    featureType: "road.highway",
+    elementType: "geometry.fill",
+    stylers: [{ color: "#3a2442" }],
+  },
+  {
+    featureType: "road.highway",
+    elementType: "geometry.stroke",
+    stylers: [{ color: "#0b0710" }],
+  },
+  {
+    featureType: "road.highway",
+    elementType: "labels.text.fill",
+    stylers: [{ color: "#c0acca" }],
+  },
+  {
+    featureType: "road.arterial",
+    elementType: "geometry.fill",
+    stylers: [{ color: "#2a1a35" }],
+  },
+  {
+    featureType: "road.local",
+    elementType: "geometry.fill",
+    stylers: [{ color: "#1e1428" }],
+  },
+  {
+    featureType: "road.local",
+    elementType: "labels.text.fill",
+    stylers: [{ color: "#8b7898" }],
+  },
 
-  // ── Roads ──────────────────────────────────────────────────────
-  { featureType: "road", elementType: "geometry.fill", stylers: [{ color: "#181e2c" }] },
-  { featureType: "road", elementType: "geometry.stroke", stylers: [{ color: "#10141e" }] },
-  // Local roads - visible but dim; you can read street names
-  { featureType: "road.local", elementType: "labels", stylers: [{ visibility: "on" }] },
-  { featureType: "road.local", elementType: "labels.text.fill", stylers: [{ color: "#3a4460" }] },
-  // Arterials (University Ave, King St, Columbia St) - more prominent
-  { featureType: "road.arterial", elementType: "geometry.fill", stylers: [{ color: "#1c2538" }] },
-  { featureType: "road.arterial", elementType: "labels", stylers: [{ visibility: "on" }] },
-  { featureType: "road.arterial", elementType: "labels.text.fill", stylers: [{ color: "#5a6b90" }] },
-  // Highways - brightest roads
-  { featureType: "road.highway", elementType: "geometry.fill", stylers: [{ color: "#212e44" }] },
-  { featureType: "road.highway", elementType: "geometry.stroke", stylers: [{ color: "#162034" }] },
-  { featureType: "road.highway", elementType: "labels", stylers: [{ visibility: "on" }] },
-  { featureType: "road.highway", elementType: "labels.text.fill", stylers: [{ color: "#7a90b8" }] },
+  {
+    featureType: "transit.line",
+    elementType: "geometry",
+    stylers: [{ color: "#2b1d36" }, { visibility: "on" }],
+  },
+  {
+    featureType: "transit.station",
+    elementType: "geometry",
+    stylers: [{ color: "#20152a" }, { visibility: "on" }],
+  },
+  {
+    featureType: "transit",
+    elementType: "labels.text.fill",
+    stylers: [{ color: "#7d6b8a" }],
+  },
+  { featureType: "transit", elementType: "labels.icon", stylers: [{ visibility: "off" }] },
 
-  // ── Transit - lines visible, station labels on ─────────────────
-  { featureType: "transit", stylers: [{ visibility: "off" }] },
-  { featureType: "transit.line", elementType: "geometry", stylers: [{ visibility: "on" }, { color: "#1a2440" }] },
-  { featureType: "transit.station", elementType: "labels.text", stylers: [{ visibility: "on" }] },
-  { featureType: "transit.station", elementType: "labels.text.fill", stylers: [{ color: "#49587e" }] },
-
-  // ── Water ──────────────────────────────────────────────────────
-  { featureType: "water", elementType: "geometry", stylers: [{ color: "#07090f" }] },
-  { featureType: "water", elementType: "labels.text.fill", stylers: [{ color: "#18233a" }] },
+  {
+    featureType: "water",
+    elementType: "geometry.fill",
+    stylers: [{ color: "#0a1220" }],
+  },
+  {
+    featureType: "water",
+    elementType: "geometry.stroke",
+    stylers: [{ color: "#16203a" }],
+  },
+  {
+    featureType: "water",
+    elementType: "labels.text.fill",
+    stylers: [{ color: "#4d6480" }],
+  },
 ];
+
+/** Ink base behind tiles — prevents a white flash before the first paint. */
+export const MAP_BACKGROUND = "#0b0710";
 
 /** Base options shared by both raster and vector (mapId) modes */
 const MAP_OPTIONS_BASE: google.maps.MapOptions = {
   disableDefaultUI: true,
   zoomControl: true,
-  rotateControl: true,        // lets users orbit the 3D view
+  rotateControl: true,
   mapTypeControl: false,
   fullscreenControl: false,
   streetViewControl: false,
@@ -80,17 +181,20 @@ const MAP_OPTIONS_BASE: google.maps.MapOptions = {
   maxZoom: 20,
   tilt: 45,
   heading: 0,
+  backgroundColor: MAP_BACKGROUND,
 };
 
 /**
- * When NEXT_PUBLIC_GOOGLE_MAPS_MAP_ID is set the map uses Google's vector
- * renderer which gives real 3D building extrusions. The `styles` array is
- * ignored in vector mode - use Google Cloud Console Map Style to theme it.
- *
- * When no mapId is present we fall back to the raster renderer + dark styles.
+ * A cloud `mapId` switches Maps to the vector renderer, which ignores the
+ * `styles` array and themes from Google Cloud Console instead — that made the
+ * map render in Google's default light palette. We keep the raster renderer so
+ * DARK_MAP_STYLES always applies; set NEXT_PUBLIC_GOOGLE_MAPS_USE_CLOUD_STYLE
+ * to "true" only once a dark style is published to that map ID.
  */
 export function buildMapOptions(mapId?: string): google.maps.MapOptions {
-  if (mapId) {
+  const useCloudStyle =
+    process.env.NEXT_PUBLIC_GOOGLE_MAPS_USE_CLOUD_STYLE === "true";
+  if (mapId && useCloudStyle) {
     return { ...MAP_OPTIONS_BASE, mapId };
   }
   return { ...MAP_OPTIONS_BASE, styles: DARK_MAP_STYLES };
@@ -107,11 +211,7 @@ export const MAP_OPTIONS: google.maps.MapOptions = buildMapOptions(
 export function applyMapDisplayTheme(
   map: google.maps.Map,
   theme: "dark" | "light",
-  mapId?: string
+  _mapId?: string
 ) {
-  if (theme === "light") {
-    map.setOptions({ styles: [] });
-  } else if (!mapId) {
-    map.setOptions({ styles: DARK_MAP_STYLES });
-  }
+  map.setOptions({ styles: theme === "light" ? [] : DARK_MAP_STYLES });
 }

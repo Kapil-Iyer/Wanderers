@@ -184,6 +184,48 @@ export default function AppHeader({
   const pathname = usePathname();
   const router = useRouter();
   const { expanded: sidebarExpanded } = useSidebar();
+  const headerRef = useRef<HTMLElement>(null);
+
+  /**
+   * One light source for the whole header: pointer position drives the
+   * specular wash, the top edge highlight and the brand tile's tilt. Written
+   * straight to CSS custom properties so moving the mouse never re-renders.
+   */
+  useEffect(() => {
+    const el = headerRef.current;
+    if (!el) return;
+    if (!window.matchMedia("(hover: hover)").matches) return;
+    if (window.matchMedia("(prefers-reduced-motion: reduce)").matches) return;
+
+    let frame = 0;
+    const onMove = (e: PointerEvent) => {
+      if (frame) return;
+      frame = requestAnimationFrame(() => {
+        frame = 0;
+        const rect = el.getBoundingClientRect();
+        const x = (e.clientX - rect.left) / rect.width;
+        const y = (e.clientY - rect.top) / rect.height;
+        el.style.setProperty("--lx", `${(x * 100).toFixed(2)}%`);
+        el.style.setProperty("--ly", `${(y * 100).toFixed(2)}%`);
+        el.style.setProperty("--ty", `${((x - 0.5) * 13).toFixed(2)}deg`);
+        el.style.setProperty("--tx", `${((0.5 - y) * 9).toFixed(2)}deg`);
+      });
+    };
+    const onLeave = () => {
+      el.style.setProperty("--lx", "50%");
+      el.style.setProperty("--ly", "0%");
+      el.style.setProperty("--tx", "0deg");
+      el.style.setProperty("--ty", "0deg");
+    };
+
+    el.addEventListener("pointermove", onMove);
+    el.addEventListener("pointerleave", onLeave);
+    return () => {
+      if (frame) cancelAnimationFrame(frame);
+      el.removeEventListener("pointermove", onMove);
+      el.removeEventListener("pointerleave", onLeave);
+    };
+  }, []);
 
   const handleStartSomething = () => {
     if (onStartSomething) {
@@ -195,27 +237,15 @@ export default function AppHeader({
 
   return (
     <header
-      className={`sticky top-0 z-50 transition-[margin] duration-300 ease-out ${
+      ref={headerRef}
+      className={`app-header sticky top-0 z-50 transition-[margin] duration-300 ease-out ${
         sidebarExpanded ? "lg:ml-64" : "lg:ml-3"
       }`}
-      style={{
-        background:
-          "linear-gradient(180deg, rgba(14,12,24,0.97) 0%, rgba(9,8,17,0.9) 100%)",
-        borderBottom: "1px solid rgba(139,92,246,0.18)",
-        boxShadow:
-          "0 1px 0 rgba(255,255,255,0.06) inset, 0 12px 40px -16px rgba(0,0,0,0.7), 0 4px 16px rgba(139,92,246,0.08)",
-        backdropFilter: "blur(22px) saturate(1.2)",
-      }}
     >
-      {/* Top edge light */}
-      <div
-        className="pointer-events-none absolute inset-x-0 top-0 h-px"
-        style={{
-          background:
-            "linear-gradient(90deg, transparent 5%, rgba(139,92,246,0.5) 50%, transparent 95%)",
-        }}
-        aria-hidden
-      />
+      {/* Pointer-tracked specular wash across the panel */}
+      <div className="app-header__sheen" aria-hidden />
+      {/* Lit hairline along the panel's top edge */}
+      <div className="app-header__edge" aria-hidden />
       {/* Soft aurora wash under header */}
       <div
         className="pointer-events-none absolute inset-x-0 bottom-0 h-12 -z-10 translate-y-full opacity-40"
@@ -226,30 +256,18 @@ export default function AppHeader({
         aria-hidden
       />
 
-      <div className="flex items-center justify-between gap-3 px-4 sm:px-6 h-16 max-w-[1400px] mx-auto flex-nowrap">
+      <div className="relative z-10 flex items-center justify-between gap-3 px-4 sm:px-6 h-16 max-w-[1400px] mx-auto flex-nowrap">
         {/* Brand → Home + campus picker */}
-        <div className="flex items-center gap-3 shrink-0 min-w-0">
+        <div className="app-brand-stage flex items-center gap-3 shrink-0 min-w-0">
           <Link
             href="/home"
-            className={`relative h-10 w-10 overflow-hidden rounded-xl shrink-0 transition-transform duration-200 hover:scale-105 hover:-rotate-1 ${
+            className={`app-brand-tile h-10 w-10 overflow-hidden rounded-xl shrink-0 ${
               sidebarExpanded ? "lg:hidden" : ""
             }`}
             aria-label="Wanderers home"
-            style={{
-              border: "1px solid rgba(139,92,246,0.4)",
-              boxShadow:
-                "0 1px 0 rgba(255,255,255,0.18) inset, 0 6px 18px rgba(139,92,246,0.3), 0 2px 0 rgba(0,0,0,0.25)",
-            }}
           >
             <Image src={logo} alt="" className="h-full w-full object-cover" priority />
-            <div
-              className="pointer-events-none absolute inset-0"
-              style={{
-                background:
-                  "linear-gradient(145deg, rgba(255,255,255,0.18) 0%, transparent 45%)",
-              }}
-              aria-hidden
-            />
+            <div className="app-brand-tile__gloss" aria-hidden />
           </Link>
           <div className="min-w-0">
             <Link
@@ -257,7 +275,7 @@ export default function AppHeader({
               className={`block ${sidebarExpanded ? "lg:hidden" : ""}`}
               aria-label="Wanderers home"
             >
-              <span className="font-display text-xl font-bold leading-none block tracking-tight">
+              <span className="app-brand-wordmark font-display text-xl font-bold leading-none block tracking-tight">
                 <span className="text-gradient">Wanderers</span>
               </span>
             </Link>
@@ -274,16 +292,9 @@ export default function AppHeader({
           </div>
         </div>
 
-        {/* Primary nav - pill rail */}
+        {/* Primary nav — keys seated in a milled rail */}
         <nav
-          className="hidden md:flex items-center gap-0.5 p-1.5 rounded-2xl"
-          style={{
-            background:
-              "linear-gradient(165deg, rgba(28,22,42,0.85) 0%, rgba(10,8,16,0.9) 100%)",
-            border: "1px solid rgba(139,92,246,0.14)",
-            boxShadow:
-              "0 1px 0 rgba(255,255,255,0.05) inset, 0 8px 24px -12px rgba(0,0,0,0.55)",
-          }}
+          className="app-nav-rail hidden md:flex items-center gap-0.5 p-1.5 rounded-2xl"
           aria-label="Main"
         >
           {navLinks.map((link) => {
@@ -295,29 +306,22 @@ export default function AppHeader({
                 pathname?.startsWith(link.href));
             const Icon = link.icon;
             return (
-              <Link key={link.href} href={link.href}>
-                <motion.span
-                  className="relative flex items-center gap-1.5 px-3.5 py-2 rounded-xl text-xs font-semibold whitespace-nowrap"
-                  style={{
-                    color: active ? "#0a0a14" : "var(--color-text-secondary)",
-                    background: active
-                      ? "linear-gradient(145deg, #f472c8, #E0339E 50%, #a3187a)"
-                      : "transparent",
-                    boxShadow: active
-                      ? "0 1px 0 rgba(255,255,255,0.35) inset, 0 4px 14px rgba(224,51,158,0.4)"
-                      : "none",
-                  }}
-                  whileHover={
-                    active
-                      ? { scale: 1.02 }
-                      : { backgroundColor: "rgba(255,255,255,0.06)", color: "#FAFAFA" }
-                  }
-                  whileTap={{ scale: 0.97 }}
-                  transition={{ duration: 0.15 }}
-                >
-                  <Icon className="w-3.5 h-3.5" strokeWidth={active ? 2.4 : 1.8} />
-                  {link.label}
-                </motion.span>
+              <Link
+                key={link.href}
+                href={link.href}
+                aria-current={active ? "page" : undefined}
+                className={`app-nav-key ${active ? "app-nav-key--active" : ""}`}
+              >
+                {active && (
+                  <motion.span
+                    layoutId="app-nav-keycap"
+                    className="app-nav-keycap"
+                    transition={{ type: "spring", stiffness: 420, damping: 34 }}
+                    aria-hidden
+                  />
+                )}
+                <Icon className="w-3.5 h-3.5" strokeWidth={active ? 2.4 : 1.8} />
+                <span>{link.label}</span>
               </Link>
             );
           })}
@@ -329,25 +333,21 @@ export default function AppHeader({
 
         {/* Actions */}
         <div className="flex items-center gap-2 shrink-0">
-          <motion.button
+          <button
             type="button"
             onClick={handleStartSomething}
             aria-label="Start Something - create a new bubble"
-            className="flex items-center gap-1.5 h-9 px-3 sm:px-3.5 rounded-xl text-xs font-bold shrink-0"
+            className="app-cap flex items-center gap-1.5 h-9 px-3 sm:px-3.5 rounded-xl text-xs font-bold shrink-0"
             style={{
-              background: "linear-gradient(135deg, #8b5cf6 0%, #E0339E 100%)",
+              background: "linear-gradient(180deg, #a480f8 0%, #8b5cf6 38%, #E0339E 100%)",
               color: "#fff",
-              border: "1px solid rgba(255,255,255,0.25)",
-              boxShadow:
-                "0 1px 0 rgba(255,255,255,0.35) inset, 0 4px 14px rgba(139,92,246,0.35)",
+              border: "1px solid rgba(255,255,255,0.28)",
             }}
-            whileHover={{ scale: 1.04, y: -1 }}
-            whileTap={{ scale: 0.96 }}
           >
             <Plus className="w-3.5 h-3.5" strokeWidth={2.5} />
             <span className="hidden sm:inline">Start Something</span>
             <span className="sm:hidden">Start</span>
-          </motion.button>
+          </button>
 
           <div className="flex md:hidden items-center gap-1">
             {[
@@ -370,17 +370,17 @@ export default function AppHeader({
                 <Link
                   key={href}
                   href={href}
-                  className="w-9 h-9 rounded-xl flex items-center justify-center"
+                  className="app-cap app-cap--quiet w-9 h-9 rounded-xl flex items-center justify-center"
                   style={{
                     background: on
-                      ? "linear-gradient(145deg, rgba(224,51,158,0.22), rgba(224,51,158,0.06))"
+                      ? "linear-gradient(180deg, rgba(224,51,158,0.26), rgba(224,51,158,0.06))"
                       : "rgba(255,255,255,0.04)",
                     border: on
                       ? "1px solid rgba(224,51,158,0.35)"
                       : "1px solid rgba(255,255,255,0.08)",
-                    color: on ? "#E0339E" : "var(--color-text-secondary)",
-                    boxShadow: on ? "0 1px 0 rgba(255,255,255,0.08) inset" : "none",
+                    color: on ? "#f472c8" : "var(--color-text-secondary)",
                   }}
+                  aria-current={on ? "page" : undefined}
                   aria-label={label}
                 >
                   <Icon className="w-4 h-4" />
@@ -390,20 +390,17 @@ export default function AppHeader({
           </div>
 
           {onNotificationsClick && (
-            <motion.button
+            <button
               type="button"
               onClick={onNotificationsClick}
               aria-label={`Notifications${notificationCount ? `, ${notificationCount} pending` : ""}`}
-              className="relative w-9 h-9 rounded-xl flex items-center justify-center"
+              className="app-cap app-cap--quiet w-9 h-9 rounded-xl flex items-center justify-center"
               style={{
                 background:
-                  "linear-gradient(165deg, rgba(26,20,38,0.9) 0%, rgba(14,11,20,0.95) 100%)",
+                  "linear-gradient(180deg, rgba(26,20,38,0.9) 0%, rgba(14,11,20,0.95) 100%)",
                 border: "1px solid rgba(255,255,255,0.1)",
                 color: "var(--color-text-secondary)",
-                boxShadow: "0 1px 0 rgba(255,255,255,0.06) inset, 0 4px 12px rgba(0,0,0,0.35)",
               }}
-              whileHover={{ scale: 1.06, color: "var(--color-text-primary)" }}
-              whileTap={{ scale: 0.94 }}
             >
               <Bell className="w-4 h-4" />
               {notificationCount > 0 && (
@@ -418,26 +415,22 @@ export default function AppHeader({
                   {notificationCount}
                 </span>
               )}
-            </motion.button>
+            </button>
           )}
 
-          <motion.button
+          <button
             type="button"
             onClick={() => router.push("/profile")}
             aria-label="Your profile"
-            className="w-9 h-9 rounded-xl flex items-center justify-center text-xs font-bold"
+            className="app-cap w-9 h-9 rounded-xl flex items-center justify-center text-xs font-bold"
             style={{
-              background: "linear-gradient(135deg, #8b5cf6 0%, #E0339E 100%)",
+              background: "linear-gradient(180deg, #a480f8 0%, #8b5cf6 40%, #E0339E 100%)",
               color: "#fff",
-              border: "1px solid rgba(255,255,255,0.25)",
-              boxShadow:
-                "0 1px 0 rgba(255,255,255,0.4) inset, 0 6px 16px rgba(139,92,246,0.4), 0 2px 0 rgba(0,0,0,0.2)",
+              border: "1px solid rgba(255,255,255,0.28)",
             }}
-            whileHover={{ scale: 1.08, y: -1 }}
-            whileTap={{ scale: 0.94 }}
           >
             {profileInitials ?? <User className="w-4 h-4" />}
-          </motion.button>
+          </button>
         </div>
       </div>
     </header>
