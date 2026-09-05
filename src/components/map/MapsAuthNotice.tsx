@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { AlertTriangle, ExternalLink, X } from "lucide-react";
 
 type Diagnosis = {
@@ -10,8 +10,12 @@ type Diagnosis = {
   linkLabel: string;
 };
 
-/** Maps each Google error code to the one setting that actually causes it. */
-function diagnose(code: string | null): Diagnosis {
+/**
+ * Maps each Google error code to the one setting that actually causes it.
+ * `origin` is the live origin the page is served from, so the referrer advice
+ * names the real entry to add instead of assuming localhost.
+ */
+function diagnose(code: string | null, origin: string): Diagnosis {
   switch (code) {
     case "ApiNotActivatedMapError":
       return {
@@ -23,7 +27,7 @@ function diagnose(code: string | null): Diagnosis {
     case "RefererNotAllowedMapError":
       return {
         title: "This origin is not on the key's allowed list",
-        fix: "Add http://localhost:3000/* to the key's website restrictions. Entries can take a few minutes to propagate.",
+        fix: `Add ${origin}/* to the key's website restrictions — the trailing /* matters, and www and non-www count as separate entries. Changes can take a few minutes to propagate.`,
         link: "https://console.cloud.google.com/apis/credentials",
         linkLabel: "Edit key restrictions",
       };
@@ -38,7 +42,7 @@ function diagnose(code: string | null): Diagnosis {
     case "ExpiredKeyMapError":
       return {
         title: "The API key is invalid",
-        fix: "The key in .env.local does not match a key in this project. Copy it again from Credentials.",
+        fix: "NEXT_PUBLIC_GOOGLE_MAPS_API_KEY does not match a key in this project. Copy it again from Credentials. Note that the value is baked in at build time, so a deployed site needs a rebuild.",
         link: "https://console.cloud.google.com/apis/credentials",
         linkLabel: "Open Credentials",
       };
@@ -52,7 +56,7 @@ function diagnose(code: string | null): Diagnosis {
     default:
       return {
         title: "Google rejected the Maps API key",
-        fix: "Check billing, that Maps JavaScript API is enabled, and that the key allows localhost:3000.",
+        fix: `Check billing, that Maps JavaScript API is enabled, and that the key allows ${origin}/*.`,
         link: "https://console.cloud.google.com/google/maps-apis/api-list",
         linkLabel: "Open Google Cloud console",
       };
@@ -61,9 +65,15 @@ function diagnose(code: string | null): Diagnosis {
 
 export default function MapsAuthNotice({ errorCode }: { errorCode: string | null }) {
   const [dismissed, setDismissed] = useState(false);
+  const [origin, setOrigin] = useState("this site");
+
+  useEffect(() => {
+    setOrigin(window.location.origin);
+  }, []);
+
   if (dismissed) return null;
 
-  const { title, fix, link, linkLabel } = diagnose(errorCode);
+  const { title, fix, link, linkLabel } = diagnose(errorCode, origin);
 
   return (
     <div className="pointer-events-none absolute inset-x-0 top-0 z-30 flex justify-center px-3 pt-3">
