@@ -338,7 +338,12 @@ export default function BubbleCard({ bubble, guestMode = false }: { bubble: Bubb
               {mapOverlay ? (
                 <button
                   type="button"
-                  onClick={() => mapOverlay.openMap()}
+                  onClick={() =>
+                    mapOverlay.openMap({
+                      bubbleId: bubble.id,
+                      zone: bubble.zone ?? undefined,
+                    })
+                  }
                   className="h-9 px-2.5 rounded-full text-[11px] font-semibold shrink-0"
                   style={{
                     background: "rgba(255,255,255,0.04)",
