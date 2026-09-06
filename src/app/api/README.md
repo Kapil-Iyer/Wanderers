@@ -21,7 +21,7 @@
 | POST | `/api/media/upload` | Disabled (410) — remote photo upload removed |
 | GET | `/api/moments` | List Wander Moments (meetup_photos) for feed |
 | GET | `/api/campus-events` | Public read of upcoming UWaterloo campus events. Query: `?category=sports\|academic\|social\|arts\|career` (optional). Rules: `date_time > now()`, ordered ascending, max 10. No auth required. |
-| POST | `/api/seed-demo-bubbles` | Dev helper: creates 3 real bubbles so the map has joinable content (auth required, current user becomes creator + member of each) |
+| POST | `/api/seed-demo-bubbles` | Dev-only helper: creates up to 5 real bubbles so a local DB has joinable content (auth required, current user becomes creator + member of each). Not called from the app — the map never fabricates content for real users. |
 | POST | `/api/ai/parse-intent` | Gemini: parse natural language → activity, zone, start_time, duration_minutes, etc. Body: `{ text }`. Env: GEMINI_API_KEY |
 | GET | `/api/recommendations` | Recommended bubbles. Optional `?user_id=` for Flask. If RECOMMENDATIONS_API_URL set, calls Flask; else fallback from DB (open/active bubbles). Returns `{ recommended_bubbles: [...] }`. |
 
