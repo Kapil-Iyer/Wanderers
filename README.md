@@ -1,4 +1,3 @@
-<<<<<<< HEAD
 # Wanderers
 
 **Find your people. Start something.**
@@ -18,7 +17,6 @@ Wanderers is a campus social app that helps people discover and join real-time a
 - [Features](#features)
 - [API Overview](#api-overview)
 - [Database (Supabase)](#database-supabase)
-- [ML Service (Optional)](#ml-service-optional)
 - [Deployment](#deployment)
 - [Scripts](#scripts)
 
@@ -32,7 +30,7 @@ Wanderers is a campus social app that helps people discover and join real-time a
 - **Meet & remember** – End an event, capture a “Wander Moment” (photo with filters), post to the shared feed.
 - **Connect** – Send “Wanna Wander?” connection requests to people you met in a bubble.
 
-The app supports **email OTP** (magic link / code) via Supabase Auth and optional **anonymous** sign-in. Bubbles have start time, duration, max members, and expiry; recommendations can be powered by an optional K-means ML service.
+The app supports **email OTP** (magic link / code) via Supabase Auth and optional **anonymous** sign-in. Bubbles have start time, duration, max members, and expiry.
 
 ---
 
@@ -46,7 +44,6 @@ The app supports **email OTP** (magic link / code) via Supabase Auth and optiona
 | **Email (OTP)** | Supabase Auth + custom SMTP (e.g. Resend) |
 | **Media** | Local device save only (remote moment upload disabled) |
 | **AI** | Google Gemini (intent parsing for “coffee near SLC tonight” → structured bubble fields) |
-| **ML** | Optional FastAPI service (K-means recommender for “Recommended for you”) |
 | **Maps** | Google Maps JavaScript API (@react-google-maps/api) |
 
 ---
@@ -56,7 +53,7 @@ The app supports **email OTP** (magic link / code) via Supabase Auth and optiona
 - **Node.js** 18+ and **npm** (or yarn/pnpm)
 - **Supabase** account
 - **Google Cloud** project (for Maps API key)
-- Optional: **Resend** account (for custom SMTP), **Google AI** API key (Gemini), **Render** or similar (for ML service)
+- Optional: **Resend** account (for custom SMTP), **Google AI** API key (Gemini)
 
 ---
 
@@ -76,8 +73,8 @@ Create a `.env.local` in the project root (see `.env.example` for a minimal temp
 
 | Variable | Description |
 |----------|-------------|
-| `NEXT_PUBLIC_SITE_URL` | Full app URL (e.g. `https://yourapp.vercel.app`) for auth redirects |
 | `NEXT_PUBLIC_GOOGLE_MAPS_API_KEY` | Google Maps JavaScript API key (map and bubbles) |
+| `NEXT_PUBLIC_GOOGLE_MAPS_MAP_ID` | Cloud Map ID; enables the vector renderer and 3D buildings. Dark styling does not need it — that comes from local JSON styles. |
 
 ### Auth (OTP emails)
 
@@ -94,12 +91,6 @@ Supabase sends OTP/magic link emails. With **built-in** SMTP you get a low rate 
 | `GEMINI_API_KEY` | Google AI API key (server-only) |
 | `GEMINI_MODEL` | Optional; default `gemini-2.5-flash` |
 
-### ML recommendations
-
-| Variable | Description |
-|----------|-------------|
-| `RECOMMENDATIONS_API_URL` | Base URL of the FastAPI ML service (e.g. `https://wanderers-ml.onrender.com`). If unset, recommendations fall back to open/active bubbles from DB. |
-
 ### Dev / debug
 
 | Variable | Description |
@@ -114,7 +105,7 @@ Supabase sends OTP/magic link emails. With **built-in** SMTP you get a low rate 
 
    ```bash
    git clone <repository-url>
-   cd Fahh
+   cd Wanderers
    npm install
    ```
 
@@ -141,19 +132,15 @@ Supabase sends OTP/magic link emails. With **built-in** SMTP you get a low rate 
 
    Open [http://localhost:3000](http://localhost:3000). Sign up or log in (OTP or anonymous if enabled), then use Home, Map, Messages, and Profile.
 
-5. **(Optional) ML service**
-
-   See [ML Service (Optional)](#ml-service-optional). Set `RECOMMENDATIONS_API_URL` to the ML service URL to enable “Recommended for you” from the K-means recommender.
-
 ---
 
 ## Project Structure
 
 ```
-Fahh/
+Wanderers/
 ├── src/
 │   ├── app/                    # Next.js App Router
-│   │   ├── api/                # API routes (auth, bubbles, media, moments, ai, recommendations)
+│   │   ├── api/                # API routes (auth, bubbles, moments, ai, recommendations)
 │   │   ├── home/               # Home feed
 │   │   ├── chat/[id]/          # Bubble chat
 │   │   ├── messages/           # Conversations list
@@ -180,10 +167,7 @@ Fahh/
 │   │   ├── gemini.ts           # Gemini client for intent parsing
 │   │   └── mockData.ts         # Mock data for UI fallbacks
 │   └── hooks/
-├── ml-service/                 # Optional FastAPI K-means recommender
-│   ├── main.py                 # FastAPI app (e.g. /recommend, /health)
-│   ├── recommender_api.py      # K-means logic
-│   └── model/                  # K-means model and synthetic data
+├── supabase/migrations/        # Schema as code (tables, FKs, RLS policies)
 ├── .env.local                  # Local env (not committed)
 ├── .env.example
 ├── next.config.mjs
@@ -197,7 +181,7 @@ Fahh/
 ## Features
 
 - **Landing & auth** – Email OTP (magic link or 6-digit code) via Supabase; optional anonymous sign-in. After verify, user is upserted into `public.users`.
-- **Home** – “Upcoming for you” (ML recommendations or DB fallback), filter chips, “Active Nearby” bubbles, Recent Moments feed.
+- **Home** – “Upcoming for you” (soonest-starting open bubbles), filter chips, “Active Nearby” bubbles, Recent Moments feed.
 - **Map** – Google Map with bubbles by zone; list of activities with “Join Bubble”; join creates/uses real bubbles and opens group chat.
 - **Create bubble** – Manual form or natural language (Gemini) → activity, zone, time, duration, max members.
 - **Bubble chat** – Messages per bubble; Realtime subscription for new messages; chat unlocks at 2 members.
@@ -217,11 +201,9 @@ All auth-protected routes expect `Authorization: Bearer <access_token>` (Supabas
 | **Bubbles** | POST `/api/bubbles`, POST `/api/bubbles/join`, GET `/api/bubbles/list`, GET `/api/bubbles/mine`, GET `/api/bubbles/[id]` | Create, join, list, single bubble |
 | **Messages** | GET/POST `/api/bubbles/[id]/messages` | List/send messages (member-only) |
 | **Bubble lifecycle** | POST `/api/bubbles/[id]/confirm` | Mark bubble as expired (end event) |
-| **Media** | POST `/api/media/upload` | Disabled (410) — remote moment upload removed |
 | **Moments** | GET `/api/moments` | List Wander Moments for feed |
 | **AI** | POST `/api/ai/parse-intent` | Gemini: natural language → structured bubble fields |
-| **Recommendations** | GET `/api/recommendations?user_id=...` | Recommended bubbles (ML or DB fallback) |
-| **Seed** | POST `/api/seed-demo-bubbles` | Create sample bubbles (auth required) |
+| **Recommendations** | GET `/api/recommendations` | Soonest-starting open bubbles for Home’s “Recommended for you” |
 
 Detailed route list and request/response shapes: see `src/app/api/README.md`.
 
@@ -244,30 +226,11 @@ Ensure `public.users` has a row for every auth user before inserting into `bubbl
 
 ---
 
-## ML Service (Optional)
-
-The **ml-service** is a FastAPI app that runs a K-means recommender for “Recommended for you” on the Home page.
-
-- **Local:**  
-  `cd ml-service && pip install -r requirements.txt && uvicorn main:app --reload --port 8000`  
-  (Adjust entry point if your app is in `recommender_api.py` or another module; see `ml-service/README.md`.)
-
-- **Deploy (e.g. Render):**  
-  Build: `cd ml-service && pip install -r requirements.txt`  
-  Start: `cd ml-service && PYTHONPATH=.. uvicorn main:app --host 0.0.0.0 --port $PORT`
-
-Set `RECOMMENDATIONS_API_URL` to the deployed base URL (e.g. `https://wanderers-ml.onrender.com`). The Next.js app POSTs to `/recommend` with `user_id` and `activities` and maps the response to `recommended_bubbles`.
-
-See `ml-service/README.md` for endpoints and details.
-
----
-
 ## Deployment
 
 - **Frontend + API** – Deploy the Next.js app to **Vercel** (or similar). Add all required env vars in the project settings; use the same Supabase and optional Gemini/ML keys as in local.
 - **Maps** – In Google Cloud Console, restrict the Maps API key to your production domain (e.g. `https://yourapp.vercel.app/*`) and enable Maps JavaScript API (and billing if required).
 - **Auth** – In Supabase, set Site URL and redirect URLs to your production URL. If using custom SMTP (Resend), ensure the sender domain is verified and SMTP is saved in Supabase.
-- **ML** – Deploy the FastAPI service (e.g. Render), set `RECOMMENDATIONS_API_URL`, and ensure CORS allows your frontend origin.
 
 ---
 
@@ -285,7 +248,3 @@ See `ml-service/README.md` for endpoints and details.
 ## License
 
 Private / not specified. See repository or team for terms.
-=======
-
-
->>>>>>> 7a31f3ebd762ec64227e511bbcebb821cb180451

@@ -49,7 +49,6 @@ import {
   type CategoryFilterId,
 } from "@/lib/eventCategories";
 import { clusterMapBubbles, clusterMapBubblesByPixels, type MapBubble, type MapCluster } from "@/lib/mapClustering";
-import { MOCK_MAP_EVENTS, MOCK_EVENT_IDS, getMockEventById } from "@/lib/mockMapEvents";
 import EventPill from "@/components/map/EventPill";
 import ClusterPill from "@/components/map/ClusterPill";
 import ActivityCard from "@/components/map/ActivityCard";
@@ -72,10 +71,8 @@ import MapsAuthNotice from "@/components/map/MapsAuthNotice";
 import { useMapsAuthFailure } from "@/hooks/useMapsAuthFailure";
 import { useGuest } from "@/contexts/GuestContext";
 import type { MapFocusTarget } from "@/contexts/MapOverlayContext";
-import { ZONE_COORDS, resolveZoneCoords } from "@/lib/zoneCoords";
+import { resolveZoneCoords } from "@/lib/zoneCoords";
 import { DEMO_MAP_MARKERS as GUEST_DEMO_MARKERS } from "@/lib/demoData";
-
-const DEMO_BUBBLES = MOCK_MAP_EVENTS;
 
 /** "Now" / "15 min" / "1 hr" -> minutes from now. */
 function parseMinutesFromNow(startingIn: string): number {
@@ -190,12 +187,10 @@ function MapDiscoveryContent({
   joinedIds,
   myBubbleIds,
   joiningId,
-  seeding,
   viewMode,
   setViewMode,
   handleJoin,
   handleOpenChat,
-  handleSeedDemo,
   mapRef,
   mapOptions,
   zoomToCluster,
@@ -226,12 +221,10 @@ function MapDiscoveryContent({
   joinedIds: Set<string>;
   myBubbleIds: Set<string>;
   joiningId: string | null;
-  seeding: boolean;
   viewMode: ViewMode;
   setViewMode: (m: ViewMode) => void;
   handleJoin: (id: string) => void;
   handleOpenChat: (id: string) => void;
-  handleSeedDemo: () => void;
   mapRef: React.MutableRefObject<google.maps.Map | null>;
   mapOptions: google.maps.MapOptions;
   zoomToCluster: (lat: number, lng: number) => void;
@@ -950,12 +943,10 @@ function MapDiscoveryUI({ onClose, focusTarget }: MapOverlayProps) {
   const [joiningId, setJoiningId] = useState<string | null>(null);
   const [myBubbleIds, setMyBubbleIds] = useState<Set<string>>(new Set());
   const [refreshList, setRefreshList] = useState(0);
-  const [seeding, setSeeding] = useState(false);
   const [listFetched, setListFetched] = useState(false);
   const [mapZoom, setMapZoom] = useState(DEFAULT_MAP_ZOOM);
   const [viewMode, setViewMode] = useState<ViewMode>("map");
   const [createOpen, setCreateOpen] = useState(false);
-  const autoSeedDone = useRef(false);
   const mapRef = useRef<google.maps.Map | null>(null);
 
   const { addBubbleConversation } = useConversations();
@@ -1028,26 +1019,6 @@ function MapDiscoveryUI({ onClose, focusTarget }: MapOverlayProps) {
     });
   }, [refreshList, isGuest, guestResolved]);
 
-  useEffect(() => {
-    if (isGuest || !listFetched || apiBubbles.length > 0 || autoSeedDone.current) return;
-    let cancelled = false;
-    supabase.auth.getSession().then(({ data }) => {
-      const token = data?.session?.access_token;
-      if (cancelled || !token) return;
-      autoSeedDone.current = true;
-      fetch("/api/seed-demo-bubbles", { method: "POST", headers: { Authorization: `Bearer ${token}` } })
-        .then((r) => r.json())
-        .then((json) => {
-          if (cancelled) return;
-          if (json?.success) setRefreshList((r) => r + 1);
-        })
-        .catch(() => {});
-    });
-    return () => {
-      cancelled = true;
-    };
-  }, [listFetched, apiBubbles.length, isGuest]);
-
   const mapOptions = useMemo(() => {
     const base = buildMapOptions(mapId);
     const minZoom =
@@ -1079,25 +1050,18 @@ function MapDiscoveryUI({ onClose, focusTarget }: MapOverlayProps) {
       onCampus: resolveOnCampus(b.lat, b.lng, b.onCampus),
     });
 
-    const real =
-      apiBubbles.length > 0
-        ? apiBubbles
-            .map((b) => {
-              const coords = ZONE_COORDS[b.zone] ?? DEFAULT_MAP_CENTER;
-              return toBubbleForContext(b, coords.lat, coords.lng);
-            })
-            .filter((b): b is MapBubble => b.lat != null && b.lng != null)
-            .map(tagOnCampus)
-        : [];
-    // Guests only ever see their curated demo set - never padded out with
-    // the generic MOCK_MAP_EVENTS filler real users get when the DB is thin.
-    if (isGuest) return real;
-    if (real.length === 0) return MOCK_MAP_EVENTS.map(tagOnCampus);
-    if (real.length >= 10) return real;
-    const realIds = new Set(real.map((b) => b.id));
-    const extras = MOCK_MAP_EVENTS.filter((m) => !realIds.has(m.id)).map(tagOnCampus);
-    return [...real, ...extras].slice(0, Math.max(10, real.length));
-  }, [apiBubbles, isGuest]);
+    // Every pin on this map is a bubble that exists. Guests see the curated
+    // demo-* set reshaped by buildGuestApiBubbles; signed-in users see exactly
+    // what the DB returned. A thin DB yields a bare map, which the sidebar's
+    // empty state turns into an invitation rather than hiding behind filler.
+    return apiBubbles
+      .map((b) => {
+        const coords = resolveZoneCoords(b.zone) ?? DEFAULT_MAP_CENTER;
+        return toBubbleForContext(b, coords.lat, coords.lng);
+      })
+      .filter((b): b is MapBubble => b.lat != null && b.lng != null)
+      .map(tagOnCampus);
+  }, [apiBubbles]);
 
   const filteredBubbles = useMemo(
     () =>
@@ -1162,80 +1126,6 @@ function MapDiscoveryUI({ onClose, focusTarget }: MapOverlayProps) {
         return;
       }
 
-      let realBubbleId = id;
-      let bubbleForContext: MapBubble;
-
-      if (MOCK_EVENT_IDS.has(id)) {
-        const mockBubble = getMockEventById(id);
-        if (!mockBubble) return;
-        if (mockBubble.joined >= mockBubble.maxPeople) {
-          toast.error("This bubble is full");
-          return;
-        }
-        setJoiningId(id);
-        try {
-          const seedRes = await fetch("/api/seed-demo-bubbles", {
-            method: "POST",
-            headers: { Authorization: `Bearer ${token}` },
-          });
-          const seedJson = await seedRes.json().catch(() => ({}));
-          if (!seedRes.ok || !seedJson.success || !Array.isArray(seedJson.bubble_ids)) {
-            toast.error(seedJson.error ?? "Could not create bubbles");
-            return;
-          }
-          const mockIndex = MOCK_MAP_EVENTS.findIndex((m) => m.id === id);
-          realBubbleId = (seedJson.bubble_ids[mockIndex] ?? seedJson.bubble_ids[0]) ?? "";
-          if (!realBubbleId || typeof realBubbleId !== "string") {
-            toast.error("Could not create bubble. Try again.");
-            return;
-          }
-          bubbleForContext = { ...mockBubble, id: realBubbleId, joined: mockBubble.joined + 1 };
-          addBubbleConversation(bubbleForContext);
-          onClose();
-          router.push("/messages");
-          router.push(`/chat/bubble-${realBubbleId}`);
-        } catch {
-          toast.error("Something went wrong");
-        } finally {
-          setJoiningId(null);
-        }
-        return;
-      }
-
-      if (id.startsWith("demo-")) {
-        const demoIndex = parseInt(id.replace("demo-", ""), 10);
-        if (isNaN(demoIndex) || demoIndex < 0 || demoIndex >= DEMO_BUBBLES.length) return;
-        const demoBubble = DEMO_BUBBLES[demoIndex];
-        if (!demoBubble) return;
-        setJoiningId(id);
-        try {
-          const seedRes = await fetch("/api/seed-demo-bubbles", {
-            method: "POST",
-            headers: { Authorization: `Bearer ${token}` },
-          });
-          const seedJson = await seedRes.json().catch(() => ({}));
-          if (!seedRes.ok || !seedJson.success || !Array.isArray(seedJson.bubble_ids)) {
-            toast.error(seedJson.error ?? "Could not create bubbles");
-            return;
-          }
-          realBubbleId = (seedJson.bubble_ids[demoIndex] ?? seedJson.bubble_ids[0]) ?? "";
-          if (!realBubbleId || typeof realBubbleId !== "string") {
-            toast.error("Could not create bubble. Try again.");
-            return;
-          }
-          bubbleForContext = { ...demoBubble, id: realBubbleId, joined: 2 };
-          addBubbleConversation(bubbleForContext);
-          onClose();
-          router.push("/messages");
-          router.push(`/chat/bubble-${realBubbleId}`);
-        } catch {
-          toast.error("Something went wrong");
-        } finally {
-          setJoiningId(null);
-        }
-        return;
-      }
-
       const bubble = apiBubbles.find((b) => b.id === id);
       if (!bubble) return;
       setJoiningId(id);
@@ -1254,8 +1144,8 @@ function MapDiscoveryUI({ onClose, focusTarget }: MapOverlayProps) {
           typeof data?.data?.members_count === "number"
             ? data.data.members_count
             : (bubble.members_count ?? 0) + 1;
-        const coords = ZONE_COORDS[bubble.zone] ?? DEFAULT_MAP_CENTER;
-        bubbleForContext = toBubbleForContext(
+        const coords = resolveZoneCoords(bubble.zone) ?? DEFAULT_MAP_CENTER;
+        const bubbleForContext = toBubbleForContext(
           { ...bubble, members_count: membersCount },
           coords.lat,
           coords.lng
@@ -1282,17 +1172,9 @@ function MapDiscoveryUI({ onClose, focusTarget }: MapOverlayProps) {
         });
         return;
       }
-      const mockBubble = getMockEventById(id);
-      if (mockBubble) {
-        addBubbleConversation(mockBubble);
-        onClose();
-        router.push("/messages");
-        router.push(`/chat/bubble-${id}`);
-        return;
-      }
       const apiBubble = apiBubbles.find((b) => b.id === id);
       if (!apiBubble) return;
-      const coords = ZONE_COORDS[apiBubble.zone] ?? DEFAULT_MAP_CENTER;
+      const coords = resolveZoneCoords(apiBubble.zone) ?? DEFAULT_MAP_CENTER;
       const bubbleForContext = toBubbleForContext(apiBubble, coords.lat, coords.lng);
       addBubbleConversation(bubbleForContext);
       onClose();
@@ -1301,33 +1183,6 @@ function MapDiscoveryUI({ onClose, focusTarget }: MapOverlayProps) {
     },
     [apiBubbles, addBubbleConversation, onClose, router, isGuest]
   );
-
-  const handleSeedDemo = useCallback(async () => {
-    const { data } = await supabase.auth.getSession();
-    const token = data?.session?.access_token;
-    if (!token) {
-      toast.error("Sign in to create sample bubbles");
-      return;
-    }
-    setSeeding(true);
-    try {
-      const res = await fetch("/api/seed-demo-bubbles", {
-        method: "POST",
-        headers: { Authorization: `Bearer ${token}` },
-      });
-      const json = await res.json().catch(() => ({}));
-      if (!res.ok || !json.success) {
-        toast.error(json.error ?? "Failed to create sample bubbles");
-        return;
-      }
-      toast.success("Sample bubbles created. Refreshing…");
-      setRefreshList((r) => r + 1);
-    } catch {
-      toast.error("Something went wrong");
-    } finally {
-      setSeeding(false);
-    }
-  }, []);
 
   const zoomToCluster = useCallback((lat: number, lng: number) => {
     mapRef.current?.panTo({ lat, lng });
@@ -1398,12 +1253,10 @@ function MapDiscoveryUI({ onClose, focusTarget }: MapOverlayProps) {
         joinedIds={joinedIds}
         myBubbleIds={myBubbleIds}
         joiningId={joiningId}
-        seeding={seeding}
         viewMode={viewMode}
         setViewMode={setViewMode}
         handleJoin={handleJoin}
         handleOpenChat={handleOpenChat}
-        handleSeedDemo={handleSeedDemo}
         mapRef={mapRef}
         mapOptions={mapOptions}
         zoomToCluster={zoomToCluster}

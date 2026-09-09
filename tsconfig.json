@@ -39,11 +39,6 @@
     ".next/types/**/*.ts"
   ],
   "exclude": [
-    "node_modules",
-    "components",
-    "vitest.config.ts",
-    "src/vite-env.d.ts",
-    "src/components/ui/vite-env.d.ts",
-    "frontend"
+    "node_modules"
   ]
 }
