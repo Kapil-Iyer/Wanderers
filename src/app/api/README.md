@@ -2,7 +2,6 @@
 
 | Method | Route | Purpose |
 |--------|--------|--------|
-| GET | `/api/hello` | Demo / health check |
 | POST | `/api/auth/login` | Login (email OTP) → used by AuthModal; **@uwaterloo.ca only** |
 | POST | `/api/auth/signup` | Sign up (email OTP) → used by AuthModal; **@uwaterloo.ca only** |
 | POST | `/api/auth/verify` | Verify OTP, upsert user profile, return session; **@uwaterloo.ca only** |
@@ -18,16 +17,14 @@
 | POST | `/api/bubbles/[id]/confirm` | End event: set bubble status to expired (auth + member) |
 | POST | `/api/bubbles/[id]/star` | Star a bubble for the current user only (auth + member required) - keeps it in *their* conversations past the 5-day auto-cleanup window. Per-person: doesn't affect other members. |
 | DELETE | `/api/bubbles/[id]/star` | Unstar - the bubble goes back to being pruned 5 days after it expires, same as any unstarred bubble |
-| POST | `/api/media/upload` | Disabled (410) — remote photo upload removed |
 | GET | `/api/moments` | List Wander Moments (meetup_photos) for feed |
 | GET | `/api/campus-events` | Public read of upcoming UWaterloo campus events. Query: `?category=sports\|academic\|social\|arts\|career` (optional). Rules: `date_time > now()`, ordered ascending, max 10. No auth required. |
-| POST | `/api/seed-demo-bubbles` | Dev-only helper: creates up to 5 real bubbles so a local DB has joinable content (auth required, current user becomes creator + member of each). Not called from the app — the map never fabricates content for real users. |
 | POST | `/api/ai/parse-intent` | Gemini: parse natural language → activity, zone, start_time, duration_minutes, etc. Body: `{ text }`. Env: GEMINI_API_KEY |
-| GET | `/api/recommendations` | Recommended bubbles. Optional `?user_id=` for Flask. If RECOMMENDATIONS_API_URL set, calls Flask; else fallback from DB (open/active bubbles). Returns `{ recommended_bubbles: [...] }`. |
+| GET | `/api/recommendations` | Feeds Home's "Recommended for you". Despite the name there is no model: returns the 12 soonest-starting open bubbles with member counts, as `{ recommended_bubbles: [...] }`. |
 
 Auth: Supabase Auth (email OTP). Protected routes expect `Authorization: Bearer <access_token>`.
 
-Every route (except the small set of intentionally-public reads, like `/api/campus-events` and `/api/hello`) validates the Bearer token via `getAuthUser()` in `src/lib/auth.ts` before doing anything else.
+Every route (except intentionally-public reads like `/api/campus-events`) validates the Bearer token via `getAuthUser()` in `src/lib/auth.ts` before doing anything else.
 
 ## Data access pattern
 

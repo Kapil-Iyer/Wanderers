@@ -29,6 +29,9 @@ dist-ssr
 # TypeScript build cache
 tsconfig.tsbuildinfo
 
+# Generated status/audit reports
+*-Status-Report.pdf
+
 # Local MCP server config (contains access token)
 .mcp.json
 

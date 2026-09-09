@@ -11,7 +11,7 @@ import Image from "next/image";
 import { usePathname, useRouter } from "next/navigation";
 import { AnimatePresence, motion } from "framer-motion";
 import { Home, MessageCircle, Compass, User, Bell, MapPin, Plus, ChevronDown, Check } from "lucide-react";
-import logo from "../../../components/ui/assets/logo.jpg";
+import logo from "@/assets/logo.jpg";
 import { useSidebar } from "@/contexts/SidebarContext";
 
 const navLinks = [

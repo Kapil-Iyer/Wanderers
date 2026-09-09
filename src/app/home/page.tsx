@@ -221,10 +221,11 @@ export default function HomePage() {
     import("@/lib/supabase")
       .then((m) => m.supabase.auth.getSession())
       .then(({ data }) => {
-        const userId = data?.session?.user?.id;
         const token = data?.session?.access_token;
-        const url = userId ? `/api/recommendations?user_id=${encodeURIComponent(userId)}` : "/api/recommendations";
-        return fetch(url, token ? { headers: { Authorization: `Bearer ${token}` } } : undefined).then((r) => {
+        return fetch(
+          "/api/recommendations",
+          token ? { headers: { Authorization: `Bearer ${token}` } } : undefined
+        ).then((r) => {
           if (!r.ok) throw new Error("recommendations failed");
           return r.json();
         });

@@ -3,14 +3,14 @@ import { Reveal } from "@/components/marketing/Reveal";
 const techStack = [
   "Next.js 15", "React 18", "TypeScript", "Tailwind CSS", "shadcn/ui", "Framer Motion",
   "GSAP", "Vanta.js", "Supabase (Postgres · Auth · Realtime)", "Google Gemini",
-  "Google Maps Platform", "FastAPI",
+  "Google Maps Platform",
 ];
 
 const builtWithCare = [
   "@uwaterloo.ca-only campus gate on every account",
   "Realtime chat & presence, backed by Supabase",
   "Natural-language bubble creation via Gemini intent parsing",
-  "Optional K-means recommender service for “For You” picks",
+  "Schema as code in git — every table, FK cascade, and RLS policy, with generated types",
   "A brand-matched GSAP + Vanta.js motion system, not stock templates",
 ];
 

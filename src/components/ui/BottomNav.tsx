@@ -6,7 +6,7 @@ import { usePathname } from "next/navigation";
 import Link from "next/link";
 import Image from "next/image";
 import { motion } from "framer-motion";
-import logo from "../../../components/ui/assets/logo.jpg";
+import logo from "@/assets/logo.jpg";
 import { ProfileLink } from "@/components/ProfileLink";
 import { useConnections } from "@/contexts/ConnectionsContext";
 import { useSidebar } from "@/contexts/SidebarContext";
