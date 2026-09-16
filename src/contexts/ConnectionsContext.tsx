@@ -1,33 +1,30 @@
 "use client";
 
 /**
- * =============================================================================
- * CONNECTIONS CONTEXT - API INTEGRATION REFERENCE
- * =============================================================================
- * Manages: connected users, connection requests, accept/reject.
+ * Connections - real "Wanna Wander?" connection requests, backed by
+ * /api/connections (GET/POST/PATCH) and the Supabase `connections` table.
  *
- * CURRENT: Uses mockData (mockConnectedFriends, mockConnectionRequests).
- *
- * API INTEGRATION POINTS:
- * - connectedIds        → Sync with GET/POST /api/connections
- * - connectionRequests  → Replace with GET /api/connection-requests
- * - addConnection()     → POST /api/connections
- * - removeConnection()  → DELETE /api/connections/:id
- * - acceptRequest()     → POST /api/connection-requests/:id/accept
- * - rejectRequest()     → POST /api/connection-requests/:id/reject
- * - getConnectedFriends() → Merge with GET /api/connections for live status
- * =============================================================================
+ * Guest mode never calls these routes - all methods are no-ops for guests,
+ * consistent with GuestContext's "no Supabase call on a guest's behalf" rule.
  */
 
-import { createContext, useContext, useState, useCallback, useMemo } from "react";
 import {
-  mockConnectedFriends,
-  mockConnectionRequests,
-  getProfileByName,
-  getProfileById,
-  getOrCreateProfile,
-  type ConnectionRequest,
-} from "@/lib/mockData";
+  createContext,
+  useContext,
+  useState,
+  useCallback,
+  useEffect,
+  useMemo,
+  useRef,
+} from "react";
+import { supabase } from "@/lib/supabase";
+import { useGuest } from "@/contexts/GuestContext";
+
+export type ConnectionRequest = {
+  id: string; // connections.id
+  name: string;
+  avatar: string;
+};
 
 type ConnectedFriendEntry = {
   id: string;
@@ -37,157 +34,183 @@ type ConnectedFriendEntry = {
 };
 
 type ConnectionsContextValue = {
-  connectedIds: Set<string>;
-  pendingIds: Set<string>;
   connectionRequests: ConnectionRequest[];
   filteredConnectionRequests: ConnectionRequest[];
   connectionsCount: number;
-  isConnected: (profileId: string) => boolean;
-  isPending: (profileId: string) => boolean;
-  addConnection: (profileId: string) => void;
-  removeConnection: (profileId: string) => void;
-  addPendingRequest: (profileId: string) => void;
-  removePendingRequest: (profileId: string) => void;
+  isConnected: (userId: string) => boolean;
+  isPending: (userId: string) => boolean;
+  addConnection: (userId: string) => void;
+  removeConnection: (userId: string) => void;
+  addPendingRequest: (userId: string) => void;
+  removePendingRequest: (userId: string) => void;
   acceptRequest: (requestId: string) => void;
-  acceptRequestByProfileId: (profileId: string) => void;
-  hasIncomingRequest: (profileId: string) => boolean;
+  acceptRequestByProfileId: (userId: string) => void;
+  hasIncomingRequest: (userId: string) => boolean;
   rejectRequest: (requestId: string) => void;
   getConnectedFriends: () => ConnectedFriendEntry[];
 };
 
 const ConnectionsContext = createContext<ConnectionsContextValue | null>(null);
 
-const initialConnectedIds = new Set(
-  mockConnectedFriends
-    .map((f) => getProfileByName(f.name, f.avatar)?.id)
-    .filter((id): id is string => !!id)
-);
-
-function getCurrentEvent(name: string): string | undefined {
-  const n = name.toLowerCase().replace(/[.\s]/g, " ").trim();
-  const found = mockConnectedFriends.find(
-    (f) => f.currentEvent && f.name.toLowerCase().replace(/[.\s]/g, " ").trim() === n
-  );
-  return found?.currentEvent;
+async function authHeader(): Promise<Record<string, string>> {
+  const { data } = await supabase.auth.getSession();
+  const token = data.session?.access_token;
+  return token ? { Authorization: `Bearer ${token}` } : {};
 }
 
 export function ConnectionsProvider({ children }: { children: React.ReactNode }) {
-  const [connectedIds, setConnectedIds] = useState<Set<string>>(initialConnectedIds);
-  const [pendingIds, setPendingIds] = useState<Set<string>>(new Set());
-  const [connectionRequests, setConnectionRequests] = useState<ConnectionRequest[]>(mockConnectionRequests);
-  const [extraProfiles, setExtraProfiles] = useState<Map<string, { name: string; avatar: string }>>(new Map());
+  const { isGuest, guestResolved } = useGuest();
+  const [connections, setConnections] = useState<ConnectedFriendEntry[]>([]);
+  const [pendingRequests, setPendingRequests] = useState<ConnectionRequest[]>([]);
+  const [outgoingPendingUserIds, setOutgoingPendingUserIds] = useState<Set<string>>(new Set());
+  const requestByUserId = useRef<Map<string, string>>(new Map()); // userId -> connections.id, for incoming requests
 
-  const connectionsCount = connectedIds.size;
+  const refresh = useCallback(async () => {
+    if (isGuest) return;
+    try {
+      const headers = await authHeader();
+      if (!headers.Authorization) return;
+      const res = await fetch("/api/connections", { headers });
+      if (!res.ok) return;
+      const json = await res.json();
+      if (!json?.success) return;
 
-  const isConnected = useCallback(
-    (profileId: string) => connectedIds.has(profileId),
-    [connectedIds]
-  );
+      const accepted: ConnectedFriendEntry[] = (json.data.connections ?? []).map(
+        (c: { user_id: string; name: string; avatar: string }) => ({
+          id: c.user_id,
+          name: c.name,
+          avatar: c.avatar,
+        })
+      );
+      const incoming: ConnectionRequest[] = (json.data.pending_requests ?? []).map(
+        (r: { id: string; user_id: string; name: string; avatar: string }) => ({
+          id: r.id,
+          name: r.name,
+          avatar: r.avatar,
+        })
+      );
+      requestByUserId.current = new Map(
+        (json.data.pending_requests ?? []).map((r: { id: string; user_id: string }) => [r.user_id, r.id])
+      );
+
+      setConnections(accepted);
+      setPendingRequests(incoming);
+      setOutgoingPendingUserIds(new Set(json.data.outgoing_pending_user_ids ?? []));
+    } catch {
+      /* leave state as-is; caller actions will surface their own errors */
+    }
+  }, [isGuest]);
+
+  useEffect(() => {
+    if (!guestResolved) return;
+    refresh();
+  }, [guestResolved, refresh]);
+
+  const connectedIds = useMemo(() => new Set(connections.map((c) => c.id)), [connections]);
+
+  const isConnected = useCallback((userId: string) => connectedIds.has(userId), [connectedIds]);
 
   const isPending = useCallback(
-    (profileId: string) => pendingIds.has(profileId),
-    [pendingIds]
-  );
-
-  const addConnection = useCallback((profileId: string) => {
-    setConnectedIds((prev) => new Set(prev).add(profileId));
-  }, []);
-
-  const removeConnection = useCallback((profileId: string) => {
-    setConnectedIds((prev) => {
-      const next = new Set(prev);
-      next.delete(profileId);
-      return next;
-    });
-  }, []);
-
-  const addPendingRequest = useCallback((profileId: string) => {
-    setPendingIds((prev) => new Set(prev).add(profileId));
-  }, []);
-
-  const removePendingRequest = useCallback((profileId: string) => {
-    setPendingIds((prev) => {
-      const next = new Set(prev);
-      next.delete(profileId);
-      return next;
-    });
-  }, []);
-
-  const acceptRequest = useCallback((requestId: string) => {
-    const req = connectionRequests.find((r) => r.id === requestId);
-    if (req) {
-      const profile = getProfileByName(req.name, req.avatar) ?? getOrCreateProfile(req.name, req.avatar);
-      setConnectedIds((prev) => new Set(prev).add(profile.id));
-      if (!getProfileById(profile.id)) {
-        setExtraProfiles((prev) => new Map(prev).set(profile.id, { name: profile.name, avatar: profile.avatar }));
-      }
-      setConnectionRequests((prev) => prev.filter((r) => r.id !== requestId));
-    }
-  }, [connectionRequests]);
-
-  const rejectRequest = useCallback((requestId: string) => {
-    setConnectionRequests((prev) => prev.filter((r) => r.id !== requestId));
-  }, []);
-
-  const findRequestForProfile = useCallback(
-    (profileId: string): ConnectionRequest | null => {
-      return connectionRequests.find((req) => {
-        const p = getProfileByName(req.name, req.avatar) ?? getOrCreateProfile(req.name, req.avatar);
-        return p.id === profileId;
-      }) ?? null;
-    },
-    [connectionRequests]
+    (userId: string) => outgoingPendingUserIds.has(userId),
+    [outgoingPendingUserIds]
   );
 
   const hasIncomingRequest = useCallback(
-    (profileId: string) => !!findRequestForProfile(profileId),
-    [findRequestForProfile]
+    (userId: string) => requestByUserId.current.has(userId),
+    // requestByUserId is a ref (not reactive on its own) - re-derive whenever
+    // the request list it was built from changes.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    [pendingRequests]
   );
 
-  const acceptRequestByProfileId = useCallback(
-    (profileId: string) => {
-      const req = findRequestForProfile(profileId);
-      if (req) {
-        const profile = getProfileByName(req.name, req.avatar) ?? getOrCreateProfile(req.name, req.avatar);
-        setConnectedIds((prev) => new Set(prev).add(profile.id));
-        if (!getProfileById(profile.id)) {
-          setExtraProfiles((prev) => new Map(prev).set(profile.id, { name: profile.name, avatar: profile.avatar }));
+  const addPendingRequest = useCallback(
+    (userId: string) => {
+      if (isGuest) return;
+      setOutgoingPendingUserIds((prev) => new Set(prev).add(userId)); // optimistic
+      (async () => {
+        try {
+          const headers = await authHeader();
+          const res = await fetch("/api/connections", {
+            method: "POST",
+            headers: { "Content-Type": "application/json", ...headers },
+            body: JSON.stringify({ receiver_id: userId }),
+          });
+          if (!res.ok) {
+            // Roll back optimistic state on failure (already exists, invalid id, etc).
+            setOutgoingPendingUserIds((prev) => {
+              const next = new Set(prev);
+              next.delete(userId);
+              return next;
+            });
+          }
+        } catch {
+          setOutgoingPendingUserIds((prev) => {
+            const next = new Set(prev);
+            next.delete(userId);
+            return next;
+          });
         }
-        setConnectionRequests((prev) => prev.filter((r) => r.id !== req.id));
+      })();
+    },
+    [isGuest]
+  );
+
+  const removePendingRequest = useCallback((userId: string) => {
+    // No DELETE endpoint - withdrawing a sent request isn't supported yet.
+    // Kept as a no-op so existing callers don't break.
+    void userId;
+  }, []);
+
+  const respondToRequest = useCallback(
+    async (connectionId: string, action: "accept" | "decline") => {
+      if (isGuest) return;
+      try {
+        const headers = await authHeader();
+        const res = await fetch("/api/connections", {
+          method: "PATCH",
+          headers: { "Content-Type": "application/json", ...headers },
+          body: JSON.stringify({ connection_id: connectionId, action }),
+        });
+        if (res.ok) await refresh();
+      } catch {
+        /* leave state as-is on failure */
       }
     },
-    [findRequestForProfile]
+    [isGuest, refresh]
   );
 
-  const filteredConnectionRequests = useMemo(
-    () =>
-      connectionRequests.filter((req) => {
-        const p = getProfileByName(req.name, req.avatar) ?? getOrCreateProfile(req.name, req.avatar);
-        return !connectedIds.has(p.id);
-      }),
-    [connectionRequests, connectedIds]
+  const acceptRequest = useCallback((requestId: string) => respondToRequest(requestId, "accept"), [respondToRequest]);
+  const rejectRequest = useCallback((requestId: string) => respondToRequest(requestId, "decline"), [respondToRequest]);
+
+  const acceptRequestByProfileId = useCallback(
+    (userId: string) => {
+      const requestId = requestByUserId.current.get(userId);
+      if (requestId) respondToRequest(requestId, "accept");
+    },
+    [respondToRequest]
   );
+
+  // No DELETE /api/connections endpoint yet - disconnect isn't wired to the
+  // backend. Kept as a no-op so the "Disconnect" button doesn't crash; the
+  // connection will simply reappear on next refresh.
+  const removeConnection = useCallback((userId: string) => {
+    void userId;
+  }, []);
+
+  const addConnection = useCallback((userId: string) => {
+    void userId;
+  }, []);
 
   const getConnectedFriends = useCallback((): ConnectedFriendEntry[] => {
-    return Array.from(connectedIds)
-      .map((id) => {
-        const p = getProfileById(id) ?? extraProfiles.get(id);
-        if (!p) return null;
-        const name = p.name;
-        const avatar = p.avatar;
-        const currentEvent = getCurrentEvent(name);
-        return { id, name, avatar, currentEvent };
-      })
-      .filter((x): x is NonNullable<typeof x> => x !== null)
-      .sort((a, b) => a.name.localeCompare(b.name));
-  }, [connectedIds, extraProfiles]);
+    return [...connections].sort((a, b) => a.name.localeCompare(b.name));
+  }, [connections]);
+
+  const connectionsCount = connections.length;
 
   const value = useMemo(
     () => ({
-      connectedIds,
-      pendingIds,
-      connectionRequests,
-      filteredConnectionRequests,
+      connectionRequests: pendingRequests,
+      filteredConnectionRequests: pendingRequests,
       connectionsCount,
       isConnected,
       isPending,
@@ -202,10 +225,7 @@ export function ConnectionsProvider({ children }: { children: React.ReactNode })
       getConnectedFriends,
     }),
     [
-      connectedIds,
-      pendingIds,
-      connectionRequests,
-      filteredConnectionRequests,
+      pendingRequests,
       connectionsCount,
       isConnected,
       isPending,
@@ -221,11 +241,7 @@ export function ConnectionsProvider({ children }: { children: React.ReactNode })
     ]
   );
 
-  return (
-    <ConnectionsContext.Provider value={value}>
-      {children}
-    </ConnectionsContext.Provider>
-  );
+  return <ConnectionsContext.Provider value={value}>{children}</ConnectionsContext.Provider>;
 }
 
 export function useConnections() {
