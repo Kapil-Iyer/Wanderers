@@ -296,7 +296,7 @@ Scan the QR code with the **Expo Go** app, or press `a` / `i` in the terminal to
 
 ### Building an installable app
 
-No build has been published yet — `mobile/eas.json` has an `internal` profile configured (produces a directly-installable Android APK), but it isn't linked to an EAS project or account yet. To produce a build:
+`mobile/eas.json` has an `internal` profile configured (produces a directly-installable Android APK), linked to the `wanderers-mobile` EAS project (`projectId` committed in `mobile/app.json`). To produce a new build after making changes:
 
 ```bash
 cd mobile
@@ -304,7 +304,17 @@ npx eas login                                   # free Expo account
 npx eas build --profile internal --platform android
 ```
 
-The first run prompts to create/link an EAS project (writes a `projectId` into `mobile/app.json`). The build runs in Expo's cloud (~10–15 min); when it finishes you get a build page with a QR code and a direct `.apk` download link — install it on Android by opening that link and allowing "install from unknown sources".
+The build runs in Expo's cloud (~10–20 min); when it finishes you get a build page with a QR code and a direct `.apk` download link — install it on Android by opening that link and allowing "install from unknown sources".
+
+**Important — env vars are separate from your local `.env`:** EAS Build runs on Expo's servers, which never see your local `mobile/.env` (it's gitignored). `EXPO_PUBLIC_SUPABASE_URL`, `EXPO_PUBLIC_SUPABASE_ANON_KEY`, and `EXPO_PUBLIC_API_BASE_URL` are inlined into the JS bundle at build time, so without them set remotely the installed app can't reach Supabase or the API at all. Set them once per environment (the `internal` profile resolves to the `preview` environment):
+
+```bash
+npx eas env:set preview --name EXPO_PUBLIC_SUPABASE_URL --value "https://<project>.supabase.co" --visibility plaintext
+npx eas env:set preview --name EXPO_PUBLIC_SUPABASE_ANON_KEY --value "<anon key>" --visibility plaintext
+npx eas env:set preview --name EXPO_PUBLIC_API_BASE_URL --value "https://www.wanderers.space" --visibility plaintext
+```
+
+Use the real deployed API URL here (not a local LAN IP) — a LAN IP only works while your own machine's dev server is running on the same network, which defeats the point of a distributable build. Check current values with `npx eas env:list preview`.
 
 iOS internal builds need a paid Apple Developer account and either ad hoc distribution (registered device UDIDs) or TestFlight — see Expo's EAS Build docs (docs.expo.dev/build) for the iOS setup.
 
@@ -315,7 +325,7 @@ Binaries aren't committed to git. Once a build exists, either:
 - Attach the `.apk` as an asset on a [GitHub Release](../../releases) — gives a stable `github.com/<org>/<repo>/releases/download/...` link, or
 - Link the EAS build page directly (Expo keeps it persistently accessible, with an install QR code).
 
-**Latest build:** _not yet published — add the link here once `eas build` has been run._
+**Latest build:** [Download APK](https://expo.dev/artifacts/eas/_qJEtSwPvmnnwnn_WQrsXmmXQtiddzMB3FY4BQUcJ1Q.apk) — built 2026-09-22 from `main`, points at the production `wanderers.space` API and Supabase project. Re-run `eas build` and update this link after significant mobile changes — the artifact link expires ~14 days after the build (per `eas build:list`), so it'll need refreshing periodically regardless.
 
 ---
 
