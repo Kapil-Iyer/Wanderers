@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getSupabaseAdmin } from '@/lib/supabaseAdmin';
 import { getAuthUser } from '@/lib/auth';
+import { checkRateLimit, rateLimitResponse } from '@/lib/rateLimit';
 import type { SupabaseClient } from '@supabase/supabase-js';
 
 const MOMENTS_BUCKET = 'moments-photos';
@@ -122,6 +123,10 @@ export async function POST(request: NextRequest) {
     const user = await getAuthUser(request);
     if (!user) {
       return NextResponse.json({ success: false, error: 'Unauthenticated' }, { status: 401 });
+    }
+
+    if (!(await checkRateLimit('moment-create', user.id, 20, 60 * 60))) {
+      return rateLimitResponse();
     }
 
     const formData = await request.formData().catch(() => null);
