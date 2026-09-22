@@ -256,7 +256,7 @@ export default function AppHeader({
         aria-hidden
       />
 
-      <div className="relative z-10 flex items-center justify-between gap-3 px-4 sm:px-6 h-16 max-w-[1400px] mx-auto flex-nowrap">
+      <div className="relative z-10 flex items-center justify-between gap-2 sm:gap-3 px-4 sm:px-6 h-16 max-w-[1400px] mx-auto flex-nowrap">
         {/* Brand → Home + campus picker */}
         <div className="app-brand-stage flex items-center gap-3 shrink-0 min-w-0">
           <Link
@@ -272,7 +272,7 @@ export default function AppHeader({
           <div className="min-w-0">
             <Link
               href="/home"
-              className={`block ${sidebarExpanded ? "lg:hidden" : ""}`}
+              className={`hidden sm:block ${sidebarExpanded ? "lg:hidden" : ""}`}
               aria-label="Wanderers home"
             >
               <span className="app-brand-wordmark font-display text-xl font-bold leading-none block tracking-tight">
