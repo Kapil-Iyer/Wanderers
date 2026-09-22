@@ -3,6 +3,7 @@ import { createClient } from "@supabase/supabase-js";
 import { CAMPUS_EMAIL_ERROR, isEmailAllowed } from "@/lib/campusEmail";
 import { getSupabaseAdmin } from "@/lib/supabaseAdmin";
 import { withMailRetry } from "@/lib/authRetry";
+import { checkRateLimit, rateLimitResponse } from "@/lib/rateLimit";
 
 // Dev only: Supabase's default email sender can time out (504) locally.
 // Set AUTH_RETURN_RECOVERY_LINK=true in .env.local to skip the real email
@@ -29,6 +30,12 @@ export async function POST(request: NextRequest) {
     const emailTrimmed = email.trim().toLowerCase();
     if (!isEmailAllowed(emailTrimmed)) {
       return NextResponse.json({ success: false, error: CAMPUS_EMAIL_ERROR }, { status: 403 });
+    }
+
+    // Shared bucket with /api/auth/login's OTP send, keyed by email, so
+    // alternating between the two routes doesn't dodge the limit.
+    if (!(await checkRateLimit("auth-otp-send", emailTrimmed, 5, 60 * 60))) {
+      return rateLimitResponse();
     }
 
     const url = process.env.NEXT_PUBLIC_SUPABASE_URL!;

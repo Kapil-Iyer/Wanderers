@@ -4,6 +4,7 @@ import { getSupabaseAdmin } from "@/lib/supabaseAdmin";
 import { clearDeviceTrustCookie, setDeviceTrustCookie } from "@/lib/deviceTrust";
 import { CAMPUS_EMAIL_ERROR, isEmailAllowed } from "@/lib/campusEmail";
 import type { TablesInsert } from "@/lib/database.types";
+import { checkRateLimit, rateLimitResponse } from "@/lib/rateLimit";
 
 /**
  * POST /api/auth/verify
@@ -26,6 +27,12 @@ export async function POST(request: NextRequest) {
     // environment variables to enforce the UWaterloo email gate in production.
     if (!isEmailAllowed(emailTrimmed)) {
       return NextResponse.json({ success: false, error: CAMPUS_EMAIL_ERROR }, { status: 403 });
+    }
+
+    // A 6-digit OTP is a 1,000,000-value space - without this, it's
+    // brute-forceable well within the code's validity window.
+    if (!(await checkRateLimit("auth-otp-verify", emailTrimmed, 5, 10 * 60))) {
+      return rateLimitResponse();
     }
 
     const url = process.env.NEXT_PUBLIC_SUPABASE_URL!;
