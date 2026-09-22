@@ -8,12 +8,15 @@ import { LoadingState } from "@/components/LoadingState";
 import { EmptyState } from "@/components/EmptyState";
 import { bubbleMessages, sendBubbleMessage, type BubbleMessage } from "@/api/bubbles";
 import { useGuest } from "@/contexts/GuestContext";
+import { useAuth } from "@/contexts/AuthContext";
 import { colors } from "@/lib/theme";
 import { AuroraBackground } from "@/components/AuroraBackground";
+import { ReportBlockButton } from "@/components/ReportBlockButton";
 
 export default function ChatScreen() {
   const { id } = useLocalSearchParams<{ id: string }>();
   const { isGuest } = useGuest();
+  const { user } = useAuth();
   const insets = useSafeAreaInsets();
   const queryClient = useQueryClient();
   const [text, setText] = useState("");
@@ -88,9 +91,20 @@ export default function ChatScreen() {
           ListEmptyComponent={<EmptyState emoji="👋" title="No messages yet" subtitle="Be the first to say hi." />}
           renderItem={({ item }) => (
             <View className="mb-3">
-              <Text className="text-xs font-medium" style={{ color: colors.textSecondary }}>
-                {item.sender_name}
-              </Text>
+              <View className="flex-row items-center gap-1.5">
+                <Text className="text-xs font-medium" style={{ color: colors.textSecondary }}>
+                  {item.sender_name}
+                </Text>
+                {item.user_id !== user?.id && (
+                  <ReportBlockButton
+                    targetUserId={item.user_id}
+                    targetUserName={item.sender_name}
+                    reportTargetType="message"
+                    reportTargetId={item.id}
+                    onBlocked={() => queryClient.invalidateQueries({ queryKey: ["bubble-messages", id] })}
+                  />
+                )}
+              </View>
               <Text className="mt-0.5 text-base" style={{ color: colors.textPrimary }}>
                 {item.content}
               </Text>
