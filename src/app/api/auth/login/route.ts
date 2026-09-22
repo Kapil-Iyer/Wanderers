@@ -9,6 +9,7 @@ import {
 import { CAMPUS_EMAIL_ERROR, isEmailAllowed } from "@/lib/campusEmail";
 import { isOwnerEmail } from "@/lib/ownerAccounts";
 import { withMailRetry } from "@/lib/authRetry";
+import { checkRateLimit, rateLimitResponse } from "@/lib/rateLimit";
 
 // Dev only: Supabase's default email sender can time out (504) locally.
 // Set AUTH_RETURN_RECOVERY_LINK=true in .env.local to skip the real OTP
@@ -60,6 +61,13 @@ export async function POST(request: NextRequest) {
         return NextResponse.json({ success: false, error: "Password required" }, { status: 400 });
       }
 
+      // Guard against password brute-forcing before touching Supabase at all -
+      // owner accounts skip OTP below, so this is the only thing standing
+      // between a guessed password and a full session for them.
+      if (!(await checkRateLimit("auth-login", emailTrimmed, 5, 15 * 60))) {
+        return rateLimitResponse();
+      }
+
       // Step 1: verify password
       const { data, error: signInError } = await supabase.auth.signInWithPassword({
         email: emailTrimmed,
@@ -106,6 +114,12 @@ export async function POST(request: NextRequest) {
 
       // Step 2: sign out so OTP is the real auth factor (when required)
       await getSupabaseAdmin().auth.admin.signOut(data.session.access_token);
+    }
+
+    // Shared with /api/auth/forgot-password so an attacker can't dodge the
+    // limit by alternating between the two routes to spam OTP emails.
+    if (!(await checkRateLimit("auth-otp-send", emailTrimmed, 5, 60 * 60))) {
+      return rateLimitResponse();
     }
 
     if (DEV_RETURN_RECOVERY_LINK) {

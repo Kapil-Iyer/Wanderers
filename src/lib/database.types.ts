@@ -54,6 +54,24 @@ export type Database = {
           },
         ]
       }
+      auth_rate_limits: {
+        Row: {
+          key: string
+          window_start: string
+          count: number
+        }
+        Insert: {
+          key: string
+          window_start?: string
+          count?: number
+        }
+        Update: {
+          key?: string
+          window_start?: string
+          count?: number
+        }
+        Relationships: []
+      }
       bubble_stars: {
         Row: {
           bubble_id: string
@@ -379,6 +397,10 @@ export type Database = {
     }
     Functions: {
       cleanup_expired_bubbles: { Args: never; Returns: undefined }
+      check_rate_limit: {
+        Args: { p_key: string; p_max_attempts: number; p_window_seconds: number }
+        Returns: boolean
+      }
     }
     Enums: {
       [_ in never]: never
