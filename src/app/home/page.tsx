@@ -27,6 +27,7 @@ import { useMapOverlay } from "@/contexts/MapOverlayContext";
 import { resolveZoneCoords } from "@/lib/zoneCoords";
 import { DEMO_BUBBLES, GUEST_INITIALS } from "@/lib/demoData";
 import { toast } from "sonner";
+import { supabase } from "@/lib/supabase";
 
 type UpcomingBubble = {
   id: string; emoji: string; title: string; startingIn: string;
@@ -245,10 +246,69 @@ export default function HomePage() {
       .catch(() => setUpcomingForYou(defaultUpcoming));
   }, [defaultUpcoming, isGuest, guestResolved]);
 
-  const addPost = (post: Omit<FeedPostType, "id" | "timestamp"> & { imageUrl?: string }) => {
-    const { imageUrl, ...rest } = post;
-    setFeedPosts((prev) => [{ ...rest, ...(imageUrl && { imageUrl }), id: `f-${Date.now()}`, timestamp: "JUST NOW" }, ...prev]);
-  };
+  // Live moments - new Wander Moments (from anyone, any bubble) appear here
+  // without a refresh. Guests never subscribe - guest mode makes zero
+  // Supabase calls, real-time included.
+  useEffect(() => {
+    if (!guestResolved || isGuest) return;
+
+    const channel = supabase
+      .channel("home-moments")
+      .on(
+        "postgres_changes",
+        { event: "INSERT", schema: "public", table: "meetup_photos" },
+        (payload) => {
+          const row = payload.new as {
+            id: string;
+            bubble_id: string | null;
+            user_id: string | null;
+            cloudinary_url: string | null;
+            caption: string | null;
+            created_at: string;
+          };
+          // Re-fetch through /api/moments rather than building the feed card
+          // from the raw row - the row alone doesn't carry the joined
+          // username/activity/zone the card needs to render.
+          (async () => {
+            const { data: sessionData } = await supabase.auth.getSession();
+            const token = sessionData.session?.access_token;
+            if (!token) return;
+            try {
+              const res = await fetch("/api/moments", { headers: { Authorization: `Bearer ${token}` } });
+              const json = await res.json();
+              const fresh = (json?.data ?? []).find((m: { id: string }) => m.id === row.id);
+              if (!fresh) return;
+              setFeedPosts((prev) => {
+                if (prev.some((p) => p.id === fresh.id)) return prev;
+                return [
+                  {
+                    id: fresh.id,
+                    username: fresh.username || "Wanderer",
+                    userAvatar: fresh.user_avatar || "✨",
+                    activity: fresh.activity || "Campus moment",
+                    zone: fresh.zone || undefined,
+                    caption: (fresh.caption || "").trim() || "A moment from campus",
+                    timestamp: formatMomentTime(fresh.created_at),
+                    participants: [],
+                    likes: 0,
+                    comments: [],
+                    imageUrl: fresh.image_url ?? fresh.cloudinary_url,
+                  },
+                  ...prev,
+                ];
+              });
+            } catch {
+              /* miss this live update; next full load will still pick it up */
+            }
+          })();
+        }
+      )
+      .subscribe();
+
+    return () => {
+      supabase.removeChannel(channel);
+    };
+  }, [isGuest, guestResolved]);
 
   // Happening on Campus - upcoming campus events (public; falls back server-side).
   // Guests skip this too - guest mode makes zero backend calls, full stop,
@@ -717,7 +777,6 @@ export default function HomePage() {
       {endEventBubble && (
         <EndEventModal
           bubble={endEventBubble}
-          onAddPost={addPost}
           onClose={() => { removeBubbleFromJoined(endEventBubble.id); setEndEventBubble(null); }}
         />
       )}

@@ -15,7 +15,6 @@ import { toast } from "sonner";
 import type { BubbleConversation } from "@/contexts/ConversationsContext";
 import { useConnections } from "@/contexts/ConnectionsContext";
 import { getProfileByName, getOrCreateProfile } from "@/lib/mockData";
-import type { FeedPost } from "@/lib/mockData";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -25,14 +24,14 @@ import { supabase } from "@/lib/supabase";
 type EndEventModalProps = {
   bubble: BubbleConversation;
   onClose: () => void;
-  onAddPost: (post: Omit<FeedPost, "id" | "timestamp"> & { imageUrl?: string }) => void;
 };
 
-export default function EndEventModal({ bubble, onClose, onAddPost }: EndEventModalProps) {
+export default function EndEventModal({ bubble, onClose }: EndEventModalProps) {
   const { addPendingRequest, isConnected, isPending } = useConnections();
   const [step, setStep] = useState<"photo" | "people">("photo");
   const [caption, setCaption] = useState("");
   const [photoUrl, setPhotoUrl] = useState<string | null>(null);
+  const [photoFile, setPhotoFile] = useState<File | null>(null);
   const [filter, setFilter] = useState<"polaroid" | "grayscale" | "sepia" | null>(null);
   const [posting, setPosting] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
@@ -48,6 +47,7 @@ export default function EndEventModal({ bubble, onClose, onAddPost }: EndEventMo
     const file = e.target.files?.[0];
     if (file && file.type.startsWith("image/")) {
       setPhotoUrl(URL.createObjectURL(file));
+      setPhotoFile(file);
     }
     e.target.value = "";
   };
@@ -67,39 +67,48 @@ export default function EndEventModal({ bubble, onClose, onAddPost }: EndEventMo
     const { data: sessionData } = await supabase.auth.getSession();
     const token = sessionData?.session?.access_token;
 
+    if (!token) {
+      toast.error("You need to be signed in to post a moment.");
+      return;
+    }
+
     setPosting(true);
     try {
-      // End event without remote photo upload (media upload disabled).
-      if (token) {
-        const confirmRes = await fetch(`/api/bubbles/${bubbleId}/confirm`, {
-          method: "POST",
-          headers: { Authorization: `Bearer ${token}` },
-        });
-        if (!confirmRes.ok) {
-          const errBody = await confirmRes.json().catch(() => ({}));
-          const msg = errBody?.error || confirmRes.statusText;
-          if (confirmRes.status === 403) {
-            toast.error(
-              "You're not a member of this bubble. Join the bubble from the chat first, then end the event."
-            );
-          } else {
-            toast.error(msg || "Event could not be ended.");
-          }
-          return;
+      const confirmRes = await fetch(`/api/bubbles/${bubbleId}/confirm`, {
+        method: "POST",
+        headers: { Authorization: `Bearer ${token}` },
+      });
+      if (!confirmRes.ok) {
+        const errBody = await confirmRes.json().catch(() => ({}));
+        const msg = errBody?.error || confirmRes.statusText;
+        if (confirmRes.status === 403) {
+          toast.error(
+            "You're not a member of this bubble. Join the bubble from the chat first, then end the event."
+          );
+        } else {
+          toast.error(msg || "Event could not be ended.");
         }
+        return;
       }
 
-      const participants = bubble.participants ?? [];
-      onAddPost({
-        username: "you",
-        userAvatar: "YU",
-        activity: bubble.name,
-        zone: bubble.zone ?? "-",
-        participants: participants.map((p) => ({ name: p.name, avatar: p.avatar })),
-        caption: caption.trim() || `${bubble.name} 💫`,
-        ...(photoUrl ? { imageUrl: photoUrl } : {}),
+      const formData = new FormData();
+      formData.append("bubble_id", bubbleId);
+      formData.append("caption", caption.trim());
+      if (photoFile) formData.append("photo", photoFile);
+
+      const momentRes = await fetch("/api/moments", {
+        method: "POST",
+        headers: { Authorization: `Bearer ${token}` },
+        body: formData,
       });
-      toast.success("Event ended");
+
+      if (!momentRes.ok) {
+        const errBody = await momentRes.json().catch(() => ({}));
+        toast.error(errBody?.error || "Could not post your moment. The event was still ended.");
+        return;
+      }
+
+      toast.success("Moment posted");
       setStep("people");
     } catch (err) {
       toast.error(err instanceof Error ? err.message : "Something went wrong");

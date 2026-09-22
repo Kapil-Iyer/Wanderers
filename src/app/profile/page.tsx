@@ -52,18 +52,23 @@ export default function ProfilePage() {
   const { connectionsCount, getConnectedFriends } = useConnections();
   const connectedFriends = getConnectedFriends();
   const [editingInterests, setEditingInterests] = useState(false);
-  const [userInterests, setUserInterests] = useState(
-    isGuest ? DEMO_PROFILE.interests : interestOptions.slice(0, 6)
-  );
+  const [userInterests, setUserInterests] = useState(interestOptions.slice(0, 6));
   const [customInterest, setCustomInterest] = useState("");
-  const [displayName, setDisplayName] = useState<string | null>(isGuest ? DEMO_PROFILE.name : null);
-  const [vibeTags, setVibeTags] = useState<string[]>(isGuest ? DEMO_PROFILE.vibeTags : ["Waterloo"]);
+  const [displayName, setDisplayName] = useState<string | null>(null);
+  const [vibeTags, setVibeTags] = useState<string[]>(["Waterloo"]);
 
   useEffect(() => {
     if (!guestResolved) return;
-    // Guest mode never touches Supabase - the demo profile above is already
-    // the full state, no real session/name lookup happens.
-    if (isGuest) return;
+    // Guest mode never touches Supabase - apply the demo profile directly.
+    // (isGuest is still false during the first render, before guestResolved
+    // flips, so this can't be done via a useState initializer - it has to be
+    // applied here once guestResolved/isGuest are known.)
+    if (isGuest) {
+      setDisplayName(DEMO_PROFILE.name);
+      setUserInterests(DEMO_PROFILE.interests);
+      setVibeTags(DEMO_PROFILE.vibeTags);
+      return;
+    }
 
     let cancelled = false;
 
