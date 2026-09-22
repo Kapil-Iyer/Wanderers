@@ -2,7 +2,7 @@
 
 **Find your people. Start something.**
 
-Wanderers is a campus social app that helps people discover and join real-time activities (“bubbles”)—study sessions, sports, coffee meetups—then chat, meet up, and capture moments together.
+Wanderers is a campus social app for University of Waterloo students that helps people discover and join real-time activities (“bubbles”)—study sessions, sports, coffee meetups—then chat, meet up, and capture moments together. A public marketing landing page (with an auto-playing product walkthrough built from recreated demo data) and a read-only **guest mode** let visitors explore the product before signing up with a campus email.
 
 ---
 
@@ -17,6 +17,7 @@ Wanderers is a campus social app that helps people discover and join real-time a
 - [Features](#features)
 - [API Overview](#api-overview)
 - [Database (Supabase)](#database-supabase)
+- [ML Service (Optional)](#ml-service-optional)
 - [Deployment](#deployment)
 - [Scripts](#scripts)
 
@@ -30,7 +31,7 @@ Wanderers is a campus social app that helps people discover and join real-time a
 - **Meet & remember** – End an event, capture a “Wander Moment” (photo with filters), post to the shared feed.
 - **Connect** – Send “Wanna Wander?” connection requests to people you met in a bubble.
 
-The app supports **email OTP** (magic link / code) via Supabase Auth and optional **anonymous** sign-in. Bubbles have start time, duration, max members, and expiry.
+Sign-up is gated to **@uwaterloo.ca campus emails** (`REQUIRE_UW_EMAIL`) with **OTP** verification via Supabase Auth, a dedicated forgot-password OTP flow, and an optional 7-day "remember this device" cookie. Visitors without an account can use **guest mode** — a fully client-side, `sessionStorage`-only read-only demo that never touches Supabase or real student data. Bubbles have start time, duration, max members, and expiry; recommendations can be powered by an optional K-means ML service.
 
 ---
 
@@ -42,9 +43,11 @@ The app supports **email OTP** (magic link / code) via Supabase Auth and optiona
 | **Backend** | Next.js API Routes (serverless) |
 | **Database & Auth** | Supabase (PostgreSQL, Auth, Realtime) |
 | **Email (OTP)** | Supabase Auth + custom SMTP (e.g. Resend) |
-| **Media** | Local device save only (remote moment upload disabled) |
+| **Media** | Local device save only for the in-app filter preview; Wander Moment photos upload to Supabase Storage (public `moments-photos` bucket) |
 | **AI** | Google Gemini (intent parsing for “coffee near SLC tonight” → structured bubble fields) |
-| **Maps** | Google Maps JavaScript API (@react-google-maps/api) |
+| **ML** | Optional FastAPI service (K-means recommender for “Recommended for you”) |
+| **Maps** | Google Maps JavaScript API (@react-google-maps/api), 3D building extrusion via a Map ID |
+| **Motion** | GSAP + `@gsap/react` + Vanta (three.js) background system; Framer Motion for UI transitions |
 
 ---
 
@@ -53,7 +56,7 @@ The app supports **email OTP** (magic link / code) via Supabase Auth and optiona
 - **Node.js** 18+ and **npm** (or yarn/pnpm)
 - **Supabase** account
 - **Google Cloud** project (for Maps API key)
-- Optional: **Resend** account (for custom SMTP), **Google AI** API key (Gemini)
+- Optional: **Resend** account (for custom SMTP), **Google AI** API key (Gemini), **Render** or similar (for the ML service)
 
 ---
 
@@ -76,13 +79,15 @@ Create a `.env.local` in the project root (see `.env.example` for a minimal temp
 | `NEXT_PUBLIC_GOOGLE_MAPS_API_KEY` | Google Maps JavaScript API key (map and bubbles) |
 | `NEXT_PUBLIC_GOOGLE_MAPS_MAP_ID` | Cloud Map ID; enables the vector renderer and 3D buildings. Dark styling does not need it — that comes from local JSON styles. |
 
-### Auth (OTP emails)
+### Auth (OTP emails, campus gate, device trust)
 
-Supabase sends OTP/magic link emails. With **built-in** SMTP you get a low rate limit (~2 emails/h). For production, configure **custom SMTP** in Supabase (e.g. Resend) and optionally set:
+Supabase sends OTP/magic link emails. With **built-in** SMTP you get a low rate limit (~2 emails/h). For production, configure **custom SMTP** in Supabase (e.g. Resend). Additional app-level auth variables:
 
 | Variable | Description |
 |----------|-------------|
-| *(none)* | SMTP is configured in Supabase Dashboard → Project Settings → Auth → SMTP |
+| `REQUIRE_UW_EMAIL` / `NEXT_PUBLIC_REQUIRE_UW_EMAIL` | Gate signup to `@uwaterloo.ca` addresses (server + client copies must match) |
+| `DEVICE_TRUST_SECRET` | Signing secret for the 7-day "remember this device" cookie |
+| `AUTH_RETURN_RECOVERY_LINK` | **Dev only.** Returns OTP codes directly in API responses to skip real email delivery locally; must be unset/off in production |
 
 ### Gemini (intent parsing)
 
@@ -90,6 +95,12 @@ Supabase sends OTP/magic link emails. With **built-in** SMTP you get a low rate 
 |----------|-------------|
 | `GEMINI_API_KEY` | Google AI API key (server-only) |
 | `GEMINI_MODEL` | Optional; default `gemini-2.5-flash` |
+
+### ML recommendations
+
+| Variable | Description |
+|----------|-------------|
+| `RECOMMENDATIONS_API_URL` | Base URL of the optional FastAPI ML service (e.g. `https://your-service.onrender.com`). If unset, or if the service is unreachable, `/api/recommendations` falls back to a plain "starting soon" sort straight from the DB — real recommendations never silently disappear. **This variable lives only in each developer's/deploy target's own `.env.local` / environment config — it is not committed anywhere** (by design, since the ML service is an optional add-on), so make sure it's documented wherever your team tracks deploy config, not just in a local file, or a future cleanup pass may reasonably conclude it's dead. |
 
 ### Dev / debug
 
@@ -130,7 +141,11 @@ Supabase sends OTP/magic link emails. With **built-in** SMTP you get a low rate 
    npm run dev
    ```
 
-   Open [http://localhost:3000](http://localhost:3000). Sign up or log in (OTP or anonymous if enabled), then use Home, Map, Messages, and Profile.
+   Open [http://localhost:3000](http://localhost:3000). Sign up or log in (OTP), or continue as a guest, then use Home, Map, Messages, and Profile.
+
+5. **(Optional) ML service**
+
+   See [ML Service (Optional)](#ml-service-optional). Set `RECOMMENDATIONS_API_URL` to the ML service URL to enable model-ranked "Recommended for you".
 
 ---
 
@@ -139,55 +154,69 @@ Supabase sends OTP/magic link emails. With **built-in** SMTP you get a low rate 
 ```
 Wanderers/
 ├── src/
-│   ├── app/                    # Next.js App Router
-│   │   ├── api/                # API routes (auth, bubbles, moments, ai, recommendations)
-│   │   ├── home/               # Home feed
+│   ├── app/                    # Next.js App Router (the real, active app tree)
+│   │   ├── api/                # API routes (auth, bubbles, connections, moments, ai, recommendations, campus-events)
+│   │   ├── home/                # Home feed (recommended + nearby bubbles, campus moments)
 │   │   ├── chat/[id]/          # Bubble chat
 │   │   ├── messages/           # Conversations list
-│   │   ├── my-bubbles/         # User’s bubbles
+│   │   ├── my-bubbles/         # User's bubbles
 │   │   ├── profile/            # Profile
-│   │   ├── onboarding/         # Onboarding
+│   │   ├── onboarding/         # Onboarding / interest selection
 │   │   ├── map/                # Map + activities overlay
-│   │   ├── page.tsx            # Landing (auth modal)
+│   │   ├── login/              # Login / signup
+│   │   ├── change-password/, reset-password/, auth/callback/
+│   │   ├── page.tsx            # Marketing landing page (public, includes product walkthrough)
+│   │   ├── template.tsx        # Route-change cross-fade — opacity-only by design, see note below
 │   │   ├── layout.tsx
 │   │   └── globals.css
-│   ├── components/             # React components
-│   │   ├── ui/                 # shadcn/ui primitives
-│   │   ├── AuthModal.tsx       # Login/signup + OTP verify
-│   │   ├── MapOverlay.tsx      # Map + bubble list + join
-│   │   ├── CreateBubbleModal.tsx
-│   │   ├── EndEventModal.tsx   # Wander Moment capture + upload
-│   │   └── ...
-│   ├── contexts/              # React context (Conversations, Connections, Map, Profile)
-│   ├── lib/                    # Utilities and clients
-│   │   ├── supabase.ts         # Browser Supabase client
-│   │   ├── supabaseAdmin.ts    # Server-only admin client
-│   │   ├── auth.ts             # getAuthUser(request) for API routes
-│   │   ├── ensureUser.ts       # ensureUserInPublic (public.users upsert)
-│   │   ├── gemini.ts           # Gemini client for intent parsing
-│   │   └── mockData.ts         # Mock data for UI fallbacks
-│   └── hooks/
-├── supabase/migrations/        # Schema as code (tables, FKs, RLS policies)
-├── .env.local                  # Local env (not committed)
+│   ├── components/
+│   │   ├── ui/                 # shadcn/ui primitives + app components (AuthModal, BubbleCard, CreateBubbleModal, GuestLocked, ...)
+│   │   ├── map/                 # Map overlay pieces (filter bar, cluster pills, campus boundary layer, ...)
+│   │   ├── chat/                 # Chat UI
+│   │   ├── motion/              # GSAP/Vanta GlobalBackdrop
+│   │   └── marketing/            # Landing page sections + walkthrough/ (cinematic recreated-demo hero animation)
+│   ├── contexts/                # One context per concern: Guest, Connections, Conversations, CampusMode,
+│   │                             #   MapDiscovery/MapFilter/MapOverlay/MapTheme, ProfileOverlay, Sidebar, UserLocation
+│   ├── lib/                     # Utilities and clients
+│   │   ├── supabase.ts          # Browser Supabase client
+│   │   ├── supabaseAdmin.ts     # Server-only admin client
+│   │   ├── auth.ts / authRetry.ts / campusEmail.ts / deviceTrust.ts  # Auth helpers
+│   │   ├── ensureUser.ts        # ensureUserInPublic (public.users row, created once, never clobbers existing name/campus_verified)
+│   │   ├── gemini.ts            # Gemini client for intent parsing
+│   │   ├── bubbleMap.ts / mapCamera.ts / mapClustering.ts / mapStyles.ts / campusBounds.ts  # Map logic
+│   │   ├── database.types.ts    # Generated Supabase types
+│   │   ├── demoData.ts          # Guest-mode fake data (never real student data)
+│   │   └── mockData.ts          # Legacy mock data from the pre-Supabase prototype
+│   ├── assets/logo.jpg          # App logo, imported by AppHeader/BottomNav
+│   └── hooks/                   # useRequireAuth (route guard), use-mobile, use-toast
+├── supabase/migrations/          # Versioned schema + RLS (baseline schema, bubble stars/cleanup)
+├── model/kmeans/                 # K-means recommender prototype (pytest tests + evaluation report)
+├── ml-service/                   # Optional FastAPI service that runs the K-means recommender in production
+│   ├── main.py                   # FastAPI app (/recommend, /health)
+│   ├── recommender_api.py        # Request/response mapping around model/kmeans
+│   └── render.yaml                # Render deploy notes
+├── .env.local                    # Local env (not committed)
 ├── .env.example
 ├── next.config.mjs
 ├── tailwind.config.ts
 ├── package.json
-└── README.md                   # This file
+└── README.md                     # This file
 ```
 
 ---
 
 ## Features
 
-- **Landing & auth** – Email OTP (magic link or 6-digit code) via Supabase; optional anonymous sign-in. After verify, user is upserted into `public.users`.
-- **Home** – “Upcoming for you” (soonest-starting open bubbles), filter chips, “Active Nearby” bubbles, Recent Moments feed.
-- **Map** – Google Map with bubbles by zone; list of activities with “Join Bubble”; join creates/uses real bubbles and opens group chat.
+- **Marketing landing page** – Public page at `/` with an auto-playing product walkthrough (`src/components/marketing/walkthrough/`) that cinematically recreates the core app flows using entirely invented demo data — it never touches real student data.
+- **Guest mode** – Read-only demo experience (`src/contexts/GuestContext.tsx`) for visitors without an account. Entirely `sessionStorage`-backed; makes no Supabase calls.
+- **Landing & auth** – Signup gated to `@uwaterloo.ca` campus emails, OTP verification via Supabase, a dedicated OTP forgot-password flow, and an optional 7-day "remember this device" cookie. After verify, the user is upserted into `public.users`. `useRequireAuth` is the shared route guard used by Home/My Bubbles/Profile/Messages/Map/Onboarding — it lets guests through without a Supabase call and redirects unauthenticated real visitors to `/login`.
+- **Home** – "Upcoming for you" (ML recommendations or DB fallback), filter chips, "Active Nearby" bubbles, Recent Moments feed, and empty-state "Start" CTAs when no bubbles are nearby.
+- **Map** – Google Map with 3D building extrusion, bubble clustering, campus-boundary off-campus warnings, and a filter bar; joining opens the bubble's group chat.
 - **Create bubble** – Manual form or natural language (Gemini) → activity, zone, time, duration, max members.
-- **Bubble chat** – Messages per bubble; Realtime subscription for new messages; chat unlocks at 2 members.
-- **End event** – Confirm bubble as ended; optional local photo preview/save (remote upload disabled).
-- **Connections** – “Wanna Wander?” requests and list (ConversationsContext / ConnectionsContext).
-- **Profile & onboarding** – Onboarding preferences; profile stats and links.
+- **Bubble chat / Messages** – Realtime message subscriptions, typing indicators, per-member display names; chat unlocks once enough members join. Users can star conversations.
+- **End event / Wander Moments** – Confirm bubble as ended, then upload a real photo + caption to the shared feed (Supabase Storage), with a live Realtime subscription so new moments from anyone appear without refreshing.
+- **Connections** – Real "Wanna Wander?" requests (`/api/connections`, backed by the `connections` table): send, accept, or decline, and it persists across refresh.
+- **Profile & onboarding** – Onboarding interest selection feeding recommendations; profile stats and links; guest profile shows demo values immediately, never a stuck loading state.
 
 ---
 
@@ -197,13 +226,16 @@ All auth-protected routes expect `Authorization: Bearer <access_token>` (Supabas
 
 | Area | Methods | Purpose |
 |------|---------|---------|
-| **Auth** | POST `/api/auth/login`, `/api/auth/signup`, `/api/auth/verify`, `/api/auth/ensure-profile` | OTP login/signup, verify, ensure `public.users` row |
+| **Auth** | POST `/api/auth/login`, `/api/auth/signup`, `/api/auth/verify`, `/api/auth/forgot-password`, `/api/auth/ensure-profile` | Campus-gated OTP login/signup, verify, OTP forgot-password, ensure `public.users` row |
 | **Bubbles** | POST `/api/bubbles`, POST `/api/bubbles/join`, GET `/api/bubbles/list`, GET `/api/bubbles/mine`, GET `/api/bubbles/[id]` | Create, join, list, single bubble |
+| **Bubble stars** | POST `/api/bubbles/[id]/star` | Star/unstar a bubble conversation (per-user) |
 | **Messages** | GET/POST `/api/bubbles/[id]/messages` | List/send messages (member-only) |
 | **Bubble lifecycle** | POST `/api/bubbles/[id]/confirm` | Mark bubble as expired (end event) |
-| **Moments** | GET `/api/moments` | List Wander Moments for feed |
+| **Moments** | GET `/api/moments`, POST `/api/moments` | List Wander Moments for feed; upload a new one (photo → Supabase Storage, row → `meetup_photos`), membership-checked |
+| **Connections** | GET/POST/PATCH `/api/connections` | List accepted connections + incoming requests; send a request; accept/decline (receiver only) |
+| **Campus events** | GET `/api/campus-events` | Campus event listings |
 | **AI** | POST `/api/ai/parse-intent` | Gemini: natural language → structured bubble fields |
-| **Recommendations** | GET `/api/recommendations` | Soonest-starting open bubbles for Home’s “Recommended for you” |
+| **Recommendations** | GET `/api/recommendations?user_id=...` | Recommended bubbles — calls the optional ML service, falls back to a DB "starting soon" sort if the service is unset or fails |
 
 Detailed route list and request/response shapes: see `src/app/api/README.md`.
 
@@ -217,12 +249,32 @@ Main tables:
 - **bubbles** – creator_id, activity, zone, time_window, start_time, duration_minutes, max_members, expires_at, status (open | active | expired).
 - **bubble_members** – bubble_id, user_id (both FKs); creator is auto-added.
 - **messages** – bubble_id, user_id, content, created_at.
-- **connections** – requester_id, receiver_id, status (e.g. pending).
-- **meetup_photos** – bubble_id, user_id, image URL column, created_at (legacy column name may still be `cloudinary_url`).
+- **connections** – requester_id, receiver_id, status (pending | accepted | declined), real API at `/api/connections`.
+- **meetup_photos** – bubble_id, user_id, `cloudinary_url` (historical column name — holds the Supabase Storage public URL), caption, created_at.
 
-Row Level Security (RLS) is enabled; the app uses the **service role** client in API routes for admin-style access. Realtime: add `messages` (and optionally `meetup_photos`) to the `supabase_realtime` publication so the client can subscribe to new messages.
+Row Level Security (RLS) is enabled; the app uses the **service role** client in API routes for admin-style access. Realtime: `bubbles`, `messages`, and `meetup_photos` are all in the `supabase_realtime` publication, so the client can subscribe to new messages and new moments live.
 
-Ensure `public.users` has a row for every auth user before inserting into `bubble_members` or setting `bubbles.creator_id`; the `ensureUserInPublic` helper (and `/api/auth/ensure-profile`) handles this, including anonymous users (placeholder email).
+Ensure `public.users` has a row for every auth user before inserting into `bubble_members` or setting `bubbles.creator_id`; the `ensureUserInPublic` helper (and `/api/auth/ensure-profile`) handles this, including anonymous users (placeholder email). It only ever creates the row once — it never overwrites an existing user's `name` or resets `campus_verified` on a later call.
+
+---
+
+## ML Service (Optional)
+
+The **ml-service** is a FastAPI app that runs a K-means recommender for “Recommended for you” on the Home page.
+
+- **Local:**
+  `cd ml-service && pip install -r requirements.txt && uvicorn main:app --reload --port 8000`
+  (Adjust entry point if your app is in `recommender_api.py` or another module; see `ml-service/README.md`.)
+
+- **Deploy (e.g. Render):**
+  Build: `cd ml-service && pip install -r requirements.txt`
+  Start: `cd ml-service && PYTHONPATH=.. uvicorn main:app --host 0.0.0.0 --port $PORT`
+
+Set `RECOMMENDATIONS_API_URL` to the deployed base URL. The Next.js app POSTs to `/recommend` with `user_id` and `activities` and maps the response to `recommended_bubbles`; if the call fails for any reason (service down, cold-start timeout, unset URL), `/api/recommendations` falls back to a plain DB "starting soon" sort rather than returning nothing.
+
+**Keep this section and `.env.example` up to date if you deploy a real instance** — `RECOMMENDATIONS_API_URL` is intentionally only ever set in per-environment config, never committed, which means it's invisible to a static reachability sweep of the repo. Document the live URL somewhere your team actually looks (this README, your deploy platform's env var list, or your PRD) so a future cleanup pass doesn't reasonably conclude the feature is dead and remove it again.
+
+See `ml-service/README.md` for endpoints and details.
 
 ---
 
@@ -231,6 +283,8 @@ Ensure `public.users` has a row for every auth user before inserting into `bubbl
 - **Frontend + API** – Deploy the Next.js app to **Vercel** (or similar). Add all required env vars in the project settings; use the same Supabase and optional Gemini/ML keys as in local.
 - **Maps** – In Google Cloud Console, restrict the Maps API key to your production domain (e.g. `https://yourapp.vercel.app/*`) and enable Maps JavaScript API (and billing if required).
 - **Auth** – In Supabase, set Site URL and redirect URLs to your production URL. If using custom SMTP (Resend), ensure the sender domain is verified and SMTP is saved in Supabase.
+- **Storage** – The `moments-photos` public bucket is created automatically on first photo upload if it doesn't already exist; no manual setup required.
+- **ML** – Deploy the FastAPI service (e.g. Render), set `RECOMMENDATIONS_API_URL` in your deploy platform's env vars (not just locally), and ensure CORS allows your frontend origin.
 
 ---
 

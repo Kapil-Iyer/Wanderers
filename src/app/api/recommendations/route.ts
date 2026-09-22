@@ -44,18 +44,14 @@ export type RecommendedBubbleItem = {
  * GET /api/recommendations
  * Feeds the "Recommended for you" row on Home. Auth required - activity,
  * zone, and member counts are real student data.
- *
- * Despite the name there is no model here: this returns the soonest-starting
- * open bubbles. An earlier version POSTed to an external FastAPI ranker when
- * RECOMMENDATIONS_API_URL was set, but no such service was ever deployed, so
- * that branch was dead in every environment and has been removed.
+ * - If RECOMMENDATIONS_API_URL is set: fetches bubbles from DB, POSTs to the
+ *   FastAPI ranker's /recommend, maps the response to recommended_bubbles.
+ * - Else, or if that call fails for any reason (unset, unreachable, cold
+ *   start): falls back to the plain DB sort below - real recommendations
+ *   never silently disappear.
  */
-export async function GET(request: NextRequest) {
-  const user = await getAuthUser(request);
-  if (!user) {
-    return NextResponse.json({ success: false, error: "Unauthenticated", recommended_bubbles: [] }, { status: 401 });
-  }
-
+/** Fallback: plain "starting soon" sort straight from the DB, no ML service involved. */
+async function dbFallbackRecommendations() {
   try {
     const admin = getSupabaseAdmin();
     const now = new Date().toISOString();
@@ -95,4 +91,92 @@ export async function GET(request: NextRequest) {
   } catch {
     return NextResponse.json({ recommended_bubbles: [] });
   }
+}
+
+export async function GET(request: NextRequest) {
+  const user = await getAuthUser(request);
+  if (!user) {
+    return NextResponse.json({ success: false, error: "Unauthenticated", recommended_bubbles: [] }, { status: 401 });
+  }
+
+  const apiBase = process.env.RECOMMENDATIONS_API_URL?.replace(/\/$/, "");
+  const recommendUrl = apiBase ? `${apiBase}/recommend` : null;
+
+  if (recommendUrl) {
+    try {
+      const admin = getSupabaseAdmin();
+      const now = new Date().toISOString();
+      const { data: bubbles, error } = await admin
+        .from("bubbles")
+        .select("id, activity, zone, start_time, duration_minutes, max_members")
+        .in("status", ["open", "active"])
+        .gt("expires_at", now)
+        .order("start_time", { ascending: true })
+        .limit(20);
+
+      if (error || !bubbles?.length) return NextResponse.json({ recommended_bubbles: [] });
+
+      const withCount = await Promise.all(
+        bubbles.map(async (b) => {
+          const { count } = await admin
+            .from("bubble_members")
+            .select("user_id", { count: "exact", head: true })
+            .eq("bubble_id", b.id);
+          return {
+            id: b.id,
+            title: b.activity || "Activity",
+            emoji: activityEmoji(b.activity ?? ""),
+            category: "Casual",
+            joined: count ?? 0,
+            maxPeople: b.max_members ?? 8,
+            startingIn: formatStartingIn(b.start_time ?? ""),
+            distance: "0.5 km",
+            description: "",
+            creator: "?",
+            creatorAvatar: "?",
+            zone: b.zone ?? "",
+            start_time: b.start_time ?? "",
+          };
+        })
+      );
+
+      const url = new URL(request.url);
+      const userId = url.searchParams.get("user_id");
+      const res = await fetch(recommendUrl, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          user_id: userId || undefined,
+          activities: withCount.map(({ zone, start_time, ...rest }) => rest),
+          top_k: 12,
+        }),
+      });
+      const data = await res.json();
+      const recs = Array.isArray(data?.recommendations) ? data.recommendations : [];
+
+      const byId = new Map(withCount.map((b) => [b.id, b]));
+      const recommended_bubbles: RecommendedBubbleItem[] = recs.map((r: { id: string; title?: string; emoji?: string; joined?: number; maxPeople?: number; startingIn?: string; recommendationReason?: string }) => {
+        const row = byId.get(r.id);
+        return {
+          id: r.id,
+          title: r.title ?? row?.title ?? "Activity",
+          emoji: r.emoji ?? row?.emoji ?? "🫧",
+          zone: row?.zone ?? "",
+          start_time: row?.start_time ?? "",
+          startingIn: r.startingIn ?? row ? formatStartingIn(row.start_time) : "Soon",
+          joined: r.joined ?? row?.joined ?? 0,
+          maxPeople: r.maxPeople ?? row?.maxPeople ?? 8,
+          recommendationReason: r.recommendationReason ?? "For you",
+        };
+      });
+
+      return NextResponse.json({ recommended_bubbles });
+    } catch {
+      // ML service unreachable/erroring (e.g. Render cold-start failure) - fall
+      // back to the plain DB sort instead of leaving the user with nothing.
+      return dbFallbackRecommendations();
+    }
+  }
+
+  return dbFallbackRecommendations();
 }
