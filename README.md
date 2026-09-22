@@ -325,7 +325,7 @@ Binaries aren't committed to git. Once a build exists, either:
 - Attach the `.apk` as an asset on a [GitHub Release](../../releases) — gives a stable `github.com/<org>/<repo>/releases/download/...` link, or
 - Link the EAS build page directly (Expo keeps it persistently accessible, with an install QR code).
 
-**Latest build:** [Download APK](https://expo.dev/artifacts/eas/_qJEtSwPvmnnwnn_WQrsXmmXQtiddzMB3FY4BQUcJ1Q.apk) — built 2026-09-22 from `main`, points at the production `wanderers.space` API and Supabase project. Re-run `eas build` and update this link after significant mobile changes — the artifact link expires ~14 days after the build (per `eas build:list`), so it'll need refreshing periodically regardless.
+**Latest build:** [Download APK](https://expo.dev/artifacts/eas/9uj6XXdW64jBMtfWwEYtAnEVH-QgG4BoNmIbXwSACsk.apk) — built 2026-09-22, includes the real app icon and the sign-up password toggle, points at the production `wanderers.space` API and Supabase project. Re-run `eas build` and update this link after significant mobile changes — the artifact link expires ~14 days after the build (per `eas build:list`), so it'll need refreshing periodically regardless.
 
 ---
 
