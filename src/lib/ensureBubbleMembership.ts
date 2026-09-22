@@ -6,9 +6,17 @@
 
 import type { User, SupabaseClient } from "@supabase/supabase-js";
 import { ensureUserInPublic } from "@/lib/ensureUser";
+import type { Database } from "@/lib/database.types";
+
+/** join_bubble()'s refusal codes → the status/message this helper reports. */
+const ERRORS: Record<string, { status: number; error: string }> = {
+  not_found: { status: 404, error: "Bubble not found" },
+  expired: { status: 400, error: "Bubble expired" },
+  full: { status: 400, error: "Bubble full" },
+};
 
 export async function ensureBubbleMembership(
-  admin: SupabaseClient,
+  admin: SupabaseClient<Database>,
   user: User,
   bubbleId: string
 ): Promise<{ ok: true; members_count: number } | { ok: false; status: number; error: string }> {
@@ -17,70 +25,33 @@ export async function ensureBubbleMembership(
     return { ok: false, status: 500, error: `Could not ensure user: ${ensureError}` };
   }
 
-  const { data: existing } = await admin
-    .from("bubble_members")
-    .select("user_id")
-    .eq("bubble_id", bubbleId)
-    .eq("user_id", user.id)
-    .maybeSingle();
-
-  if (existing) {
-    const { count } = await admin
-      .from("bubble_members")
-      .select("user_id", { count: "exact", head: true })
-      .eq("bubble_id", bubbleId);
-    return { ok: true, members_count: count ?? 1 };
-  }
-
-  const { data: bubble, error: fetchError } = await admin
-    .from("bubbles")
-    .select("id, expires_at, max_members, status")
-    .eq("id", bubbleId)
-    .maybeSingle();
-
-  if (fetchError || !bubble) {
-    return { ok: false, status: 404, error: "Bubble not found" };
-  }
-
-  if (bubble.status === "expired" || new Date(bubble.expires_at) < new Date()) {
-    return { ok: false, status: 400, error: "Bubble expired" };
-  }
-
-  const { count, error: countError } = await admin
-    .from("bubble_members")
-    .select("user_id", { count: "exact", head: true })
-    .eq("bubble_id", bubbleId);
-
-  if (countError) {
-    return { ok: false, status: 500, error: "Failed to count members" };
-  }
-
-  const memberCount = count ?? 0;
-  if (bubble.max_members != null && memberCount >= bubble.max_members) {
-    return { ok: false, status: 400, error: "Bubble full" };
-  }
-
-  const { error: insertError } = await admin.from("bubble_members").insert({
-    bubble_id: bubbleId,
-    user_id: user.id,
+  // Delegates to the same atomic function as POST /api/bubbles/join. This used
+  // to be five sequential queries doing membership lookup, bubble fetch, count,
+  // insert, and status flip - which carried the same capacity race the join
+  // route had: two callers could both read a count below max_members and both
+  // insert. join_bubble() locks the bubble row, so they serialize.
+  const { data, error } = await admin.rpc("join_bubble", {
+    p_bubble_id: bubbleId,
+    p_user_id: user.id,
   });
 
-  if (insertError) {
-    // Race: another request inserted first - treat as success
-    if (insertError.code === "23505") {
-      const { count: again } = await admin
-        .from("bubble_members")
-        .select("user_id", { count: "exact", head: true })
-        .eq("bubble_id", bubbleId);
-      return { ok: true, members_count: again ?? memberCount + 1 };
-    }
-    return { ok: false, status: 400, error: insertError.message };
+  if (error) {
+    return { ok: false, status: 500, error: error.message };
   }
 
-  const newCount = memberCount + 1;
-  if (newCount >= 2) {
-    await admin.from("bubbles").update({ status: "active" }).eq("id", bubbleId);
+  const result = (data ?? {}) as {
+    ok?: boolean;
+    code?: string;
+    members_count?: number;
+  };
+
+  if (result.ok !== true) {
+    const mapped = ERRORS[result.code ?? ""] ?? {
+      status: 400,
+      error: "Could not join bubble",
+    };
+    return { ok: false, status: mapped.status, error: mapped.error };
   }
 
-  return { ok: true, members_count: newCount };
+  return { ok: true, members_count: result.members_count ?? 1 };
 }

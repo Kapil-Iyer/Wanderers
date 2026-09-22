@@ -1,6 +1,14 @@
 import { NextRequest, NextResponse } from "next/server";
 import { getSupabaseAdmin } from "@/lib/supabaseAdmin";
 import { getAuthUser } from "@/lib/auth";
+import { getMemberCounts } from "@/lib/memberCounts";
+
+/**
+ * Hard ceiling on the feed. The map renders every pin it is given, so an
+ * unbounded list meant one busy evening could return hundreds of bubbles to
+ * every client on every map open.
+ */
+const MAX_BUBBLES = 200;
 
 /**
  * GET /api/bubbles/list
@@ -9,7 +17,7 @@ import { getAuthUser } from "@/lib/auth";
  * - status in ('open', 'active') AND expires_at > now()  (excludes 'expired')
  * - joins users to include creator_name
  * - includes members_count (from bubble_members)
- * - ordered by start_time ascending
+ * - ordered by start_time ascending, capped at MAX_BUBBLES
  *
  * Auth required - these are real, student-created bubbles (activity,
  * creator name, location). Guests see a hardcoded demo set on the frontend
@@ -36,7 +44,8 @@ export async function GET(request: NextRequest) {
       )
       .in("status", ["open", "active"])
       .gt("expires_at", now)
-      .order("start_time", { ascending: true });
+      .order("start_time", { ascending: true })
+      .limit(MAX_BUBBLES);
 
     if (error) {
       return NextResponse.json({ success: false, error: error.message }, { status: 500 });
@@ -52,20 +61,14 @@ export async function GET(request: NextRequest) {
       for (const c of creators ?? []) nameById.set(c.id, c.name);
     }
 
-    // Member counts per bubble.
-    const withMeta = await Promise.all(
-      rows.map(async (b) => {
-        const { count } = await admin
-          .from("bubble_members")
-          .select("user_id", { count: "exact", head: true })
-          .eq("bubble_id", b.id);
-        return {
-          ...b,
-          creator_name: nameById.get(b.creator_id) ?? null,
-          members_count: count ?? 0,
-        };
-      })
-    );
+    // Member counts for every bubble in one query (was one query per bubble).
+    const countById = await getMemberCounts(admin, rows.map((b) => b.id));
+
+    const withMeta = rows.map((b) => ({
+      ...b,
+      creator_name: nameById.get(b.creator_id) ?? null,
+      members_count: countById.get(b.id) ?? 0,
+    }));
 
     return NextResponse.json({ success: true, data: withMeta });
   } catch {

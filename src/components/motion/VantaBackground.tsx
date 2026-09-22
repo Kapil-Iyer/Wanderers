@@ -18,7 +18,13 @@
 
 import { useEffect, useRef, useState } from "react";
 
-type VantaEffectName = "net" | "fog" | "topology" | "cells" | "birds" | "trunk" | "globe" | "clouds";
+/**
+ * Only the three.js-rendered effects. Vanta's `topology` and `trunk` render on
+ * p5.js instead, and supporting them meant shipping p5 (~820 kB, plus acorn and
+ * escodegen for its parser) in the build for two effects no call site used.
+ * Re-add them here along with the `p5` dependency if a design ever wants them.
+ */
+type VantaEffectName = "net" | "fog" | "cells" | "birds" | "globe" | "clouds";
 
 type VantaInstance = { destroy: () => void };
 
@@ -37,25 +43,10 @@ type VantaEffectFactory = (config: Record<string, unknown>) => VantaInstance;
 const EFFECT_LOADERS: Record<VantaEffectName, () => Promise<{ default: VantaEffectFactory }>> = {
   net: () => import("vanta/dist/vanta.net.min"),
   fog: () => import("vanta/dist/vanta.fog.min"),
-  topology: () => import("vanta/dist/vanta.topology.min"),
   cells: () => import("vanta/dist/vanta.cells.min"),
   birds: () => import("vanta/dist/vanta.birds.min"),
-  trunk: () => import("vanta/dist/vanta.trunk.min"),
   globe: () => import("vanta/dist/vanta.globe.min"),
   clouds: () => import("vanta/dist/vanta.clouds.min"),
-};
-
-// Most Vanta effects render on three.js; Topology and Trunk render on p5.js instead -
-// each needs its renderer library injected under a different config key.
-const EFFECT_RENDERER: Record<VantaEffectName, "three" | "p5"> = {
-  net: "three",
-  fog: "three",
-  topology: "p5",
-  cells: "three",
-  birds: "three",
-  trunk: "p5",
-  globe: "three",
-  clouds: "three",
 };
 
 export default function VantaBackground({
@@ -86,16 +77,14 @@ export default function VantaBackground({
     let cancelled = false;
 
     (async () => {
-      const renderer = EFFECT_RENDERER[effect];
-      const [{ default: createEffect }, rendererModule] = await Promise.all([
+      const [{ default: createEffect }, THREE] = await Promise.all([
         EFFECT_LOADERS[effect](),
-        renderer === "p5" ? import("p5") : import("three"),
+        import("three"),
       ]);
       if (cancelled || !containerRef.current) return;
-      const rendererProp = renderer === "p5" ? { p5: rendererModule.default } : { THREE: rendererModule };
       vantaRef.current = createEffect({
         el: containerRef.current,
-        ...rendererProp,
+        THREE,
         color,
         backgroundColor,
         mouseControls: true,
