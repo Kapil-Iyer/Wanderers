@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { getSupabaseAdmin } from "@/lib/supabaseAdmin";
 import { getAuthUser } from "@/lib/auth";
+import { getMemberCounts } from "@/lib/memberCounts";
 
 /** Map activity name to emoji for cards. */
 function activityEmoji(activity: string): string {
@@ -65,29 +66,22 @@ async function dbFallbackRecommendations() {
 
     if (error) return NextResponse.json({ recommended_bubbles: [] });
 
-    const withCount: RecommendedBubbleItem[] = await Promise.all(
-      (bubbles ?? []).map(async (b) => {
-        const { count } = await admin
-          .from("bubble_members")
-          .select("user_id", { count: "exact", head: true })
-          .eq("bubble_id", b.id);
-        const joined = count ?? 0;
-        const maxPeople = b.max_members ?? 8;
-        return {
-          id: b.id,
-          title: b.activity || "Activity",
-          emoji: activityEmoji(b.activity ?? ""),
-          zone: b.zone ?? "",
-          start_time: b.start_time ?? "",
-          startingIn: formatStartingIn(b.start_time ?? ""),
-          joined,
-          maxPeople,
-          recommendationReason: "Starting soon",
-        };
-      })
-    );
+    const rows = bubbles ?? [];
+    const countById = await getMemberCounts(admin, rows.map((b) => b.id));
 
-    return NextResponse.json({ recommended_bubbles: withCount });
+    const recommendations: RecommendedBubbleItem[] = rows.map((b) => ({
+      id: b.id,
+      title: b.activity || "Activity",
+      emoji: activityEmoji(b.activity ?? ""),
+      zone: b.zone ?? "",
+      start_time: b.start_time ?? "",
+      startingIn: formatStartingIn(b.start_time ?? ""),
+      joined: countById.get(b.id) ?? 0,
+      maxPeople: b.max_members ?? 8,
+      recommendationReason: "Starting soon",
+    }));
+
+    return NextResponse.json({ recommended_bubbles: recommendations });
   } catch {
     return NextResponse.json({ recommended_bubbles: [] });
   }
@@ -116,29 +110,23 @@ export async function GET(request: NextRequest) {
 
       if (error || !bubbles?.length) return NextResponse.json({ recommended_bubbles: [] });
 
-      const withCount = await Promise.all(
-        bubbles.map(async (b) => {
-          const { count } = await admin
-            .from("bubble_members")
-            .select("user_id", { count: "exact", head: true })
-            .eq("bubble_id", b.id);
-          return {
-            id: b.id,
-            title: b.activity || "Activity",
-            emoji: activityEmoji(b.activity ?? ""),
-            category: "Casual",
-            joined: count ?? 0,
-            maxPeople: b.max_members ?? 8,
-            startingIn: formatStartingIn(b.start_time ?? ""),
-            distance: "0.5 km",
-            description: "",
-            creator: "?",
-            creatorAvatar: "?",
-            zone: b.zone ?? "",
-            start_time: b.start_time ?? "",
-          };
-        })
-      );
+      const countById = await getMemberCounts(admin, bubbles.map((b) => b.id));
+
+      const withCount = bubbles.map((b) => ({
+        id: b.id,
+        title: b.activity || "Activity",
+        emoji: activityEmoji(b.activity ?? ""),
+        category: "Casual",
+        joined: countById.get(b.id) ?? 0,
+        maxPeople: b.max_members ?? 8,
+        startingIn: formatStartingIn(b.start_time ?? ""),
+        distance: "0.5 km",
+        description: "",
+        creator: "?",
+        creatorAvatar: "?",
+        zone: b.zone ?? "",
+        start_time: b.start_time ?? "",
+      }));
 
       const url = new URL(request.url);
       const userId = url.searchParams.get("user_id");

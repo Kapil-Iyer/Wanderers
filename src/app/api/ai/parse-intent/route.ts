@@ -1,16 +1,22 @@
 import { NextRequest, NextResponse } from "next/server";
 import { SchemaType, type Schema } from "@google/generative-ai";
 import { getGeminiModel, isGeminiConfigured } from "@/lib/gemini";
+import { getAuthUser } from "@/lib/auth";
+import { checkRateLimit } from "@/lib/rateLimit";
 
 /**
  * POST /api/ai/parse-intent
  * Natural language → structured bubble fields, using Gemini in JSON mode
  * (responseSchema) for reliable parsing.
  *
+ * Auth required, and throttled per user - every call costs money.
+ *
  * Responses:
  * - 200 { success: true, data }                - parsed
  * - 200 { success: false, fallback: true, ... } - no key / parse failure → client uses manual form
  * - 400 { success: false, error }               - bad request
+ * - 401 { success: false, error }               - not signed in
+ * - 429 { success: false, error }               - too many parses
  */
 
 const responseSchema: Schema = {
@@ -26,28 +32,21 @@ const responseSchema: Schema = {
   required: ["activity", "zone"],
 };
 
-// ── Simple in-memory rate limit: 10 calls / 60s per client (sliding window).
-// In-memory is per-instance and resets on cold start - fine for this stage.
+/**
+ * Throttle: 10 parses/minute per user, shared across instances via Postgres.
+ * The previous in-memory Map was per-lambda and reset on every cold start, so
+ * the real ceiling was 10 x (however many instances Vercel had warm) - not
+ * much of a limit on a paid third-party API.
+ */
 const RATE_LIMIT = 10;
-const RATE_WINDOW_MS = 60_000;
-const hits = new Map<string, number[]>();
+const RATE_WINDOW_SECONDS = 60;
 
-function isRateLimited(key: string): boolean {
-  const now = Date.now();
-  const recent = (hits.get(key) ?? []).filter((t) => now - t < RATE_WINDOW_MS);
-  if (recent.length >= RATE_LIMIT) {
-    hits.set(key, recent);
-    return true;
-  }
-  recent.push(now);
-  hits.set(key, recent);
-  return false;
-}
-
-function clientKey(request: NextRequest): string {
-  const fwd = request.headers.get("x-forwarded-for");
-  return (fwd ? fwd.split(",")[0].trim() : null) || request.headers.get("x-real-ip") || "local";
-}
+/**
+ * Cap on the prompt input. Unbounded text went straight into the Gemini prompt,
+ * which is both a cost lever for anyone who found the endpoint and more room
+ * than anyone needs to describe a meetup.
+ */
+const MAX_TEXT_LENGTH = 500;
 
 const SYSTEM_PROMPT = `You are an intent parser for Wanderers, a University of Waterloo meetup app.
 Extract structured fields from the user's message.
@@ -59,14 +58,32 @@ Extract structured fields from the user's message.
 
 export async function POST(request: NextRequest) {
   try {
+    // Auth required: this endpoint spends money on every call, and only
+    // signed-in users can create a bubble in the first place.
+    const user = await getAuthUser(request);
+    if (!user) {
+      return NextResponse.json({ success: false, error: "Unauthenticated" }, { status: 401 });
+    }
+
     const body = await request.json().catch(() => ({}));
     const text = typeof body?.text === "string" ? body.text.trim() : "";
     if (!text) {
       return NextResponse.json({ success: false, error: "text required" }, { status: 400 });
     }
+    if (text.length > MAX_TEXT_LENGTH) {
+      return NextResponse.json(
+        { success: false, error: `Keep it under ${MAX_TEXT_LENGTH} characters` },
+        { status: 400 }
+      );
+    }
 
-    // Rate limit - 10 parses/min per client
-    if (isRateLimited(clientKey(request))) {
+    const withinLimit = await checkRateLimit(
+      "ai-parse-intent",
+      user.id,
+      RATE_LIMIT,
+      RATE_WINDOW_SECONDS
+    );
+    if (!withinLimit) {
       return NextResponse.json(
         { success: false, error: "Slow down - you're parsing too fast" },
         { status: 429 }

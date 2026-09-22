@@ -3,9 +3,21 @@ import { getAuthUser } from "@/lib/auth";
 import { getSupabaseAdmin } from "@/lib/supabaseAdmin";
 import { ensureUserInPublic } from "@/lib/ensureUser";
 
+/** Maps join_bubble()'s refusal codes onto HTTP responses. */
+const ERRORS: Record<string, [string, 400 | 404]> = {
+  not_found: ["Bubble not found", 404],
+  expired: ["Bubble is no longer open", 400],
+  full: ["Bubble full", 400],
+};
+
 /**
  * POST /api/bubbles/join
- * Join a bubble. Duplicate join returns 400. Expired/full return 400 with message.
+ * Join a bubble. Expired/full return 400 with a message; an existing member is
+ * a success with already_member set.
+ *
+ * Delegates to the join_bubble() Postgres function so the capacity check and
+ * the insert are atomic (see
+ * supabase/migrations/20260922_indexes_realtime_cron_and_atomic_join.sql).
  */
 export async function POST(request: NextRequest) {
   try {
@@ -35,94 +47,42 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    const { data: bubble, error: fetchError } = await admin
-      .from("bubbles")
-      .select("id, expires_at, max_members, status")
-      .eq("id", bubble_id)
-      .single();
+    // Capacity check and insert happen inside one locked statement. Doing it
+    // here as count-then-insert let two users racing for the last seat both
+    // read the same count and both get in.
+    const { data, error: rpcError } = await admin.rpc("join_bubble", {
+      p_bubble_id: bubble_id,
+      p_user_id: user.id,
+    });
 
-    if (fetchError || !bubble) {
+    if (rpcError) {
       return NextResponse.json(
-        { success: false, error: "Bubble not found" },
-        { status: 404 }
-      );
-    }
-
-    if (new Date(bubble.expires_at) < new Date()) {
-      return NextResponse.json(
-        { success: false, error: "Bubble expired" },
-        { status: 400 }
-      );
-    }
-
-    if (bubble.status === "expired") {
-      return NextResponse.json(
-        { success: false, error: "Bubble is no longer open" },
-        { status: 400 }
-      );
-    }
-
-    const { data: existing } = await admin
-      .from("bubble_members")
-      .select("user_id")
-      .eq("bubble_id", bubble_id)
-      .eq("user_id", user.id)
-      .maybeSingle();
-
-    if (existing) {
-      const { count } = await admin
-        .from("bubble_members")
-        .select("user_id", { count: "exact", head: true })
-        .eq("bubble_id", bubble_id);
-      return NextResponse.json({
-        success: true,
-        data: { members_count: count ?? 1, already_member: true },
-      });
-    }
-
-    const { count, error: countError } = await admin
-      .from("bubble_members")
-      .select("user_id", { count: "exact", head: true })
-      .eq("bubble_id", bubble_id);
-
-    if (countError) {
-      return NextResponse.json(
-        { success: false, error: "Failed to count members" },
+        { success: false, error: rpcError.message },
         { status: 500 }
       );
     }
 
-    const memberCount = count ?? 0;
-    if (bubble.max_members != null && memberCount >= bubble.max_members) {
-      return NextResponse.json(
-        { success: false, error: "Bubble full" },
-        { status: 400 }
-      );
-    }
+    const result = (data ?? {}) as {
+      ok?: boolean;
+      code?: string;
+      already_member?: boolean;
+      members_count?: number;
+    };
 
-    const { error: insertError } = await admin.from("bubble_members").insert({
-      bubble_id,
-      user_id: user.id,
-    });
-
-    if (insertError) {
-      return NextResponse.json(
-        { success: false, error: insertError.message },
-        { status: 400 }
-      );
-    }
-
-    const newCount = memberCount + 1;
-    if (newCount >= 2) {
-      await admin
-        .from("bubbles")
-        .update({ status: "active" })
-        .eq("id", bubble_id);
+    if (result.ok !== true) {
+      const [message, status] = ERRORS[result.code ?? ""] ?? [
+        "Could not join bubble",
+        400 as const,
+      ];
+      return NextResponse.json({ success: false, error: message }, { status });
     }
 
     return NextResponse.json({
       success: true,
-      data: { members_count: newCount },
+      data: {
+        members_count: result.members_count ?? 1,
+        ...(result.already_member ? { already_member: true } : {}),
+      },
     });
   } catch {
     return NextResponse.json(

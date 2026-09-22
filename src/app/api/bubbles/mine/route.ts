@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { getAuthUser } from "@/lib/auth";
 import { getSupabaseAdmin } from "@/lib/supabaseAdmin";
+import { getMemberCounts } from "@/lib/memberCounts";
 
 /**
  * GET /api/bubbles/mine
@@ -62,19 +63,15 @@ export async function GET(request: NextRequest) {
       .in("bubble_id", bubbleIds);
     const starredIds = new Set((starred ?? []).map((s) => s.bubble_id));
 
-    const withCount = await Promise.all(
-      (bubbles ?? []).map(async (b) => {
-        const { count } = await admin
-          .from("bubble_members")
-          .select("user_id", { count: "exact", head: true })
-          .eq("bubble_id", b.id);
-        return {
-          ...b,
-          members_count: count ?? 0,
-          starred: starredIds.has(b.id),
-        };
-      })
-    );
+    // One query for every bubble's member count, not one query per bubble.
+    const rows = bubbles ?? [];
+    const countById = await getMemberCounts(admin, rows.map((b) => b.id));
+
+    const withCount = rows.map((b) => ({
+      ...b,
+      members_count: countById.get(b.id) ?? 0,
+      starred: starredIds.has(b.id),
+    }));
 
     return NextResponse.json({
       success: true,

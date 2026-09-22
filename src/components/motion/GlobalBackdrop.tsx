@@ -40,14 +40,31 @@ export default function GlobalBackdrop() {
     return () => mq.removeEventListener("change", onChange);
   }, []);
 
-  // Warm the Clouds effect + three.js chunk as soon as the app boots (even while
-  // sitting on "/" where this component itself renders null), so by the time the
-  // user navigates to a page that needs it, it's already downloaded and cached -
+  // Warm the Clouds effect + three.js chunk so that by the time the user
+  // navigates to a page that needs it, it's already downloaded and cached -
   // only the (fast) WebGL scene init is left, instead of a chunk fetch + init.
+  //
+  // Deferred to idle rather than fired on mount: three.js is a few hundred KB
+  // and starting it immediately made it compete with the chunks the current
+  // page actually needs to become interactive. Idle keeps the prefetch benefit
+  // without paying for it during first paint. Skipped entirely under reduced
+  // motion, where the WebGL fog never renders anyway.
   useEffect(() => {
-    import("vanta/dist/vanta.clouds.min");
-    import("three");
-  }, []);
+    if (reduced) return;
+
+    const warm = () => {
+      import("vanta/dist/vanta.clouds.min");
+      import("three");
+    };
+
+    // requestIdleCallback isn't in Safari; the timeout is a rough stand-in.
+    if (typeof window.requestIdleCallback === "function") {
+      const handle = window.requestIdleCallback(warm, { timeout: 4000 });
+      return () => window.cancelIdleCallback?.(handle);
+    }
+    const t = setTimeout(warm, 2000);
+    return () => clearTimeout(t);
+  }, [reduced]);
 
   const hasOwnHero = pathname ? OWN_HERO_ROUTES.has(pathname) : false;
   const mapIsOpen = mapOverlay?.isOpen ?? false;

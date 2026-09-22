@@ -6,8 +6,16 @@ import { ensureBubbleMembership } from "@/lib/ensureBubbleMembership";
 const MAX_MESSAGE_LENGTH = 500;
 
 /**
+ * Cap on how much backlog a chat open pulls down. Previously unbounded, so a
+ * long-running bubble returned its entire thread on every open - and the chat
+ * page re-requested it on a timer.
+ */
+const MAX_HISTORY = 200;
+
+/**
  * GET /api/bubbles/[id]/messages
- * Auth required. Auto-joins open bubbles if needed, then returns full history.
+ * Auth required. Auto-joins open bubbles if needed, then returns the most
+ * recent MAX_HISTORY messages, oldest first.
  */
 export async function GET(
   request: NextRequest,
@@ -39,11 +47,15 @@ export async function GET(
       );
     }
 
+    // Newest MAX_HISTORY messages, fetched descending then flipped back to
+    // ascending so the response contract (oldest first) is unchanged. Selecting
+    // ascending with a limit would have returned the *start* of the thread.
     const { data: messages, error } = await admin
       .from("messages")
       .select("id, bubble_id, user_id, content, created_at")
       .eq("bubble_id", bubbleId)
-      .order("created_at", { ascending: true });
+      .order("created_at", { ascending: false })
+      .limit(MAX_HISTORY);
 
     if (error) {
       return NextResponse.json(
@@ -52,7 +64,7 @@ export async function GET(
       );
     }
 
-    const rows = messages ?? [];
+    const rows = (messages ?? []).reverse();
     const senderIds = [...new Set(rows.map((m) => m.user_id).filter(Boolean))];
     const nameById = new Map<string, string>();
     if (senderIds.length > 0) {

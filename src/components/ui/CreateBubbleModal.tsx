@@ -69,8 +69,17 @@ export default function CreateBubbleModal({ open, onClose, onCreated, prefill }:
     setParsing(true);
     setParseError(null);
     try {
+      const { data: sessionData } = await supabase.auth.getSession();
+      const token = sessionData?.session?.access_token;
+      if (!token) {
+        setParseError("Sign in to use smart parsing, or fill the form below.");
+        return;
+      }
+
       const res = await fetch("/api/ai/parse-intent", {
-        method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ text }),
+        method: "POST",
+        headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
+        body: JSON.stringify({ text }),
       });
       const data = await res.json();
 

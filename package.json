@@ -8,7 +8,10 @@
     "dev:webpack": "next dev",
     "build": "next build",
     "start": "next start",
-    "lint": "eslint ."
+    "lint": "eslint .",
+    "typecheck": "tsc --noEmit",
+    "verify": "npm run typecheck && npm run lint && npm run build",
+    "analyze": "ANALYZE=true next build"
   },
   "dependencies": {
     "@google/generative-ai": "^0.24.1",
@@ -42,8 +45,6 @@
     "@radix-ui/react-tooltip": "^1.2.7",
     "@react-google-maps/api": "^2.20.8",
     "@supabase/supabase-js": "^2.98.0",
-    "@tanstack/react-query": "^5.83.0",
-    "@types/p5": "^1.7.7",
     "class-variance-authority": "^0.7.1",
     "clsx": "^2.1.1",
     "cmdk": "^1.1.1",
@@ -54,7 +55,6 @@
     "lucide-react": "^0.462.0",
     "next": "^15.0.0",
     "next-themes": "^0.3.0",
-    "p5": "^2.3.2",
     "react": "^18.3.1",
     "react-day-picker": "^8.10.1",
     "react-dom": "^18.3.1",
@@ -70,6 +70,7 @@
   },
   "devDependencies": {
     "@eslint/js": "^9.32.0",
+    "@next/bundle-analyzer": "^16.3.6",
     "@tailwindcss/typography": "^0.5.16",
     "@types/node": "^22.16.5",
     "@types/react": "^18.3.23",
