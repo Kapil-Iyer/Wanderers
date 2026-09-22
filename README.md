@@ -18,6 +18,7 @@ Wanderers is a campus social app for University of Waterloo students that helps 
 - [API Overview](#api-overview)
 - [Database (Supabase)](#database-supabase)
 - [ML Service (Optional)](#ml-service-optional)
+- [Mobile App](#mobile-app)
 - [Deployment](#deployment)
 - [Scripts](#scripts)
 
@@ -275,6 +276,46 @@ Set `RECOMMENDATIONS_API_URL` to the deployed base URL. The Next.js app POSTs to
 **Keep this section and `.env.example` up to date if you deploy a real instance** — `RECOMMENDATIONS_API_URL` is intentionally only ever set in per-environment config, never committed, which means it's invisible to a static reachability sweep of the repo. Document the live URL somewhere your team actually looks (this README, your deploy platform's env var list, or your PRD) so a future cleanup pass doesn't reasonably conclude the feature is dead and remove it again.
 
 See `ml-service/README.md` for endpoints and details.
+
+---
+
+## Mobile App
+
+The `mobile/` directory is an Expo (React Native) client — feature-equivalent to the web app (campus-gated OTP auth, bubbles, map, chat, Wander Moments, connections) for iOS/Android.
+
+### Run in development
+
+```bash
+cd mobile
+npm install
+cp .env.example .env.local   # fill in Supabase URL/anon key, see mobile/.env.example
+npx expo start
+```
+
+Scan the QR code with the **Expo Go** app, or press `a` / `i` in the terminal to open an Android/iOS emulator.
+
+### Building an installable app
+
+No build has been published yet — `mobile/eas.json` has an `internal` profile configured (produces a directly-installable Android APK), but it isn't linked to an EAS project or account yet. To produce a build:
+
+```bash
+cd mobile
+npx eas login                                   # free Expo account
+npx eas build --profile internal --platform android
+```
+
+The first run prompts to create/link an EAS project (writes a `projectId` into `mobile/app.json`). The build runs in Expo's cloud (~10–15 min); when it finishes you get a build page with a QR code and a direct `.apk` download link — install it on Android by opening that link and allowing "install from unknown sources".
+
+iOS internal builds need a paid Apple Developer account and either ad hoc distribution (registered device UDIDs) or TestFlight — see Expo's EAS Build docs (docs.expo.dev/build) for the iOS setup.
+
+### Making a build downloadable from GitHub
+
+Binaries aren't committed to git. Once a build exists, either:
+
+- Attach the `.apk` as an asset on a [GitHub Release](../../releases) — gives a stable `github.com/<org>/<repo>/releases/download/...` link, or
+- Link the EAS build page directly (Expo keeps it persistently accessible, with an install QR code).
+
+**Latest build:** _not yet published — add the link here once `eas build` has been run._
 
 ---
 
