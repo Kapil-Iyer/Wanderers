@@ -4,10 +4,12 @@
  * FEED POST - Wander Moments card (dark theme, matches app chrome).
  */
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { motion, useReducedMotion } from "framer-motion";
 import type { FeedPost as FeedPostType, FeedComment } from "@/lib/mockData";
 import { ProfileLink } from "@/components/ProfileLink";
+import { ReportBlockMenu } from "@/components/ui/ReportBlockMenu";
+import { supabase } from "@/lib/supabase";
 import { Heart, MessageCircle, Share2, Send, MapPin } from "lucide-react";
 
 type FeedPostProps = {
@@ -26,6 +28,13 @@ export default function FeedPost({ post }: FeedPostProps) {
   const [showComments, setShowComments] = useState(false);
   const [comments, setComments] = useState<FeedComment[]>(post.comments ?? []);
   const [commentDraft, setCommentDraft] = useState("");
+  const [currentUserId, setCurrentUserId] = useState<string | null>(null);
+
+  useEffect(() => {
+    supabase.auth.getSession().then(({ data }) => {
+      setCurrentUserId(data.session?.user.id ?? null);
+    });
+  }, []);
   const likeCount = (post.likes ?? 0) + (liked ? 1 : 0);
   // Strip duplicate brand hashtag from caption; we show it once below.
   const captionClean = (post.caption ?? "")
@@ -96,16 +105,26 @@ export default function FeedPost({ post }: FeedPostProps) {
             </p>
           </div>
         </div>
-        <span
-          className="text-[10px] font-bold uppercase tracking-[0.14em] px-2.5 py-1 rounded-full shrink-0"
-          style={{
-            background: "rgba(255,122,26,0.12)",
-            border: "1px solid rgba(255,122,26,0.28)",
-            color: "#ffb56b",
-          }}
-        >
-          Moment
-        </span>
+        <div className="flex items-center gap-1.5 shrink-0">
+          <span
+            className="text-[10px] font-bold uppercase tracking-[0.14em] px-2.5 py-1 rounded-full"
+            style={{
+              background: "rgba(255,122,26,0.12)",
+              border: "1px solid rgba(255,122,26,0.28)",
+              color: "#ffb56b",
+            }}
+          >
+            Moment
+          </span>
+          {post.userId && post.userId !== currentUserId && (
+            <ReportBlockMenu
+              targetUserId={post.userId}
+              targetUserName={post.username}
+              reportTargetType="photo"
+              reportTargetId={post.id}
+            />
+          )}
+        </div>
       </div>
 
       {/* Photo */}

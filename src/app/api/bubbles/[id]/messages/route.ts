@@ -52,7 +52,13 @@ export async function GET(
       );
     }
 
-    const rows = messages ?? [];
+    const { data: blocked } = await admin
+      .from("blocks")
+      .select("blocked_id")
+      .eq("blocker_id", user.id);
+    const blockedIds = new Set((blocked ?? []).map((b) => b.blocked_id));
+
+    const rows = (messages ?? []).filter((m) => !m.user_id || !blockedIds.has(m.user_id));
     const senderIds = [...new Set(rows.map((m) => m.user_id).filter(Boolean))];
     const nameById = new Map<string, string>();
     if (senderIds.length > 0) {
