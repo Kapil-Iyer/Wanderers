@@ -98,6 +98,54 @@ export type Database = {
           },
         ]
       }
+      blocks: {
+        Row: {
+          blocked_id: string
+          blocker_id: string
+          created_at: string
+        }
+        Insert: {
+          blocked_id: string
+          blocker_id: string
+          created_at?: string
+        }
+        Update: {
+          blocked_id?: string
+          blocker_id?: string
+          created_at?: string
+        }
+        Relationships: []
+      }
+      reports: {
+        Row: {
+          created_at: string
+          id: string
+          reason: string | null
+          reporter_id: string
+          status: string
+          target_id: string
+          target_type: string
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          reason?: string | null
+          reporter_id: string
+          status?: string
+          target_id: string
+          target_type: string
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          reason?: string | null
+          reporter_id?: string
+          status?: string
+          target_id?: string
+          target_type?: string
+        }
+        Relationships: []
+      }
       bubbles: {
         Row: {
           activity: string

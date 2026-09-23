@@ -105,7 +105,14 @@ export async function GET(request: NextRequest) {
       return NextResponse.json({ success: false, error: error.message }, { status: 500 });
     }
 
-    const data = await formatMoments(admin, moments ?? []);
+    const { data: blocked } = await admin
+      .from('blocks')
+      .select('blocked_id')
+      .eq('blocker_id', user.id);
+    const blockedIds = new Set((blocked ?? []).map((b) => b.blocked_id));
+    const visible = (moments ?? []).filter((m) => !m.user_id || !blockedIds.has(m.user_id));
+
+    const data = await formatMoments(admin, visible);
     return NextResponse.json({ success: true, data });
   } catch {
     return NextResponse.json({ success: false, error: 'Invalid request' }, { status: 400 });

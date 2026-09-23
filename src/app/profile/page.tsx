@@ -4,10 +4,21 @@ import { useEffect, useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
 import { motion } from "framer-motion";
 import { toast } from "sonner";
-import { Camera, Edit2, Plus, LogOut, BadgeCheck, Star, Quote } from "lucide-react";
+import { Camera, Edit2, Plus, LogOut, BadgeCheck, Star, Quote, Trash2 } from "lucide-react";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
 import BottomNav from "@/components/ui/BottomNav";
 import AppHeader from "@/components/ui/AppHeader";
 import { ProfileLink } from "@/components/ProfileLink";
+import { ReportBlockMenu } from "@/components/ui/ReportBlockMenu";
 import { personalityTraits, mockBubbles, interestOptions } from "@/lib/mockData";
 import { useConnections } from "@/contexts/ConnectionsContext";
 import { useSidebar } from "@/contexts/SidebarContext";
@@ -59,6 +70,27 @@ export default function ProfilePage() {
   const [customInterest, setCustomInterest] = useState("");
   const [displayName, setDisplayName] = useState<string | null>(null);
   const [vibeTags, setVibeTags] = useState<string[]>(["Waterloo"]);
+  const [deleteOpen, setDeleteOpen] = useState(false);
+  const [deleting, setDeleting] = useState(false);
+
+  const handleDeleteAccount = async () => {
+    setDeleting(true);
+    try {
+      const { data } = await supabase.auth.getSession();
+      const token = data.session?.access_token;
+      const res = await fetch("/api/account", {
+        method: "DELETE",
+        headers: token ? { Authorization: `Bearer ${token}` } : undefined,
+      });
+      const json = await res.json().catch(() => ({}));
+      if (!res.ok || !json.success) throw new Error(json?.error ?? "Failed to delete account");
+      await supabase.auth.signOut();
+      router.push("/");
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : "Couldn't delete account");
+      setDeleting(false);
+    }
+  };
 
   useEffect(() => {
     if (!guestResolved) return;
@@ -291,20 +323,30 @@ export default function ProfilePage() {
                     animate={{ opacity: 1, scale: 1 }}
                     transition={{ duration: 0.35, delay: 0.18 + i * 0.05, ease }}
                   >
-                    <ProfileLink name={friend.name} avatar={friend.avatar} className="block">
-                      <motion.div
-                        className="relative w-14 h-14 rounded-full flex items-center justify-center text-sm font-bold"
-                        style={{ background: "rgba(255,122,26,0.12)", color: "var(--color-text-primary)", border: "1px solid rgba(255,122,26,0.25)" }}
-                        whileHover={{ scale: 1.08, boxShadow: "0 0 18px rgba(255,122,26,0.35)" }}
-                        transition={{ type: "spring", stiffness: 400, damping: 20 }}
-                      >
-                        {friend.avatar}
-                        {friend.currentEvent && (
-                          <span className="animate-pulse-dot absolute bottom-0 right-0 w-3.5 h-3.5 rounded-full"
-                            style={{ background: "#4ade80", border: "2px solid #140F0A" }} />
-                        )}
-                      </motion.div>
-                    </ProfileLink>
+                    <div className="relative">
+                      <ProfileLink name={friend.name} avatar={friend.avatar} className="block">
+                        <motion.div
+                          className="relative w-14 h-14 rounded-full flex items-center justify-center text-sm font-bold"
+                          style={{ background: "rgba(255,122,26,0.12)", color: "var(--color-text-primary)", border: "1px solid rgba(255,122,26,0.25)" }}
+                          whileHover={{ scale: 1.08, boxShadow: "0 0 18px rgba(255,122,26,0.35)" }}
+                          transition={{ type: "spring", stiffness: 400, damping: 20 }}
+                        >
+                          {friend.avatar}
+                          {friend.currentEvent && (
+                            <span className="animate-pulse-dot absolute bottom-0 right-0 w-3.5 h-3.5 rounded-full"
+                              style={{ background: "#4ade80", border: "2px solid #140F0A" }} />
+                          )}
+                        </motion.div>
+                      </ProfileLink>
+                      <div className="absolute -top-1 -right-1 rounded-full" style={{ background: "#140F0A" }}>
+                        <ReportBlockMenu
+                          targetUserId={friend.id}
+                          targetUserName={friend.name}
+                          reportTargetType="user"
+                          reportTargetId={friend.id}
+                        />
+                      </div>
+                    </div>
                     <span className="text-[10px] text-center truncate w-full" style={{ color: "var(--color-text-secondary)" }}>
                       {friend.name.split(" ")[0]}
                     </span>
@@ -484,8 +526,48 @@ export default function ProfilePage() {
             <LogOut className="w-4 h-4" />
             {isGuest ? "Sign Up" : "Log Out"}
           </motion.button>
+
+          {!isGuest && (
+            <motion.button type="button"
+              onClick={() => setDeleteOpen(true)}
+              className="w-full mt-3 h-11 rounded-full flex items-center justify-center gap-2 font-medium text-sm"
+              style={{ background: "transparent", border: "1px solid rgba(255,255,255,0.08)", color: "var(--color-text-muted)" }}
+              initial={{ opacity: 0 }} animate={{ opacity: 1 }} transition={{ delay: 0.6, duration: 0.4 }}
+              whileHover={{ scale: 1.02, borderColor: "rgba(239,68,68,0.3)", color: "#f87171" }}
+              whileTap={{ scale: 0.97 }}
+            >
+              <Trash2 className="w-4 h-4" />
+              Delete Account
+            </motion.button>
+          )}
         </div>
       </div>
+
+      <AlertDialog open={deleteOpen} onOpenChange={(open) => !deleting && setDeleteOpen(open)}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Delete your account?</AlertDialogTitle>
+            <AlertDialogDescription>
+              This permanently deletes your Wanderers account, profile, and bubbles you created.
+              Messages and Wander Moments you posted stay visible to others but are no longer
+              attributed to you. This can&apos;t be undone.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel disabled={deleting}>Cancel</AlertDialogCancel>
+            <AlertDialogAction
+              disabled={deleting}
+              onClick={(e) => {
+                e.preventDefault();
+                handleDeleteAccount();
+              }}
+              className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+            >
+              {deleting ? "Deleting…" : "Delete account"}
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
 
       <BottomNav />
     </div>

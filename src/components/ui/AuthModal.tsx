@@ -420,6 +420,12 @@ export default function AuthModal() {
                 trailing={<EyeToggle show={showSignupPwd} onToggle={() => setShowSignupPwd((p) => !p)} />} />
               <Field id="confirmPassword" name="confirmPassword" type={showSignupConfirm ? "text" : "password"} icon={<Lock className="w-4 h-4" />} placeholder="Re-enter your password" label="Confirm Password" required autoComplete="new-password"
                 trailing={<EyeToggle show={showSignupConfirm} onToggle={() => setShowSignupConfirm((p) => !p)} />} />
+              <p className="text-center text-[11px]" style={{ color: "var(--color-text-muted)" }}>
+                By signing up, you agree to our{" "}
+                <a href="/terms" target="_blank" rel="noreferrer" className="underline">Terms</a>
+                {" "}and{" "}
+                <a href="/privacy" target="_blank" rel="noreferrer" className="underline">Privacy Policy</a>.
+              </p>
               <GradientButton type="submit" loading={loading}>{loading ? "Creating account…" : "Create Account"}</GradientButton>
               <BackButton onClick={() => go("choice")} />
             </motion.form>

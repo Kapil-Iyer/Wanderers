@@ -9,7 +9,8 @@
     "userInterfaceStyle": "automatic",
     "ios": {
       "supportsTablet": true,
-      "bundleIdentifier": "com.wanderers.mobile"
+      "bundleIdentifier": "com.wanderers.mobile",
+      "buildNumber": "1"
     },
     "android": {
       "package": "com.wanderers.mobile",
@@ -35,6 +36,14 @@
         "expo-location",
         {
           "locationWhenInUsePermission": "Wanderers uses your location to show nearby bubbles on the map."
+        }
+      ],
+      [
+        "expo-image-picker",
+        {
+          "photosPermission": "Wanderers uses your photo library so you can post a Wander Moment photo from an event.",
+          "cameraPermission": "Wanderers uses your camera so you can take a Wander Moment photo from an event.",
+          "microphonePermission": false
         }
       ]
     ],

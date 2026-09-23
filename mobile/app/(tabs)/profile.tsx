@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { Pressable, ScrollView, Text, View } from "react-native";
+import { Alert, Pressable, ScrollView, Text, View } from "react-native";
 import { router } from "expo-router";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { Ionicons } from "@expo/vector-icons";
@@ -17,6 +17,7 @@ import { interestOptions, personalityTraits } from "@/lib/mockData";
 import { inferCategory, timeAgo } from "@/lib/bubbleHelpers";
 import { myBubbles } from "@/api/bubbles";
 import { updateProfile } from "@/api/profile";
+import { deleteAccount } from "@/api/authApi";
 import { colors, radii } from "@/lib/theme";
 import { AuroraBackground } from "@/components/AuroraBackground";
 
@@ -92,6 +93,7 @@ export default function ProfileScreen() {
   const queryClient = useQueryClient();
   const [editingInterests, setEditingInterests] = useState(false);
   const [editingTraits, setEditingTraits] = useState(false);
+  const [deleting, setDeleting] = useState(false);
 
   const profileQuery = useQuery({
     queryKey: ["profile", user?.id],
@@ -121,6 +123,32 @@ export default function ProfileScreen() {
       await supabase.auth.signOut();
     }
     router.replace("/(auth)/login");
+  };
+
+  const onDeleteAccount = () => {
+    Alert.alert(
+      "Delete your account?",
+      "This permanently deletes your account, profile, and bubbles you created. Messages and Wander Moments you posted stay visible to others but are no longer attributed to you. This can't be undone.",
+      [
+        { text: "Cancel", style: "cancel" },
+        {
+          text: "Delete",
+          style: "destructive",
+          onPress: async () => {
+            setDeleting(true);
+            try {
+              const res = await deleteAccount();
+              if (!res.success) throw new Error(res.error);
+              await supabase.auth.signOut();
+              router.replace("/(auth)/login");
+            } catch (e) {
+              Alert.alert("Couldn't delete account", e instanceof Error ? e.message : "Try again.");
+              setDeleting(false);
+            }
+          },
+        },
+      ]
+    );
   };
 
   if (isGuest) {
@@ -312,6 +340,13 @@ export default function ProfileScreen() {
           <View className="mt-8">
             <GradientButton label="Sign Out" onPress={onSignOut} variant="ghost" />
           </View>
+          {!isGuest && (
+            <Pressable onPress={onDeleteAccount} disabled={deleting} className="mt-3 items-center py-2">
+              <Text className="text-sm" style={{ color: colors.textMuted }}>
+                {deleting ? "Deleting…" : "Delete Account"}
+              </Text>
+            </Pressable>
+          )}
         </View>
       </ScrollView>
     </View>
