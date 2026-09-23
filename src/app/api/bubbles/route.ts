@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { getAuthUser } from "@/lib/auth";
 import { getSupabaseAdmin } from "@/lib/supabaseAdmin";
 import { ensureUserInPublic } from "@/lib/ensureUser";
+import { checkRateLimit, rateLimitResponse } from "@/lib/rateLimit";
 
 /**
  * POST /api/bubbles
@@ -33,6 +34,10 @@ export async function POST(request: NextRequest) {
     const user = await getAuthUser(request);
     if (!user) {
       return NextResponse.json({ success: false, error: "Unauthenticated" }, { status: 401 });
+    }
+
+    if (!(await checkRateLimit("bubble-create", user.id, 10, 60 * 60))) {
+      return rateLimitResponse();
     }
 
     const admin = getSupabaseAdmin();

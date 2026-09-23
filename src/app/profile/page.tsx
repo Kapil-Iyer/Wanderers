@@ -64,7 +64,9 @@ export default function ProfilePage() {
   const { connectionsCount, getConnectedFriends } = useConnections();
   const connectedFriends = getConnectedFriends();
   const [editingInterests, setEditingInterests] = useState(false);
-  const [userInterests, setUserInterests] = useState(interestOptions.slice(0, 6));
+  const [editingTraits, setEditingTraits] = useState(false);
+  const [userInterests, setUserInterests] = useState<string[]>([]);
+  const [userTraits, setUserTraits] = useState<string[]>([]);
   const [customInterest, setCustomInterest] = useState("");
   const [displayName, setDisplayName] = useState<string | null>(null);
   const [vibeTags, setVibeTags] = useState<string[]>(["Waterloo"]);
@@ -99,6 +101,7 @@ export default function ProfilePage() {
     if (isGuest) {
       setDisplayName(DEMO_PROFILE.name);
       setUserInterests(DEMO_PROFILE.interests);
+      setUserTraits(DEMO_PROFILE.personalityTraits);
       setVibeTags(DEMO_PROFILE.vibeTags);
       return;
     }
@@ -120,7 +123,7 @@ export default function ProfilePage() {
 
       const { data: row } = await supabase
         .from("users")
-        .select("name, vibe, email")
+        .select("name, vibe, email, interests, personality_traits")
         .eq("id", user.id)
         .maybeSingle();
 
@@ -136,6 +139,8 @@ export default function ProfilePage() {
       if (!cancelled) {
         setDisplayName(name);
         setVibeTags(tags);
+        setUserInterests(Array.isArray(row?.interests) ? row.interests : []);
+        setUserTraits(Array.isArray(row?.personality_traits) ? row.personality_traits : []);
       }
     })();
 
@@ -149,18 +154,50 @@ export default function ProfilePage() {
     [displayName, isGuest]
   );
 
+  const saveProfileField = async (field: "interests" | "personality_traits", value: string[]) => {
+    if (isGuest) return;
+    try {
+      const { data } = await supabase.auth.getSession();
+      const token = data.session?.access_token;
+      const res = await fetch("/api/profile", {
+        method: "PATCH",
+        headers: {
+          "Content-Type": "application/json",
+          ...(token ? { Authorization: `Bearer ${token}` } : {}),
+        },
+        body: JSON.stringify({ [field]: value }),
+      });
+      const json = await res.json().catch(() => ({}));
+      if (!res.ok || !json.success) throw new Error(json?.error ?? "Failed to save");
+    } catch {
+      toast.error("Couldn't save changes");
+    }
+  };
+
   const toggleInterest = (interest: string) => {
-    setUserInterests(prev =>
-      prev.includes(interest) ? prev.filter(i => i !== interest) : [...prev, interest]
-    );
+    setUserInterests(prev => {
+      const next = prev.includes(interest) ? prev.filter(i => i !== interest) : [...prev, interest];
+      saveProfileField("interests", next);
+      return next;
+    });
   };
 
   const addCustomInterest = () => {
     const t = customInterest.trim();
     if (t && !userInterests.includes(t)) {
-      setUserInterests(prev => [...prev, t]);
+      const next = [...userInterests, t];
+      setUserInterests(next);
       setCustomInterest("");
+      saveProfileField("interests", next);
     }
+  };
+
+  const toggleTrait = (trait: string) => {
+    setUserTraits(prev => {
+      const next = prev.includes(trait) ? prev.filter(t => t !== trait) : [...prev, trait];
+      saveProfileField("personality_traits", next);
+      return next;
+    });
   };
 
   const stats = isGuest
@@ -333,6 +370,11 @@ export default function ProfilePage() {
               </motion.button>
             }>
             <div className="flex flex-wrap gap-2">
+              {userInterests.length === 0 && !editingInterests && (
+                <p className="text-xs" style={{ color: "var(--color-text-muted)" }}>
+                  No interests yet - tap Edit to add some.
+                </p>
+              )}
               {userInterests.map((interest) => (
                 <motion.button key={interest} type="button"
                   onClick={() => editingInterests && toggleInterest(interest)}
@@ -385,15 +427,51 @@ export default function ProfilePage() {
           </Section>
 
           {/* Personality */}
-          <Section label="Personality" delay={0.32}>
+          <Section label="Personality" delay={0.32}
+            action={
+              <motion.button type="button"
+                onClick={() => setEditingTraits(!editingTraits)}
+                className="text-xs font-medium flex items-center gap-1"
+                style={{ color: "var(--color-text-primary)" }}
+                whileHover={{ x: 2 }}
+                transition={{ type: "spring", stiffness: 300, damping: 22 }}>
+                <Edit2 className="w-3 h-3" />
+                {editingTraits ? "Done" : "Edit"}
+              </motion.button>
+            }>
             <div className="flex flex-wrap gap-2">
-              {personalityTraits.map((trait) => (
-                <span key={trait}
-                  className="px-3 py-1.5 rounded-full text-xs font-medium"
-                  style={{ background: "rgba(10,7,5,0.55)", border: "1px solid rgba(255,255,255,0.1)", color: "var(--color-text-secondary)" }}>
+              {userTraits.length === 0 && !editingTraits && (
+                <p className="text-xs" style={{ color: "var(--color-text-muted)" }}>
+                  No traits picked yet - tap Edit to add some.
+                </p>
+              )}
+              {userTraits.map((trait) => (
+                <motion.button key={trait} type="button"
+                  onClick={() => editingTraits && toggleTrait(trait)}
+                  className="px-3 py-1.5 rounded-full text-xs font-bold"
+                  style={{
+                    background: "linear-gradient(135deg, #ff7a1a, #ffb56b)",
+                    color: "#2a1206",
+                    cursor: editingTraits ? "pointer" : "default",
+                  }}
+                  whileHover={editingTraits ? { scale: 1.05 } : {}}>
                   {trait}
-                </span>
+                </motion.button>
               ))}
+              {editingTraits && (
+                <div className="flex flex-wrap gap-2 mt-1">
+                  {personalityTraits.filter(t => !userTraits.includes(t)).map(trait => (
+                    <motion.button key={trait} type="button"
+                      onClick={() => toggleTrait(trait)}
+                      className="px-3 py-1.5 rounded-full text-xs font-medium"
+                      style={{ background: "rgba(10,7,5,0.55)", border: "1px solid rgba(255,255,255,0.1)", color: "var(--color-text-secondary)" }}
+                      whileHover={{ scale: 1.05, background: "rgba(255,122,26,0.1)", borderColor: "rgba(255,122,26,0.25)", color: "var(--color-text-primary)" }}
+                      whileTap={{ scale: 0.97 }}>
+                      {trait}
+                    </motion.button>
+                  ))}
+                </div>
+              )}
             </div>
           </Section>
 

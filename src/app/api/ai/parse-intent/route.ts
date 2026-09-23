@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { SchemaType, type Schema } from "@google/generative-ai";
 import { getGeminiModel, isGeminiConfigured } from "@/lib/gemini";
+import { checkRateLimit, rateLimitResponse } from "@/lib/rateLimit";
 
 /**
  * POST /api/ai/parse-intent
@@ -26,24 +27,6 @@ const responseSchema: Schema = {
   required: ["activity", "zone"],
 };
 
-// ── Simple in-memory rate limit: 10 calls / 60s per client (sliding window).
-// In-memory is per-instance and resets on cold start - fine for this stage.
-const RATE_LIMIT = 10;
-const RATE_WINDOW_MS = 60_000;
-const hits = new Map<string, number[]>();
-
-function isRateLimited(key: string): boolean {
-  const now = Date.now();
-  const recent = (hits.get(key) ?? []).filter((t) => now - t < RATE_WINDOW_MS);
-  if (recent.length >= RATE_LIMIT) {
-    hits.set(key, recent);
-    return true;
-  }
-  recent.push(now);
-  hits.set(key, recent);
-  return false;
-}
-
 function clientKey(request: NextRequest): string {
   const fwd = request.headers.get("x-forwarded-for");
   return (fwd ? fwd.split(",")[0].trim() : null) || request.headers.get("x-real-ip") || "local";
@@ -65,12 +48,11 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ success: false, error: "text required" }, { status: 400 });
     }
 
-    // Rate limit - 10 parses/min per client
-    if (isRateLimited(clientKey(request))) {
-      return NextResponse.json(
-        { success: false, error: "Slow down - you're parsing too fast" },
-        { status: 429 }
-      );
+    // Rate limit - 10 parses/min per client, shared across instances (calls
+    // the paid Gemini API, so an in-memory-only limiter is a real cost risk
+    // on Vercel's multi-instance serverless - see src/lib/rateLimit.ts).
+    if (!(await checkRateLimit("ai-parse-intent", clientKey(request), 10, 60))) {
+      return rateLimitResponse();
     }
 
     // Graceful fallback when Gemini isn't configured - client reveals the manual form.

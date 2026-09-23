@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { getAuthUser } from "@/lib/auth";
 import { getSupabaseAdmin } from "@/lib/supabaseAdmin";
+import { checkRateLimit, rateLimitResponse } from "@/lib/rateLimit";
 
 type ConnectionRow = {
   id: string | null;
@@ -122,6 +123,10 @@ export async function POST(request: NextRequest) {
   }
   if (receiver_id === user.id) {
     return NextResponse.json({ success: false, error: "Cannot connect with yourself" }, { status: 400 });
+  }
+
+  if (!(await checkRateLimit("connection-request", user.id, 30, 60 * 60))) {
+    return rateLimitResponse();
   }
 
   const admin = getSupabaseAdmin();
