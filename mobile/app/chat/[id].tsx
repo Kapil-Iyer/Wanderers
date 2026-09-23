@@ -63,9 +63,16 @@ export default function ChatScreen() {
         <Pressable onPress={() => router.back()} className="mr-3">
           <Ionicons name="chevron-back" size={24} color={colors.textPrimary} />
         </Pressable>
-        <Text className="text-lg font-semibold" style={{ color: colors.textPrimary }}>
+        <Text className="flex-1 text-lg font-semibold" style={{ color: colors.textPrimary }}>
           Chat
         </Text>
+        {!isGuest && (
+          <Pressable onPress={() => router.push(`/end-event/${id}`)}>
+            <Text className="text-xs font-semibold" style={{ color: colors.accentMid }}>
+              End Event
+            </Text>
+          </Pressable>
+        )}
       </View>
 
       {isGuest ? (
