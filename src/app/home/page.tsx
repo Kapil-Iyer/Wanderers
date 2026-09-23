@@ -11,7 +11,8 @@ import BubbleCard from "@/components/ui/BubbleCard";
 import CampusEventCard from "@/components/ui/CampusEventCard";
 import CreateBubbleModal from "@/components/ui/CreateBubbleModal";
 import NotificationDrawer from "@/components/ui/NotificationDrawer";
-import { mockBubbles, filterChips, mockFeedPosts, type FeedPost as FeedPostType } from "@/lib/mockData";
+import { filterChips, mockFeedPosts, type Bubble, type FeedPost as FeedPostType } from "@/lib/mockData";
+import { useCampusBubbles } from "@/lib/campusBubbles";
 import FeedPost from "@/components/FeedPost";
 import { useConnections } from "@/contexts/ConnectionsContext";
 import { useConversations } from "@/contexts/ConversationsContext";
@@ -25,7 +26,7 @@ import { useRequireAuth } from "@/hooks/useRequireAuth";
 import { useGuest } from "@/contexts/GuestContext";
 import { useMapOverlay } from "@/contexts/MapOverlayContext";
 import { resolveZoneCoords } from "@/lib/zoneCoords";
-import { DEMO_BUBBLES, GUEST_INITIALS } from "@/lib/demoData";
+import { GUEST_INITIALS } from "@/lib/demoData";
 import { toast } from "sonner";
 import { supabase } from "@/lib/supabase";
 
@@ -65,6 +66,12 @@ export default function HomePage() {
   const router = useRouter();
   const { checking, authed } = useRequireAuth();
   const { isGuest, guestResolved } = useGuest();
+  const {
+    bubbles: campusBubbles,
+    loading: bubblesLoading,
+    error: bubblesError,
+    reload: reloadBubbles,
+  } = useCampusBubbles();
   const [activeFilter, setActiveFilter] = useState("All");
   const [createOpen, setCreateOpen] = useState(false);
   const [drawerOpen, setDrawerOpen] = useState(false);
@@ -72,7 +79,7 @@ export default function HomePage() {
   const [feedPosts, setFeedPosts] = useState<FeedPostType[]>(mockFeedPosts);
   const defaultUpcoming = useMemo<UpcomingBubble[]>(
     () =>
-      (isGuest ? DEMO_BUBBLES : mockBubbles).slice(0, 6).map((b) => ({
+      campusBubbles.slice(0, 6).map((b) => ({
         id: b.id,
         emoji: b.emoji,
         title: b.title,
@@ -81,7 +88,7 @@ export default function HomePage() {
         maxPeople: b.maxPeople,
         recommendationReason: "For you",
       })),
-    [isGuest]
+    [campusBubbles]
   );
   const [upcomingForYou, setUpcomingForYou] = useState<UpcomingBubble[]>(defaultUpcoming);
   const [momentIndex, setMomentIndex] = useState(0);
@@ -145,16 +152,17 @@ export default function HomePage() {
   // Guests have no real connections, pending or otherwise.
   const pendingCount = isGuest ? 0 : filteredConnectionRequests.length;
 
-  // Live hero stats (derived from current bubble set) - demo bubbles for
-  // guests so the numbers match what they're actually looking at below.
+  // Live hero stats, derived from the same set rendered below - so the
+  // headline numbers always describe what the user is actually looking at.
+  // Guests get the demo set; everyone else gets the database.
   const happeningNow = useMemo(
-    () => (isGuest ? DEMO_BUBBLES : mockBubbles).filter((b) => b.startingIn.includes("min") || b.startingIn === "Now"),
-    [isGuest]
+    () => campusBubbles.filter((b) => b.startingIn.includes("min") || b.startingIn === "Now"),
+    [campusBubbles]
   );
   const liveBubbleCount = happeningNow.length;
   const wanderersOut = useMemo(
-    () => (isGuest ? DEMO_BUBBLES : mockBubbles).reduce((sum, b) => sum + b.joined, 0),
-    [isGuest]
+    () => campusBubbles.reduce((sum, b) => sum + b.joined, 0),
+    [campusBubbles]
   );
 
   useEffect(() => {
@@ -211,14 +219,26 @@ export default function HomePage() {
     return () => clearInterval(id);
   }, [feedPosts.length, momentsPaused]);
 
+  // Read through a ref rather than a dependency: the fallback changes every
+  // time the bubble list loads, and depending on it would re-request
+  // recommendations each time.
+  const defaultUpcomingRef = useRef(defaultUpcoming);
+  defaultUpcomingRef.current = defaultUpcoming;
+
+  // Keep the fallback visible while it is the thing on screen, so the row
+  // fills in as soon as bubbles arrive instead of waiting for a refetch.
+  const [hasRecommendations, setHasRecommendations] = useState(false);
+  useEffect(() => {
+    if (!hasRecommendations) setUpcomingForYou(defaultUpcoming);
+  }, [defaultUpcoming, hasRecommendations]);
+
   useEffect(() => {
     if (!guestResolved) return;
-    // Guests get the demo catalog (already the fallback below) - never hit
+    // Guests get the demo catalog (already the fallback above) - never hit
     // a real recommendations call.
-    if (isGuest) {
-      setUpcomingForYou(defaultUpcoming);
-      return;
-    }
+    if (isGuest) return;
+
+    let cancelled = false;
     import("@/lib/supabase")
       .then((m) => m.supabase.auth.getSession())
       .then(({ data }) => {
@@ -232,6 +252,7 @@ export default function HomePage() {
         });
       })
       .then((data: { recommended_bubbles?: Array<{ id: string; title?: string; emoji?: string; startingIn?: string; joined?: number; maxPeople?: number; recommendationReason?: string }> }) => {
+        if (cancelled) return;
         const list = data?.recommended_bubbles;
         if (Array.isArray(list) && list.length > 0) {
           setUpcomingForYou(list.map((b) => ({
@@ -239,12 +260,19 @@ export default function HomePage() {
             startingIn: b.startingIn ?? "Soon", joined: b.joined ?? 0, maxPeople: b.maxPeople ?? 8,
             recommendationReason: b.recommendationReason ?? "For you",
           })));
+          setHasRecommendations(true);
         } else {
-          setUpcomingForYou(defaultUpcoming);
+          setUpcomingForYou(defaultUpcomingRef.current);
         }
       })
-      .catch(() => setUpcomingForYou(defaultUpcoming));
-  }, [defaultUpcoming, isGuest, guestResolved]);
+      .catch(() => {
+        if (!cancelled) setUpcomingForYou(defaultUpcomingRef.current);
+      });
+
+    return () => {
+      cancelled = true;
+    };
+  }, [isGuest, guestResolved]);
 
   // Live moments - new Wander Moments (from anyone, any bubble) appear here
   // without a refresh. Guests never subscribe - guest mode makes zero
@@ -324,9 +352,7 @@ export default function HomePage() {
   }, [isGuest, guestResolved]);
 
   const filteredBubbles = useMemo(() => {
-    // Startable campus catalog - always 0 members until someone starts (matches Explore).
-    // Guests only ever see the curated demo set, never the real/mock catalog.
-    const source = isGuest ? DEMO_BUBBLES : mockBubbles;
+    const source = campusBubbles;
     if (activeFilter === "Happening Now") {
       return source.filter((b) => b.startingIn.includes("min") || b.startingIn === "Now");
     }
@@ -335,7 +361,7 @@ export default function HomePage() {
     }
     if (activeFilter === "All") return source;
     return source.filter((b) => b.category === activeFilter);
-  }, [activeFilter, isGuest]);
+  }, [activeFilter, campusBubbles]);
 
   const scrollToMoments = () => momentsRef.current?.scrollIntoView({ behavior: "smooth", block: "start" });
 
@@ -604,7 +630,36 @@ export default function HomePage() {
             )}
 
             <AnimatePresence mode="wait">
-              {filteredBubbles.length === 0 ? (
+              {bubblesLoading ? (
+                <div key="loading" className="grid grid-cols-3 gap-3 sm:gap-4 auto-rows-fr">
+                  {Array.from({ length: 6 }).map((_, i) => (
+                    <div
+                      key={i}
+                      className="rounded-2xl animate-pulse aspect-[3/4]"
+                      style={{ background: "rgba(255,255,255,0.05)", border: "1px solid rgba(255,255,255,0.08)" }}
+                    />
+                  ))}
+                </div>
+              ) : bubblesError ? (
+                <motion.div
+                  key="error"
+                  className="text-center py-16"
+                  initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
+                >
+                  <div className="text-5xl mb-3">🌧️</div>
+                  <p className="text-sm" style={{ color: "var(--color-text-secondary)" }}>
+                    Couldn&apos;t load what&apos;s happening right now.
+                  </p>
+                  <button
+                    type="button"
+                    onClick={reloadBubbles}
+                    className="mt-4 px-5 py-2 rounded-full text-xs font-bold"
+                    style={{ background: "linear-gradient(135deg, #ff7a1a, #ffb56b)", color: "#2a1206" }}
+                  >
+                    Try again
+                  </button>
+                </motion.div>
+              ) : filteredBubbles.length === 0 ? (
                 <motion.div
                   key="empty"
                   className="text-center py-16"
@@ -813,7 +868,7 @@ function LiveTickerCard({
   index,
   isGuest,
 }: {
-  bubble: (typeof mockBubbles)[number];
+  bubble: Bubble;
   index: number;
   isGuest: boolean;
 }) {
