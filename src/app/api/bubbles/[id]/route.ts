@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { getSupabaseAdmin } from "@/lib/supabaseAdmin";
 import { getAuthUser } from "@/lib/auth";
+import { getMemberCounts } from "@/lib/memberCounts";
 
 /**
  * GET /api/bubbles/[id]
@@ -23,11 +24,17 @@ export async function GET(
     }
 
     const admin = getSupabaseAdmin();
-    const { data: bubble, error } = await admin
-      .from("bubbles")
-      .select("id, activity, zone, start_time, duration_minutes, max_members, status")
-      .eq("id", id)
-      .maybeSingle();
+
+    // Independent of each other, and this runs on every chat header load, so
+    // pay for one round trip rather than two.
+    const [{ data: bubble, error }, countById] = await Promise.all([
+      admin
+        .from("bubbles")
+        .select("id, activity, zone, start_time, duration_minutes, max_members, status")
+        .eq("id", id)
+        .maybeSingle(),
+      getMemberCounts(admin, [id]),
+    ]);
 
     if (error) {
       return NextResponse.json({ success: false, error: error.message }, { status: 500 });
@@ -36,14 +43,9 @@ export async function GET(
       return NextResponse.json({ success: false, error: "Bubble not found" }, { status: 404 });
     }
 
-    const { count } = await admin
-      .from("bubble_members")
-      .select("user_id", { count: "exact", head: true })
-      .eq("bubble_id", id);
-
     return NextResponse.json({
       success: true,
-      data: { ...bubble, members_count: count ?? 0 },
+      data: { ...bubble, members_count: countById.get(id) ?? 0 },
     });
   } catch {
     return NextResponse.json({ success: false, error: "Invalid request" }, { status: 400 });

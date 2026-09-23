@@ -30,6 +30,12 @@ type ApiMessage = {
 
 type TypingUser = { id: string; name: string; at: number };
 
+/**
+ * How often to re-poll for messages while the Realtime subscription is down.
+ * Only a safety net, so it is deliberately slow.
+ */
+const FALLBACK_POLL_MS = 10_000;
+
 function initialsFrom(name: string): string {
   const parts = name.trim().split(/\s+/).filter(Boolean);
   if (parts.length >= 2) return (parts[0][0] + parts[parts.length - 1][0]).toUpperCase();
@@ -57,6 +63,9 @@ export default function ChatPage({ params }: { params: Promise<{ id: string }> }
   const [messagesLoading, setMessagesLoading] = useState(false);
   const [messagesError, setMessagesError] = useState<string | null>(null);
   const [typingUsers, setTypingUsers] = useState<TypingUser[]>([]);
+  // Whether the postgres_changes subscription is actually delivering. Gates the
+  // fallback poll below.
+  const [realtimeLive, setRealtimeLive] = useState(false);
   const [emoteOpen, setEmoteOpen] = useState(false);
   const { conversations, addBubbleConversation, refreshJoinedBubbles } = useConversations();
   const convo = conversations.find((c) => c.id === id);
@@ -320,8 +329,15 @@ export default function ChatPage({ params }: { params: Promise<{ id: string }> }
     };
   }, [isBubbleChat, bubbleId, loadMessages, refreshBubbleMeta]);
 
+  // Polling is a fallback, not a second delivery path. It only runs while the
+  // Realtime subscription is down - most importantly when `messages` isn't in
+  // the supabase_realtime publication, where the channel subscribes fine and
+  // then never fires. This used to run unconditionally every 2.5s alongside a
+  // working subscription, re-downloading the whole thread each time.
   useEffect(() => {
     if (!isBubbleChat || !bubbleId || !isMember || messagesError) return;
+    if (realtimeLive) return;
+
     const tick = async () => {
       refreshBubbleMeta().catch(() => {});
       const { data } = await supabase.auth.getSession();
@@ -330,15 +346,32 @@ export default function ChatPage({ params }: { params: Promise<{ id: string }> }
       const result = await fetchMessages(token);
       if (result?.ok) mergeMessages(result.data);
     };
-    const t = setInterval(tick, 2500);
+    const t = setInterval(tick, FALLBACK_POLL_MS);
     return () => clearInterval(t);
-  }, [isBubbleChat, bubbleId, isMember, messagesError, refreshBubbleMeta, fetchMessages, mergeMessages]);
+  }, [
+    isBubbleChat,
+    bubbleId,
+    isMember,
+    messagesError,
+    realtimeLive,
+    refreshBubbleMeta,
+    fetchMessages,
+    mergeMessages,
+  ]);
 
   useEffect(() => {
     if (!isBubbleChat || !bubbleId || !isMember || messagesError) return;
 
     let cancelled = false;
     let channel: ReturnType<typeof supabase.channel> | null = null;
+
+    const teardown = () => {
+      typingChannelRef.current = null;
+      if (channel) {
+        supabase.removeChannel(channel);
+        channel = null;
+      }
+    };
 
     (async () => {
       const { data } = await supabase.auth.getSession();
@@ -405,13 +438,20 @@ export default function ChatPage({ params }: { params: Promise<{ id: string }> }
             return changed ? next : prev;
           });
         })
-        .subscribe();
+        .subscribe((status) => {
+          setRealtimeLive(status === "SUBSCRIBED");
+        });
+
+      // The effect may have been cleaned up while we were awaiting the session
+      // above. Cleanup ran when `channel` was still null, so undo it here or
+      // the channel leaks for the lifetime of the tab.
+      if (cancelled) teardown();
     })();
 
     return () => {
       cancelled = true;
-      typingChannelRef.current = null;
-      if (channel) supabase.removeChannel(channel);
+      setRealtimeLive(false);
+      teardown();
     };
   }, [
     isBubbleChat,

@@ -1,6 +1,15 @@
 import { NextRequest, NextResponse } from "next/server";
 import { getAuthUser } from "@/lib/auth";
 import { getSupabaseAdmin } from "@/lib/supabaseAdmin";
+import { getMemberCounts } from "@/lib/memberCounts";
+
+/**
+ * Membership is append-only - nothing removes a user from a bubble when it
+ * ends - so this grows for the lifetime of an account. Unbounded, a user with
+ * a term's worth of joins sends hundreds of ids into an `.in()` filter on
+ * every app load. Newest joins first, since that is what the UI shows.
+ */
+const MAX_JOINED = 100;
 
 /**
  * GET /api/bubbles/mine
@@ -20,8 +29,10 @@ export async function GET(request: NextRequest) {
 
     const { data: memberships, error: memError } = await admin
       .from("bubble_members")
-      .select("bubble_id")
-      .eq("user_id", user.id);
+      .select("bubble_id, joined_at")
+      .eq("user_id", user.id)
+      .order("joined_at", { ascending: false })
+      .limit(MAX_JOINED);
 
     if (memError) {
       return NextResponse.json(
@@ -62,19 +73,15 @@ export async function GET(request: NextRequest) {
       .in("bubble_id", bubbleIds);
     const starredIds = new Set((starred ?? []).map((s) => s.bubble_id));
 
-    const withCount = await Promise.all(
-      (bubbles ?? []).map(async (b) => {
-        const { count } = await admin
-          .from("bubble_members")
-          .select("user_id", { count: "exact", head: true })
-          .eq("bubble_id", b.id);
-        return {
-          ...b,
-          members_count: count ?? 0,
-          starred: starredIds.has(b.id),
-        };
-      })
-    );
+    // One query for every bubble's member count, not one query per bubble.
+    const rows = bubbles ?? [];
+    const countById = await getMemberCounts(admin, rows.map((b) => b.id));
+
+    const withCount = rows.map((b) => ({
+      ...b,
+      members_count: countById.get(b.id) ?? 0,
+      starred: starredIds.has(b.id),
+    }));
 
     return NextResponse.json({
       success: true,

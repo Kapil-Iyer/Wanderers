@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { getSupabaseAdmin } from "@/lib/supabaseAdmin";
 import { getAuthUser } from "@/lib/auth";
+import { getMemberCounts } from "@/lib/memberCounts";
 
 /** Map activity name to emoji for cards. */
 function activityEmoji(activity: string): string {
@@ -28,6 +29,14 @@ function formatStartingIn(startTime: string): string {
   return `${days}d`;
 }
 
+/**
+ * The ranker is a nice-to-have: if it is slow, the plain DB sort below is a
+ * perfectly good answer. Without a deadline a hung service would hold the
+ * function open until the platform timeout, so a stalled ranker would turn
+ * into a stalled Home screen for everyone.
+ */
+const ML_TIMEOUT_MS = 2000;
+
 export type RecommendedBubbleItem = {
   id: string;
   title: string;
@@ -47,8 +56,8 @@ export type RecommendedBubbleItem = {
  * - If RECOMMENDATIONS_API_URL is set: fetches bubbles from DB, POSTs to the
  *   FastAPI ranker's /recommend, maps the response to recommended_bubbles.
  * - Else, or if that call fails for any reason (unset, unreachable, cold
- *   start): falls back to the plain DB sort below - real recommendations
- *   never silently disappear.
+ *   start, slower than ML_TIMEOUT_MS): falls back to the plain DB sort below -
+ *   real recommendations never silently disappear.
  */
 /** Fallback: plain "starting soon" sort straight from the DB, no ML service involved. */
 async function dbFallbackRecommendations() {
@@ -65,29 +74,22 @@ async function dbFallbackRecommendations() {
 
     if (error) return NextResponse.json({ recommended_bubbles: [] });
 
-    const withCount: RecommendedBubbleItem[] = await Promise.all(
-      (bubbles ?? []).map(async (b) => {
-        const { count } = await admin
-          .from("bubble_members")
-          .select("user_id", { count: "exact", head: true })
-          .eq("bubble_id", b.id);
-        const joined = count ?? 0;
-        const maxPeople = b.max_members ?? 8;
-        return {
-          id: b.id,
-          title: b.activity || "Activity",
-          emoji: activityEmoji(b.activity ?? ""),
-          zone: b.zone ?? "",
-          start_time: b.start_time ?? "",
-          startingIn: formatStartingIn(b.start_time ?? ""),
-          joined,
-          maxPeople,
-          recommendationReason: "Starting soon",
-        };
-      })
-    );
+    const rows = bubbles ?? [];
+    const countById = await getMemberCounts(admin, rows.map((b) => b.id));
 
-    return NextResponse.json({ recommended_bubbles: withCount });
+    const recommendations: RecommendedBubbleItem[] = rows.map((b) => ({
+      id: b.id,
+      title: b.activity || "Activity",
+      emoji: activityEmoji(b.activity ?? ""),
+      zone: b.zone ?? "",
+      start_time: b.start_time ?? "",
+      startingIn: formatStartingIn(b.start_time ?? ""),
+      joined: countById.get(b.id) ?? 0,
+      maxPeople: b.max_members ?? 8,
+      recommendationReason: "Starting soon",
+    }));
+
+    return NextResponse.json({ recommended_bubbles: recommendations });
   } catch {
     return NextResponse.json({ recommended_bubbles: [] });
   }
@@ -114,43 +116,40 @@ export async function GET(request: NextRequest) {
         .order("start_time", { ascending: true })
         .limit(20);
 
-      if (error || !bubbles?.length) return NextResponse.json({ recommended_bubbles: [] });
+      if (error) return dbFallbackRecommendations();
+      if (!bubbles?.length) return NextResponse.json({ recommended_bubbles: [] });
 
-      const withCount = await Promise.all(
-        bubbles.map(async (b) => {
-          const { count } = await admin
-            .from("bubble_members")
-            .select("user_id", { count: "exact", head: true })
-            .eq("bubble_id", b.id);
-          return {
-            id: b.id,
-            title: b.activity || "Activity",
-            emoji: activityEmoji(b.activity ?? ""),
-            category: "Casual",
-            joined: count ?? 0,
-            maxPeople: b.max_members ?? 8,
-            startingIn: formatStartingIn(b.start_time ?? ""),
-            distance: "0.5 km",
-            description: "",
-            creator: "?",
-            creatorAvatar: "?",
-            zone: b.zone ?? "",
-            start_time: b.start_time ?? "",
-          };
-        })
-      );
+      const countById = await getMemberCounts(admin, bubbles.map((b) => b.id));
 
-      const url = new URL(request.url);
-      const userId = url.searchParams.get("user_id");
+      const withCount = bubbles.map((b) => ({
+        id: b.id,
+        title: b.activity || "Activity",
+        emoji: activityEmoji(b.activity ?? ""),
+        category: "Casual",
+        joined: countById.get(b.id) ?? 0,
+        maxPeople: b.max_members ?? 8,
+        startingIn: formatStartingIn(b.start_time ?? ""),
+        distance: "0.5 km",
+        description: "",
+        creator: "?",
+        creatorAvatar: "?",
+        zone: b.zone ?? "",
+        start_time: b.start_time ?? "",
+      }));
+
       const res = await fetch(recommendUrl, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
-          user_id: userId || undefined,
+          // The authenticated user, not a query param - otherwise anyone can
+          // ask for anyone else's personalised ranking.
+          user_id: user.id,
           activities: withCount.map(({ zone, start_time, ...rest }) => rest),
           top_k: 12,
         }),
+        signal: AbortSignal.timeout(ML_TIMEOUT_MS),
       });
+      if (!res.ok) return dbFallbackRecommendations();
       const data = await res.json();
       const recs = Array.isArray(data?.recommendations) ? data.recommendations : [];
 
@@ -163,7 +162,7 @@ export async function GET(request: NextRequest) {
           emoji: r.emoji ?? row?.emoji ?? "🫧",
           zone: row?.zone ?? "",
           start_time: row?.start_time ?? "",
-          startingIn: r.startingIn ?? row ? formatStartingIn(row.start_time) : "Soon",
+          startingIn: r.startingIn ?? (row ? formatStartingIn(row.start_time) : "Soon"),
           joined: r.joined ?? row?.joined ?? 0,
           maxPeople: r.maxPeople ?? row?.maxPeople ?? 8,
           recommendationReason: r.recommendationReason ?? "For you",

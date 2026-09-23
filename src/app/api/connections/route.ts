@@ -3,6 +3,13 @@ import { getAuthUser } from "@/lib/auth";
 import { getSupabaseAdmin } from "@/lib/supabaseAdmin";
 import { checkRateLimit, rateLimitResponse } from "@/lib/rateLimit";
 
+/**
+ * Accepted connections and pending requests are split out of one query, so
+ * this bounds both. Also bounds the follow-up `users` lookup, which is one row
+ * per distinct counterparty.
+ */
+const MAX_CONNECTIONS = 200;
+
 type ConnectionRow = {
   id: string | null;
   requester_id: string;
@@ -34,7 +41,9 @@ export async function GET(request: NextRequest) {
   const { data: rows, error } = await admin
     .from("connections")
     .select("id, requester_id, receiver_id, status, created_at")
-    .or(`requester_id.eq.${user.id},receiver_id.eq.${user.id}`);
+    .or(`requester_id.eq.${user.id},receiver_id.eq.${user.id}`)
+    .order("created_at", { ascending: false })
+    .limit(MAX_CONNECTIONS);
 
   if (error) {
     return NextResponse.json({ success: false, error: error.message }, { status: 500 });

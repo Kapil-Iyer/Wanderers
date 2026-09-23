@@ -449,6 +449,14 @@ export type Database = {
         Args: { p_key: string; p_max_attempts: number; p_window_seconds: number }
         Returns: boolean
       }
+      bubble_member_counts: {
+        Args: { p_bubble_ids: string[] }
+        Returns: { bubble_id: string; members_count: number }[]
+      }
+      join_bubble: {
+        Args: { p_bubble_id: string; p_user_id: string }
+        Returns: Json
+      }
     }
     Enums: {
       [_ in never]: never

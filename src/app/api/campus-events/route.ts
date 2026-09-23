@@ -15,6 +15,13 @@ import { getSupabaseAdmin } from "@/lib/supabaseAdmin";
  * future times so the "Happening on Campus" section always feels alive.
  */
 
+/**
+ * The response is identical for every user (optionally narrowed by category)
+ * and the underlying events change on the order of a day, so this is served
+ * from the CDN rather than hitting Postgres once per visitor.
+ */
+const CACHE_CONTROL = "public, s-maxage=300, stale-while-revalidate=600";
+
 type CampusEvent = {
   id: string;
   title: string;
@@ -38,6 +45,14 @@ function fallbackEvents(category?: string | null): CampusEvent[] {
   return filtered.length > 0 ? filtered : all;
 }
 
+/** Cached only briefly - the DB being empty or erroring is a state we want to recover from quickly. */
+function fallbackResponse(category: string | null) {
+  return NextResponse.json(
+    { success: true, data: fallbackEvents(category), fallback: true },
+    { headers: { "Cache-Control": "public, s-maxage=30, stale-while-revalidate=60" } }
+  );
+}
+
 export async function GET(request: NextRequest) {
   const category = request.nextUrl.searchParams.get("category");
   try {
@@ -56,11 +71,14 @@ export async function GET(request: NextRequest) {
     const { data, error } = await query;
 
     if (error || !data || data.length === 0) {
-      return NextResponse.json({ success: true, data: fallbackEvents(category), fallback: true });
+      return fallbackResponse(category);
     }
 
-    return NextResponse.json({ success: true, data });
+    return NextResponse.json(
+      { success: true, data },
+      { headers: { "Cache-Control": CACHE_CONTROL } }
+    );
   } catch {
-    return NextResponse.json({ success: true, data: fallbackEvents(category), fallback: true });
+    return fallbackResponse(category);
   }
 }

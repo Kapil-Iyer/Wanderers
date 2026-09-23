@@ -1,3 +1,6 @@
+import bundleAnalyzer from "@next/bundle-analyzer";
+import { withSentryConfig } from "@sentry/nextjs/config";
+
 // Allows the app's actual external dependencies: Google Maps JS API (script
 // + tiles + street view iframe), Google Fonts, Supabase (REST + Realtime
 // websocket). style-src needs 'unsafe-inline' because the app renders
@@ -37,13 +40,18 @@ const nextConfig = {
   },
 };
 
+// Inspect what is actually in the bundle with `npm run analyze`. Off unless
+// ANALYZE=true, so normal and production builds are unaffected.
+const withBundleAnalyzer = bundleAnalyzer({
+  enabled: process.env.ANALYZE === "true",
+  openAnalyzer: false,
+});
+
 // Inert (no-op wrapper) until SENTRY_AUTH_TOKEN/SENTRY_ORG/SENTRY_PROJECT are
 // set - source map upload is skipped silently without them, per the plugin's
 // own behavior. Error reporting itself (sentry.server.config.ts etc.) is
 // separately gated on SENTRY_DSN, not this.
-import { withSentryConfig } from "@sentry/nextjs/config";
-
-export default withSentryConfig(nextConfig, {
+export default withSentryConfig(withBundleAnalyzer(nextConfig), {
   silent: true,
   org: process.env.SENTRY_ORG,
   project: process.env.SENTRY_PROJECT,

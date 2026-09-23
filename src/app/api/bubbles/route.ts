@@ -28,6 +28,12 @@ const MAX_DESCRIPTION_LEN = 500;
 const DEFAULT_DURATION_MIN = 60;
 const DEDUPE_WINDOW_MS = 10_000;
 
+// The dedupe below only catches an identical repeat within 10s, so varying the
+// activity string sidesteps it entirely. This is the actual ceiling on how
+// fast one account can fill the map with junk.
+const CREATES_PER_WINDOW = 10;
+const CREATE_WINDOW_SECONDS = 60 * 60;
+
 export async function POST(request: NextRequest) {
   try {
     // 1. Auth
@@ -36,7 +42,7 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ success: false, error: "Unauthenticated" }, { status: 401 });
     }
 
-    if (!(await checkRateLimit("bubble-create", user.id, 10, 60 * 60))) {
+    if (!(await checkRateLimit("bubble-create", user.id, CREATES_PER_WINDOW, CREATE_WINDOW_SECONDS))) {
       return rateLimitResponse();
     }
 
