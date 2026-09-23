@@ -4,6 +4,14 @@ import { getSupabaseAdmin } from "@/lib/supabaseAdmin";
 import { getMemberCounts } from "@/lib/memberCounts";
 
 /**
+ * Membership is append-only - nothing removes a user from a bubble when it
+ * ends - so this grows for the lifetime of an account. Unbounded, a user with
+ * a term's worth of joins sends hundreds of ids into an `.in()` filter on
+ * every app load. Newest joins first, since that is what the UI shows.
+ */
+const MAX_JOINED = 100;
+
+/**
  * GET /api/bubbles/mine
  * List bubbles the authenticated user has joined (from bubble_members).
  */
@@ -21,8 +29,10 @@ export async function GET(request: NextRequest) {
 
     const { data: memberships, error: memError } = await admin
       .from("bubble_members")
-      .select("bubble_id")
-      .eq("user_id", user.id);
+      .select("bubble_id, joined_at")
+      .eq("user_id", user.id)
+      .order("joined_at", { ascending: false })
+      .limit(MAX_JOINED);
 
     if (memError) {
       return NextResponse.json(
