@@ -32,7 +32,7 @@ const DEDUPE_WINDOW_MS = 10_000;
 // activity string sidesteps it entirely. This is the actual ceiling on how
 // fast one account can fill the map with junk.
 const CREATES_PER_WINDOW = 10;
-const CREATE_WINDOW_SECONDS = 10 * 60;
+const CREATE_WINDOW_SECONDS = 60 * 60;
 
 export async function POST(request: NextRequest) {
   try {

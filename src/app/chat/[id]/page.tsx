@@ -16,6 +16,7 @@ import { ProfileLink } from "@/components/ProfileLink";
 import { supabase } from "@/lib/supabase";
 import { MessageContent } from "@/components/chat/MessageContent";
 import EmotePicker from "@/components/chat/EmotePicker";
+import { ReportBlockMenu } from "@/components/ui/ReportBlockMenu";
 import { deriveEmoji } from "@/lib/bubbleMap";
 import { useSidebar } from "@/contexts/SidebarContext";
 
@@ -542,6 +543,7 @@ export default function ChatPage({ params }: { params: Promise<{ id: string }> }
           id: m.id,
           text: m.content,
           sender: (m.user_id === currentUserId ? "me" : "other") as "me" | "other",
+          userId: m.user_id,
           name: resolveName(m.user_id, m.sender_name),
           time: new Date(m.created_at).toLocaleTimeString(undefined, {
             hour: "numeric",
@@ -549,7 +551,7 @@ export default function ChatPage({ params }: { params: Promise<{ id: string }> }
           }),
         }))
       : chatUnlocked && !isBubbleChat
-        ? mockMessages.map((m) => ({ ...m, name: m.sender === "me" ? "You" : "Friend" }))
+        ? mockMessages.map((m) => ({ ...m, userId: undefined as string | undefined, name: m.sender === "me" ? "You" : "Friend" }))
         : [];
 
   const typingLabel = (() => {
@@ -760,12 +762,20 @@ export default function ChatPage({ params }: { params: Promise<{ id: string }> }
                               className={`max-w-[78%] ${mine ? "items-end" : "items-start"} flex flex-col`}
                             >
                               <p
-                                className={`text-[11px] font-semibold mb-1 px-1 ${mine ? "text-right" : "text-left"}`}
+                                className={`flex items-center gap-1 text-[11px] font-semibold mb-1 px-1 ${mine ? "text-right justify-end" : "text-left"}`}
                                 style={{
                                   color: mine ? "rgba(255,181,107,0.85)" : "var(--color-text-secondary)",
                                 }}
                               >
                                 {msg.name}
+                                {!mine && msg.userId && (
+                                  <ReportBlockMenu
+                                    targetUserId={msg.userId}
+                                    targetUserName={msg.name}
+                                    reportTargetType="message"
+                                    reportTargetId={msg.id}
+                                  />
+                                )}
                               </p>
               <div
                                 className={`px-3.5 py-2.5 text-sm leading-relaxed rounded-2xl max-w-full ${

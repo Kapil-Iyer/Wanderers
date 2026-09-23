@@ -309,6 +309,8 @@ export interface FeedComment {
 
 export interface FeedPost {
   id: string;
+  /** The poster's real user id - only set for real (non-mock) moments, used for report/block. */
+  userId?: string;
   username: string;
   userAvatar: string;
   imagePlaceholder?: string;

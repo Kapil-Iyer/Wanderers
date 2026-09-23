@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { getAuthUser } from "@/lib/auth";
 import { getSupabaseAdmin } from "@/lib/supabaseAdmin";
+import { checkRateLimit, rateLimitResponse } from "@/lib/rateLimit";
 
 /**
  * Accepted connections and pending requests are split out of one query, so
@@ -48,7 +49,16 @@ export async function GET(request: NextRequest) {
     return NextResponse.json({ success: false, error: error.message }, { status: 500 });
   }
 
-  const connectionRows = (rows ?? []) as ConnectionRow[];
+  const { data: blocked } = await admin
+    .from("blocks")
+    .select("blocked_id")
+    .eq("blocker_id", user.id);
+  const blockedIds = new Set((blocked ?? []).map((b) => b.blocked_id));
+
+  const connectionRows = ((rows ?? []) as ConnectionRow[]).filter((r) => {
+    const otherId = r.requester_id === user.id ? r.receiver_id : r.requester_id;
+    return !blockedIds.has(otherId);
+  });
 
   const otherUserIds = [
     ...new Set(
@@ -124,7 +134,23 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({ success: false, error: "Cannot connect with yourself" }, { status: 400 });
   }
 
+  if (!(await checkRateLimit("connection-request", user.id, 30, 60 * 60))) {
+    return rateLimitResponse();
+  }
+
   const admin = getSupabaseAdmin();
+
+  const { data: blockRow } = await admin
+    .from("blocks")
+    .select("blocker_id")
+    .or(
+      `and(blocker_id.eq.${user.id},blocked_id.eq.${receiver_id}),and(blocker_id.eq.${receiver_id},blocked_id.eq.${user.id})`
+    )
+    .maybeSingle();
+  if (blockRow) {
+    return NextResponse.json({ success: false, error: "Cannot connect with this user" }, { status: 403 });
+  }
+
   // No ensureUserInPublic() here - by the time a request is authenticated,
   // the user's public.users row already exists (created at signup via
   // /api/auth/ensure-profile). Calling ensureUserInPublic again would

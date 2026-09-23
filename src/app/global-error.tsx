@@ -1,12 +1,12 @@
 "use client";
 
 import { useEffect } from "react";
+import * as Sentry from "@sentry/nextjs";
 
 /**
- * Last-resort boundary for errors thrown in the root layout itself, which
- * `error.tsx` cannot catch. It replaces the whole document, so it has to
- * render its own <html> and <body> and cannot rely on Providers or global
- * styles having loaded - hence the inline styles.
+ * Only catches errors thrown by the root layout itself (very rare - normal
+ * page-level errors hit error.tsx instead). Has to render its own <html>/
+ * <body> since it replaces the root layout entirely when it's active.
  */
 export default function GlobalError({
   error,
@@ -16,52 +16,23 @@ export default function GlobalError({
   reset: () => void;
 }) {
   useEffect(() => {
-    console.error("[global error boundary]", error);
+    console.error(error);
+    Sentry.captureException(error);
   }, [error]);
 
   return (
     <html lang="en">
-      <body
-        style={{
-          margin: 0,
-          minHeight: "100vh",
-          display: "flex",
-          alignItems: "center",
-          justifyContent: "center",
-          background: "#0b0b0f",
-          color: "#f4f4f5",
-          fontFamily:
-            "ui-sans-serif, system-ui, -apple-system, 'Segoe UI', sans-serif",
-          padding: "24px",
-        }}
-      >
-        <div style={{ maxWidth: 420, textAlign: "center" }}>
-          <h1 style={{ fontSize: 26, fontWeight: 600, margin: "0 0 12px" }}>
-            Wanderers couldn&apos;t load
-          </h1>
-          <p style={{ color: "#a1a1aa", lineHeight: 1.5, margin: "0 0 24px" }}>
-            Something failed while starting the app. Reloading usually fixes it.
-          </p>
-          <button
-            onClick={reset}
-            style={{
-              border: "none",
-              borderRadius: 9999,
-              padding: "10px 22px",
-              fontSize: 14,
-              fontWeight: 500,
-              background: "#f4f4f5",
-              color: "#0b0b0f",
-              cursor: "pointer",
-            }}
-          >
-            Reload
-          </button>
-          {error.digest ? (
-            <p style={{ marginTop: 24, fontSize: 12, color: "#71717a" }}>
-              Reference: {error.digest}
+      <body>
+        <div style={{ display: "flex", minHeight: "100vh", alignItems: "center", justifyContent: "center", padding: "0 24px", textAlign: "center", fontFamily: "system-ui, sans-serif" }}>
+          <div>
+            <h1 style={{ marginBottom: 16, fontSize: 32, fontWeight: 700 }}>Something went wrong</h1>
+            <p style={{ marginBottom: 24, fontSize: 18, opacity: 0.7 }}>
+              That&apos;s on us - give it another try.
             </p>
-          ) : null}
+            <button type="button" onClick={reset} style={{ textDecoration: "underline", cursor: "pointer" }}>
+              Try again
+            </button>
+          </div>
         </div>
       </body>
     </html>

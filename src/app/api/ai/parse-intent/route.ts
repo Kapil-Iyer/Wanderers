@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { SchemaType, type Schema } from "@google/generative-ai";
 import { getGeminiModel, isGeminiConfigured } from "@/lib/gemini";
 import { getAuthUser } from "@/lib/auth";
-import { checkRateLimit } from "@/lib/rateLimit";
+import { checkRateLimit, rateLimitResponse } from "@/lib/rateLimit";
 
 /**
  * POST /api/ai/parse-intent
@@ -37,6 +37,11 @@ const responseSchema: Schema = {
  * The previous in-memory Map was per-lambda and reset on every cold start, so
  * the real ceiling was 10 x (however many instances Vercel had warm) - not
  * much of a limit on a paid third-party API.
+ *
+ * Keyed by user id rather than client IP on purpose: most of this app's
+ * traffic arrives over campus WiFi, where the whole university shares a
+ * handful of egress addresses, so an IP key would make this a campus-wide
+ * limit instead of a per-person one.
  */
 const RATE_LIMIT = 10;
 const RATE_WINDOW_SECONDS = 60;
@@ -84,10 +89,7 @@ export async function POST(request: NextRequest) {
       RATE_WINDOW_SECONDS
     );
     if (!withinLimit) {
-      return NextResponse.json(
-        { success: false, error: "Slow down - you're parsing too fast" },
-        { status: 429 }
-      );
+      return rateLimitResponse();
     }
 
     // Graceful fallback when Gemini isn't configured - client reveals the manual form.

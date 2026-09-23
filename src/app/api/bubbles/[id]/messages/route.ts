@@ -60,12 +60,18 @@ export async function GET(
     // Newest MAX_HISTORY messages, fetched descending then flipped back to
     // ascending so the response contract (oldest first) is unchanged. Selecting
     // ascending with a limit would have returned the *start* of the thread.
-    const { data: messages, error } = await admin
-      .from("messages")
-      .select("id, bubble_id, user_id, content, created_at")
-      .eq("bubble_id", bubbleId)
-      .order("created_at", { ascending: false })
-      .limit(MAX_HISTORY);
+    //
+    // The block list is independent of the messages, so both go out together -
+    // this runs on every chat poll and a serial round trip here is felt.
+    const [{ data: messages, error }, { data: blocked }] = await Promise.all([
+      admin
+        .from("messages")
+        .select("id, bubble_id, user_id, content, created_at")
+        .eq("bubble_id", bubbleId)
+        .order("created_at", { ascending: false })
+        .limit(MAX_HISTORY),
+      admin.from("blocks").select("blocked_id").eq("blocker_id", user.id),
+    ]);
 
     if (error) {
       return NextResponse.json(
@@ -74,7 +80,10 @@ export async function GET(
       );
     }
 
-    const rows = (messages ?? []).reverse();
+    const blockedIds = new Set((blocked ?? []).map((b) => b.blocked_id));
+    const rows = (messages ?? [])
+      .reverse()
+      .filter((m) => !m.user_id || !blockedIds.has(m.user_id));
     const senderIds = [...new Set(rows.map((m) => m.user_id).filter(Boolean))];
     const nameById = new Map<string, string>();
     if (senderIds.length > 0) {

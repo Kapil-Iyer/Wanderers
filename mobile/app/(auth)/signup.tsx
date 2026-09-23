@@ -2,6 +2,7 @@ import { useState } from "react";
 import { KeyboardAvoidingView, Platform, Pressable, ScrollView, Text, View } from "react-native";
 import Animated from "react-native-reanimated";
 import { router } from "expo-router";
+import { Ionicons } from "@expo/vector-icons";
 import { signup } from "@/api/authApi";
 import { useEntrance } from "@/lib/motion";
 import { colors } from "@/lib/theme";
@@ -14,6 +15,7 @@ export default function SignupScreen() {
   const [name, setName] = useState("");
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
+  const [showPassword, setShowPassword] = useState(false);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const headingStyle = useEntrance();
@@ -73,8 +75,22 @@ export default function SignupScreen() {
                 label="Password"
                 value={password}
                 onChangeText={setPassword}
-                secureTextEntry
+                secureTextEntry={!showPassword}
                 placeholder="At least 8 characters"
+                trailing={
+                  <Pressable
+                    onPress={() => setShowPassword((v) => !v)}
+                    hitSlop={8}
+                    accessibilityRole="button"
+                    accessibilityLabel={showPassword ? "Hide password" : "Show password"}
+                  >
+                    <Ionicons
+                      name={showPassword ? "eye-off-outline" : "eye-outline"}
+                      size={20}
+                      color={colors.textMuted}
+                    />
+                  </Pressable>
+                }
               />
 
               {error ? (

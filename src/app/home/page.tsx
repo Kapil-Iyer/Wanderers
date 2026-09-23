@@ -184,6 +184,7 @@ export default function HomePage() {
         success?: boolean;
         data?: Array<{
           id: string;
+          user_id?: string | null;
           image_url?: string;
           cloudinary_url?: string;
           caption?: string | null;
@@ -197,6 +198,7 @@ export default function HomePage() {
         if (data?.success && Array.isArray(data.data) && data.data.length > 0) {
           setFeedPosts(data.data.map((m) => ({
             id: m.id,
+            userId: m.user_id ?? undefined,
             username: m.username || "Wanderer",
             userAvatar: m.user_avatar || "✨",
             activity: m.activity || "Campus moment",
