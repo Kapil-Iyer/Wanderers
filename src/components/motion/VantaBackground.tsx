@@ -23,6 +23,12 @@ import { useEffect, useRef, useState } from "react";
  * p5.js instead, and supporting them meant shipping p5 (~820 kB, plus acorn and
  * escodegen for its parser) in the build for two effects no call site used.
  * Re-add them here along with the `p5` dependency if a design ever wants them.
+ *
+ * `waves` is deliberately absent: with three r185 it renders its clear colour
+ * but no mesh, so you get a flat rectangle that looks like an intentional
+ * gradient. Vanta 0.5.24 predates this three version and not every effect
+ * survived. Verify any effect added here actually draws before shipping it -
+ * the CSS fallback below makes a dead canvas look fine.
  */
 type VantaEffectName = "net" | "fog" | "cells" | "birds" | "globe" | "clouds";
 

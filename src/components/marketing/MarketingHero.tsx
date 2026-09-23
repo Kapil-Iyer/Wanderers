@@ -48,16 +48,22 @@ export function MarketingHero() {
          section peeks above the fold — visitors were missing the scroll cue. */
       className="relative flex min-h-[82svh] items-center overflow-hidden"
     >
+      {/* A real perspective surface with a horizon, rather than the flat
+          organic blobs of `cells` - closer to the depth of an aerial shot
+          while staying in the plum/magenta palette the rest of the site uses.
+          `net`, `fog`, `clouds`, `globe`, and `birds` are already wired into
+          VantaBackground if this one doesn't land. */}
       <VantaBackground
-        effect="cells"
+        effect="globe"
+        color={0xe0339e}
         backgroundColor={0x0b0710}
-        options={{ color1: 0xe0339e, color2: 0x8b5cf6, size: 1.6 }}
+        options={{ color2: 0x8b5cf6, size: 0.8 }}
       />
       <div
         className="pointer-events-none absolute inset-0"
         style={{
           background:
-            "radial-gradient(ellipse 90% 80% at 42% 50%, rgba(11,7,16,0.94) 0%, rgba(11,7,16,0.8) 45%, rgba(11,7,16,0.45) 72%, rgba(11,7,16,0.6) 100%)",
+            "radial-gradient(ellipse 90% 80% at 42% 50%, rgba(11,7,16,0.82) 0%, rgba(11,7,16,0.62) 45%, rgba(11,7,16,0.3) 72%, rgba(11,7,16,0.5) 100%)",
         }}
       />
 
