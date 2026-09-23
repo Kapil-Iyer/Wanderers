@@ -22,12 +22,15 @@ create table if not exists public.bubble_stars (
 alter table public.bubble_stars enable row level security;
 
 -- Each user can only see/manage their own stars.
+drop policy if exists "bubble_stars: select own" on public.bubble_stars;
 create policy "bubble_stars: select own" on public.bubble_stars
   for select using (auth.uid() = user_id);
 
+drop policy if exists "bubble_stars: insert own" on public.bubble_stars;
 create policy "bubble_stars: insert own" on public.bubble_stars
   for insert with check (auth.uid() = user_id);
 
+drop policy if exists "bubble_stars: delete own" on public.bubble_stars;
 create policy "bubble_stars: delete own" on public.bubble_stars
   for delete using (auth.uid() = user_id);
 
