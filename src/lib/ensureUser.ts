@@ -41,12 +41,20 @@ export async function ensureUserInPublic(admin: SupabaseClient, user: User): Pro
     return { error: null };
   }
 
-  const { error } = await admin.from("users").insert({
-    id: user.id,
-    email,
-    name: metaName,
-    campus_verified: false,
-  });
+  // Upsert rather than insert: the select above and this write are not atomic,
+  // so a new user firing two requests at once has both see no row and both try
+  // to create it. A plain insert makes the loser fail on the primary key and
+  // return a 500 on the very first action they ever take. `ignoreDuplicates`
+  // turns that loser into a harmless no-op.
+  const { error } = await admin.from("users").upsert(
+    {
+      id: user.id,
+      email,
+      name: metaName,
+      campus_verified: false,
+    },
+    { onConflict: "id", ignoreDuplicates: true }
+  );
 
   return { error: error?.message ?? null };
 }

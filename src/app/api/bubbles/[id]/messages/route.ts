@@ -2,8 +2,15 @@ import { NextRequest, NextResponse } from "next/server";
 import { getAuthUser } from "@/lib/auth";
 import { getSupabaseAdmin } from "@/lib/supabaseAdmin";
 import { ensureBubbleMembership } from "@/lib/ensureBubbleMembership";
+import { checkRateLimit, rateLimitResponse } from "@/lib/rateLimit";
 
 const MAX_MESSAGE_LENGTH = 500;
+
+// Set well above human typing speed - this is a flood guard, not a UX limit.
+// Every message also fans out to all subscribers over Realtime, so a spammer
+// costs far more than one insert.
+const MESSAGES_PER_WINDOW = 30;
+const MESSAGE_WINDOW_SECONDS = 60;
 
 /**
  * Cap on how much backlog a chat open pulls down. Previously unbounded, so a
@@ -11,6 +18,9 @@ const MAX_MESSAGE_LENGTH = 500;
  * page re-requested it on a timer.
  */
 const MAX_HISTORY = 200;
+
+/** See the fallback in GET - this bounds a per-sender Auth Admin call. */
+const MAX_AUTH_LOOKUPS = 10;
 
 /**
  * GET /api/bubbles/[id]/messages
@@ -87,8 +97,14 @@ export async function GET(
         }
       }
 
-      // Auth metadata fallback when users.name is empty
-      const missing = senderIds.filter((id) => !found.has(id));
+      // Auth metadata fallback when users.name is empty. There is no bulk
+      // user lookup, so this is one Auth Admin HTTP call each - capped because
+      // a thread can have up to MAX_HISTORY senders, and Auth Admin is both
+      // slower and more aggressively rate-limited than Postgres. In practice
+      // `missing` is empty: anyone who sent a message went through
+      // ensureUserInPublic first and therefore has a public.users row. This
+      // is a safety net for rows predating that, not a hot path.
+      const missing = senderIds.filter((id) => !found.has(id)).slice(0, MAX_AUTH_LOOKUPS);
       await Promise.all(
         missing.map(async (id) => {
           try {
@@ -154,6 +170,10 @@ export async function POST(
         { success: false, error: "Unauthenticated" },
         { status: 401 }
       );
+    }
+
+    if (!(await checkRateLimit("message-send", user.id, MESSAGES_PER_WINDOW, MESSAGE_WINDOW_SECONDS))) {
+      return rateLimitResponse();
     }
 
     const { id: bubbleId } = await context.params;

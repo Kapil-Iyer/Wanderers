@@ -1,9 +1,27 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getSupabaseAdmin } from '@/lib/supabaseAdmin';
 import { getAuthUser } from '@/lib/auth';
+import { checkRateLimit, rateLimitResponse } from '@/lib/rateLimit';
 import type { SupabaseClient } from '@supabase/supabase-js';
 
 const MOMENTS_BUCKET = 'moments-photos';
+
+// The bucket is public, so whatever lands in it is served to anyone with the
+// URL under the content type we hand to Storage. Without an allowlist that
+// makes this an open file host: an upload declaring itself text/html or
+// image/svg+xml gets served as such. Restrict to raster images and derive the
+// extension from the verified type rather than the user's filename.
+const ALLOWED_IMAGE_TYPES: Record<string, string> = {
+  'image/jpeg': 'jpg',
+  'image/png': 'png',
+  'image/webp': 'webp',
+  'image/gif': 'gif',
+  'image/heic': 'heic',
+};
+const MAX_PHOTO_BYTES = 8 * 1024 * 1024;
+
+const UPLOADS_PER_WINDOW = 20;
+const UPLOAD_WINDOW_SECONDS = 60 * 60;
 
 type MomentRow = {
   id: string;
@@ -66,18 +84,40 @@ async function formatMoments(admin: SupabaseClient, rows: MomentRow[]) {
   });
 }
 
-/** Create the public moments-photos bucket if it doesn't already exist. */
-async function ensureMomentsBucket(admin: SupabaseClient) {
-  const { data: existing } = await admin.storage.getBucket(MOMENTS_BUCKET);
-  if (existing) return;
+/**
+ * Create the public moments-photos bucket if it doesn't already exist.
+ *
+ * Memoised for the lifetime of the process: the bucket only needs creating
+ * once ever, but this used to cost a Storage round trip on every single
+ * upload. Cached per warm lambda instance, so the check happens roughly once
+ * per instance instead.
+ */
+let bucketReady: Promise<void> | null = null;
 
-  const { error } = await admin.storage.createBucket(MOMENTS_BUCKET, {
-    public: true,
-    fileSizeLimit: '10MB',
-  });
-  // Ignore a race where another request created it first.
-  if (error && !/already exists/i.test(error.message)) {
-    throw new Error(`Could not create storage bucket: ${error.message}`);
+async function ensureMomentsBucket(admin: SupabaseClient) {
+  bucketReady ??= (async () => {
+    const { data: existing } = await admin.storage.getBucket(MOMENTS_BUCKET);
+    if (existing) return;
+
+    const { error } = await admin.storage.createBucket(MOMENTS_BUCKET, {
+      public: true,
+      fileSizeLimit: MAX_PHOTO_BYTES,
+      // Second line of defence behind the check in POST, and it also covers a
+      // bucket created by hand in the dashboard.
+      allowedMimeTypes: Object.keys(ALLOWED_IMAGE_TYPES),
+    });
+    // Ignore a race where another request created it first.
+    if (error && !/already exists/i.test(error.message)) {
+      throw new Error(`Could not create storage bucket: ${error.message}`);
+    }
+  })();
+
+  try {
+    await bucketReady;
+  } catch (err) {
+    // Don't cache a transient failure - the next upload should retry.
+    bucketReady = null;
+    throw err;
   }
 }
 
@@ -124,6 +164,10 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ success: false, error: 'Unauthenticated' }, { status: 401 });
     }
 
+    if (!(await checkRateLimit('moment-create', user.id, UPLOADS_PER_WINDOW, UPLOAD_WINDOW_SECONDS))) {
+      return rateLimitResponse();
+    }
+
     const formData = await request.formData().catch(() => null);
     if (!formData) {
       return NextResponse.json({ success: false, error: 'multipart/form-data body required' }, { status: 400 });
@@ -151,23 +195,40 @@ export async function POST(request: NextRequest) {
     }
 
     let cloudinary_url: string | null = null;
+    let uploadedPath: string | null = null;
 
     if (photo instanceof File && photo.size > 0) {
+      const contentType = photo.type.toLowerCase();
+      const ext = ALLOWED_IMAGE_TYPES[contentType];
+      if (!ext) {
+        return NextResponse.json(
+          { success: false, error: 'Photo must be a JPEG, PNG, WebP, GIF, or HEIC image' },
+          { status: 400 }
+        );
+      }
+      // Checked before arrayBuffer() so an oversized upload is rejected rather
+      // than being pulled into the function's memory first.
+      if (photo.size > MAX_PHOTO_BYTES) {
+        return NextResponse.json(
+          { success: false, error: `Photo must be ${MAX_PHOTO_BYTES / (1024 * 1024)}MB or smaller` },
+          { status: 400 }
+        );
+      }
+
       await ensureMomentsBucket(admin);
 
-      const extMatch = /\.([a-zA-Z0-9]+)$/.exec(photo.name);
-      const ext = (extMatch?.[1] || photo.type.split('/')[1] || 'jpg').toLowerCase().replace(/[^a-z0-9]/g, '') || 'jpg';
       const path = `${bubble_id}/${user.id}/${Date.now()}.${ext}`;
 
       const bytes = new Uint8Array(await photo.arrayBuffer());
       const { error: uploadError } = await admin.storage
         .from(MOMENTS_BUCKET)
-        .upload(path, bytes, { contentType: photo.type || 'image/jpeg', upsert: false });
+        .upload(path, bytes, { contentType, upsert: false });
 
       if (uploadError) {
         return NextResponse.json({ success: false, error: `Photo upload failed: ${uploadError.message}` }, { status: 500 });
       }
 
+      uploadedPath = path;
       const { data: pub } = admin.storage.from(MOMENTS_BUCKET).getPublicUrl(path);
       cloudinary_url = pub.publicUrl;
     }
@@ -184,6 +245,12 @@ export async function POST(request: NextRequest) {
       .single();
 
     if (insertError || !inserted) {
+      // The upload happened first, so a failed insert would otherwise leave a
+      // file in the bucket that nothing references and nothing will ever
+      // clean up.
+      if (uploadedPath) {
+        await admin.storage.from(MOMENTS_BUCKET).remove([uploadedPath]);
+      }
       return NextResponse.json(
         { success: false, error: insertError?.message ?? 'Failed to save moment' },
         { status: 500 }
