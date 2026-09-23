@@ -5,7 +5,8 @@ import { motion, AnimatePresence } from "framer-motion";
 import BottomNav from "@/components/ui/BottomNav";
 import AppHeader from "@/components/ui/AppHeader";
 import BubbleCard from "@/components/ui/BubbleCard";
-import { mockBubbles, filterChips } from "@/lib/mockData";
+import { filterChips } from "@/lib/mockData";
+import { useCampusBubbles } from "@/lib/campusBubbles";
 import { Reveal, StaggerContainer, StaggerItem, AnimatedHeadline, EASE } from "@/components/motion/Reveal";
 import { useSidebar } from "@/contexts/SidebarContext";
 import { useRequireAuth } from "@/hooks/useRequireAuth";
@@ -14,7 +15,7 @@ export default function MyBubblesPage() {
   const { checking, authed } = useRequireAuth();
   const { expanded: sidebarExpanded } = useSidebar();
   const [activeFilter, setActiveFilter] = useState("All");
-  const myBubbles = useMemo(() => mockBubbles.filter((_, i) => i % 2 === 0), []);
+  const { bubbles: myBubbles, loading, error, reload } = useCampusBubbles();
 
   const filteredBubbles = useMemo(() => {
     if (activeFilter === "All") return myBubbles;
@@ -82,7 +83,40 @@ export default function MyBubblesPage() {
 
           {/* Grid */}
           <AnimatePresence mode="wait">
-            {filteredBubbles.length > 0 ? (
+            {loading ? (
+              <div key="loading" className="grid grid-cols-3 gap-3 sm:gap-4 auto-rows-fr pb-10">
+                {Array.from({ length: 6 }).map((_, i) => (
+                  <div
+                    key={i}
+                    className="rounded-2xl animate-pulse aspect-[3/4]"
+                    style={{ background: "rgba(255,255,255,0.05)", border: "1px solid rgba(255,255,255,0.08)" }}
+                  />
+                ))}
+              </div>
+            ) : error ? (
+              <motion.div
+                key="error"
+                className="text-center py-24"
+                initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
+                transition={{ duration: 0.4, ease: EASE }}
+              >
+                <div className="text-6xl mb-4">🌧️</div>
+                <p className="text-lg font-display font-bold" style={{ color: "var(--color-text-primary)" }}>
+                  Couldn&apos;t load bubbles
+                </p>
+                <p className="text-sm mt-1.5" style={{ color: "var(--color-text-secondary)" }}>
+                  {error}
+                </p>
+                <button
+                  type="button"
+                  onClick={reload}
+                  className="mt-5 px-5 py-2 rounded-full text-xs font-bold"
+                  style={{ background: "linear-gradient(135deg, #ff7a1a, #ffb56b)", color: "#2a1206" }}
+                >
+                  Try again
+                </button>
+              </motion.div>
+            ) : filteredBubbles.length > 0 ? (
               <StaggerContainer key={activeFilter} className="grid grid-cols-3 gap-3 sm:gap-4 auto-rows-fr pb-10">
                 {filteredBubbles.map((b) => (
                   <StaggerItem key={b.id} className="h-full">
@@ -99,10 +133,10 @@ export default function MyBubblesPage() {
               >
                 <div className="text-6xl mb-4">🫧</div>
                 <p className="text-lg font-display font-bold" style={{ color: "var(--color-text-primary)" }}>
-                  {myBubbles.length === 0 ? "No bubbles yet" : "Nothing matches this filter"}
+                  {myBubbles.length === 0 ? "Nothing on campus yet" : "Nothing matches this filter"}
                 </p>
                 <p className="text-sm mt-1.5" style={{ color: "var(--color-text-secondary)" }}>
-                  {myBubbles.length === 0 ? "Join or create one from the home page!" : "Try a different filter."}
+                  {myBubbles.length === 0 ? "Be the first - start a bubble from the home page." : "Try a different filter."}
                 </p>
               </motion.div>
             )}
