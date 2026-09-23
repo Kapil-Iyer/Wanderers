@@ -45,6 +45,19 @@
           "cameraPermission": "Wanderers uses your camera so you can take a Wander Moment photo from an event.",
           "microphonePermission": false
         }
+      ],
+      [
+        "expo-splash-screen",
+        {
+          "image": "./assets/splash-icon.png",
+          "backgroundColor": "#0b0710",
+          "imageWidth": 160,
+          "resizeMode": "contain",
+          "dark": {
+            "image": "./assets/splash-icon.png",
+            "backgroundColor": "#0b0710"
+          }
+        }
       ]
     ],
     "extra": {
