@@ -43,3 +43,9 @@ export function forgotPassword(email: string) {
     auth: false,
   });
 }
+
+export function deleteAccount() {
+  return fetchApi<{ success: boolean; error?: string }>("/api/account", {
+    method: "DELETE",
+  });
+}
