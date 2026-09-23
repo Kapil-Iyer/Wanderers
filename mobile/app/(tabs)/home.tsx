@@ -1,4 +1,4 @@
-import { FlatList, Pressable, RefreshControl, Text, View } from "react-native";
+import { FlatList, Image, Pressable, RefreshControl, ScrollView, Text, View } from "react-native";
 import { router } from "expo-router";
 import { useQuery } from "@tanstack/react-query";
 import { Ionicons } from "@expo/vector-icons";
@@ -12,6 +12,7 @@ import { EmptyState } from "@/components/EmptyState";
 import { useGuest } from "@/contexts/GuestContext";
 import { recommendations, type RecommendedBubble } from "@/api/recommendations";
 import { campusEvents, type CampusEvent } from "@/api/campusEvents";
+import { listMoments } from "@/api/moments";
 import { DEMO_BUBBLES } from "@/lib/demoData";
 import { colors, glow, gradients } from "@/lib/theme";
 import { AuroraBackground } from "@/components/AuroraBackground";
@@ -29,6 +30,13 @@ export default function HomeScreen() {
     queryKey: ["campus-events"],
     queryFn: campusEvents,
   });
+
+  const momentsQuery = useQuery({
+    queryKey: ["moments"],
+    queryFn: listMoments,
+    enabled: !isGuest,
+  });
+  const moments = momentsQuery.data?.data ?? [];
 
   type DisplayBubble = {
     id: string;
@@ -129,6 +137,44 @@ export default function HomeScreen() {
         }
         ListFooterComponent={
           <View className="mt-6">
+            {!isGuest && (
+              <View className="mb-6">
+                <Text className="mb-2 text-lg font-semibold" style={{ color: colors.textPrimary }}>
+                  Recent Moments
+                </Text>
+                {moments.length === 0 ? (
+                  <EmptyState emoji="📸" title="No Wander Moments yet" subtitle="End an event to post the first one." />
+                ) : (
+                  <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerClassName="gap-3">
+                    {moments.map((m) => (
+                      <GlassCard key={m.id} style={{ width: 160, padding: 10 }}>
+                        {m.image_url || m.cloudinary_url ? (
+                          <Image
+                            source={{ uri: m.image_url ?? m.cloudinary_url ?? undefined }}
+                            style={{ width: "100%", aspectRatio: 1, borderRadius: 12 }}
+                          />
+                        ) : (
+                          <View
+                            style={{ width: "100%", aspectRatio: 1, borderRadius: 12, alignItems: "center", justifyContent: "center", backgroundColor: colors.inputBg }}
+                          >
+                            <Ionicons name="image-outline" size={24} color={colors.textMuted} />
+                          </View>
+                        )}
+                        <Text className="mt-2 text-xs font-semibold" numberOfLines={1} style={{ color: colors.textPrimary }}>
+                          {m.username ?? "Wanderer"}
+                        </Text>
+                        {m.caption ? (
+                          <Text className="mt-0.5 text-[11px]" numberOfLines={2} style={{ color: colors.textSecondary }}>
+                            {m.caption}
+                          </Text>
+                        ) : null}
+                      </GlassCard>
+                    ))}
+                  </ScrollView>
+                )}
+              </View>
+            )}
+
             <Text className="mb-2 text-lg font-semibold" style={{ color: colors.textPrimary }}>
               Campus events
             </Text>

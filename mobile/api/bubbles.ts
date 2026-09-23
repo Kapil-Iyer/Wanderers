@@ -101,3 +101,8 @@ export function starBubble(bubbleId: string) {
 export function unstarBubble(bubbleId: string) {
   return fetchApi<{ success: boolean; error?: string }>(`/api/bubbles/${bubbleId}/star`, { method: "DELETE" });
 }
+
+/** End event - marks the bubble expired. No photo logic; pair with uploadMoment (api/moments.ts) for the Wander Moment itself. */
+export function confirmBubble(bubbleId: string) {
+  return fetchApi<{ success: boolean; error?: string }>(`/api/bubbles/${bubbleId}/confirm`, { method: "POST" });
+}
