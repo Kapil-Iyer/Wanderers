@@ -2,8 +2,8 @@
 
 /**
  * ONBOARDING PAGE - "Who are you on campus?" vibe identity card layout
- * Visual revamp only. Underlying logic: stores selected interest tags in state,
- * same flow as before (→ /home on confirm). No data model changes.
+ * Saves the picks to users.vibe/interests via PATCH /api/profile (same as
+ * mobile's onboarding), then → /home.
  */
 
 import { useRef, useState } from "react";
@@ -14,13 +14,14 @@ import { Check } from "lucide-react";
 import VantaBackground from "@/components/motion/VantaBackground";
 import { gsap, prefersReducedMotion } from "@/lib/gsap";
 import { useRequireAuth } from "@/hooks/useRequireAuth";
+import { supabase } from "@/lib/supabase";
 
 const ease = [0.25, 0.46, 0.45, 0.94] as const;
 
 /* ── Vibe identity cards ── */
 const vibeCards = [
   {
-    id: "late-night-grinder",
+    id: "late_night_grinder",
     label: "Late Night Grinder",
     emoji: "🌙",
     desc: "DC at 2am, energy drinks, the grind never stops",
@@ -30,7 +31,7 @@ const vibeCards = [
     particle: "⚡",
   },
   {
-    id: "coffee-shop-regular",
+    id: "coffee_regular",
     label: "Coffee Shop Regular",
     emoji: "☕",
     desc: "SLC, your corner table, oat milk flat white, vibes only",
@@ -40,7 +41,7 @@ const vibeCards = [
     particle: "✨",
   },
   {
-    id: "pickup-sports-guy",
+    id: "sports",
     label: "Pick-up Sports Guy",
     emoji: "🏀",
     desc: "PAC courts, 3v3, doesn't matter who - let's run it",
@@ -50,7 +51,7 @@ const vibeCards = [
     particle: "🔥",
   },
   {
-    id: "study-buddy",
+    id: "study_buddy",
     label: "Study Buddy",
     emoji: "📖",
     desc: "Group rooms, shared notes, accountability partners",
@@ -75,6 +76,7 @@ export default function OnboardingPage() {
   const { checking, authed } = useRequireAuth();
   const [selected, setSelected] = useState<Set<string>>(new Set());
   const [confirmed, setConfirmed] = useState(false);
+  const [saveError, setSaveError] = useState<string | null>(null);
   const router = useRouter();
   const heroRef = useRef<HTMLDivElement>(null);
 
@@ -94,9 +96,33 @@ export default function OnboardingPage() {
     });
   };
 
-  const handleConfirm = () => {
+  // users.vibe holds one value, so the first selected card (in display order)
+  // becomes the vibe; interests are the union of every selected card's tags.
+  // Both feed /api/recommendations' scoring.
+  const handleConfirm = async () => {
     setConfirmed(true);
-    setTimeout(() => router.push("/home"), 600);
+    setSaveError(null);
+    const picked = vibeCards.filter((c) => selected.has(c.id));
+    try {
+      const { data } = await supabase.auth.getSession();
+      const token = data.session?.access_token;
+      const res = await fetch("/api/profile", {
+        method: "PATCH",
+        headers: {
+          "Content-Type": "application/json",
+          ...(token ? { Authorization: `Bearer ${token}` } : {}),
+        },
+        body: JSON.stringify({
+          vibe: picked[0]?.id ?? null,
+          interests: [...new Set(picked.flatMap((c) => c.interests))],
+        }),
+      });
+      if (!res.ok) throw new Error("save failed");
+      router.push("/home");
+    } catch {
+      setConfirmed(false);
+      setSaveError("Couldn't save your picks - try again.");
+    }
   };
 
   if (checking || !authed) return null;
@@ -262,6 +288,11 @@ export default function OnboardingPage() {
               ? "Pick at least one"
               : `I'm all of these (${selected.size} selected) →`}
           </motion.button>
+          {saveError && (
+            <p className="text-center text-xs mt-3" role="alert" style={{ color: "#f87171" }}>
+              {saveError}
+            </p>
+          )}
           <p className="text-center text-xs mt-3" style={{ color: "var(--color-text-muted)" }}>
             You can always update this from your profile
           </p>

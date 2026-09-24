@@ -20,7 +20,7 @@
 | GET | `/api/moments` | List Wander Moments (meetup_photos) for feed |
 | GET | `/api/campus-events` | Public read of upcoming UWaterloo campus events. Query: `?category=sports\|academic\|social\|arts\|career` (optional). Rules: `date_time > now()`, ordered ascending, max 10. No auth required. |
 | POST | `/api/ai/parse-intent` | Gemini: parse natural language → activity, zone, start_time, duration_minutes, etc. Body: `{ text }`. Env: GEMINI_API_KEY |
-| GET | `/api/recommendations` | Feeds Home's "Recommended for you". Despite the name there is no model: returns the 12 soonest-starting open bubbles with member counts, as `{ recommended_bubbles: [...] }`. |
+| GET | `/api/recommendations` | Feeds Home's "Recommended for you" (auth required). Scores open bubbles by the caller's vibe/interests, past joins, connections going, start time and fill level (`src/lib/recommendations.ts`); returns the top 12 as `{ recommended_bubbles: [...] }`, each with a `recommendationReason`. |
 
 Auth: Supabase Auth (email OTP). Protected routes expect `Authorization: Bearer <access_token>`.
 

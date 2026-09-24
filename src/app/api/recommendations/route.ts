@@ -1,6 +1,8 @@
 import { NextRequest, NextResponse } from "next/server";
 import { getSupabaseAdmin } from "@/lib/supabaseAdmin";
 import { getAuthUser } from "@/lib/auth";
+import { inferCategory } from "@/lib/eventCategories";
+import { rankBubbles, type CandidateBubble } from "@/lib/recommendations";
 import { getMemberCounts } from "@/lib/memberCounts";
 
 /** Map activity name to emoji for cards. */
@@ -29,14 +31,6 @@ function formatStartingIn(startTime: string): string {
   return `${days}d`;
 }
 
-/**
- * The ranker is a nice-to-have: if it is slow, the plain DB sort below is a
- * perfectly good answer. Without a deadline a hung service would hold the
- * function open until the platform timeout, so a stalled ranker would turn
- * into a stalled Home screen for everyone.
- */
-const ML_TIMEOUT_MS = 2000;
-
 export type RecommendedBubbleItem = {
   id: string;
   title: string;
@@ -49,133 +43,132 @@ export type RecommendedBubbleItem = {
   recommendationReason?: string;
 };
 
+const CANDIDATE_LIMIT = 100;
+const HISTORY_LIMIT = 50;
+
 /**
  * GET /api/recommendations
- * Feeds the "Recommended for you" row on Home. Auth required - activity,
- * zone, and member counts are real student data.
- * - If RECOMMENDATIONS_API_URL is set: fetches bubbles from DB, POSTs to the
- *   FastAPI ranker's /recommend, maps the response to recommended_bubbles.
- * - Else, or if that call fails for any reason (unset, unreachable, cold
- *   start, slower than ML_TIMEOUT_MS): falls back to the plain DB sort below -
- *   real recommendations never silently disappear.
+ * Feeds the "Recommended for you" row on Home (web + mobile). Auth required.
+ * Scores open bubbles for the caller from their onboarding vibe/interests,
+ * the categories they've joined before, which connections are going,
+ * start time, and fill level - see src/lib/recommendations.ts. Excludes
+ * bubbles they're already in, full ones, and ones created by users they've
+ * blocked. Returns the top 12 as { recommended_bubbles: [...] }.
  */
-/** Fallback: plain "starting soon" sort straight from the DB, no ML service involved. */
-async function dbFallbackRecommendations() {
-  try {
-    const admin = getSupabaseAdmin();
-    const now = new Date().toISOString();
-    const { data: bubbles, error } = await admin
-      .from("bubbles")
-      .select("id, activity, zone, start_time, duration_minutes, max_members, status")
-      .in("status", ["open", "active"])
-      .gt("expires_at", now)
-      .order("start_time", { ascending: true })
-      .limit(12);
-
-    if (error) return NextResponse.json({ recommended_bubbles: [] });
-
-    const rows = bubbles ?? [];
-    const countById = await getMemberCounts(admin, rows.map((b) => b.id));
-
-    const recommendations: RecommendedBubbleItem[] = rows.map((b) => ({
-      id: b.id,
-      title: b.activity || "Activity",
-      emoji: activityEmoji(b.activity ?? ""),
-      zone: b.zone ?? "",
-      start_time: b.start_time ?? "",
-      startingIn: formatStartingIn(b.start_time ?? ""),
-      joined: countById.get(b.id) ?? 0,
-      maxPeople: b.max_members ?? 8,
-      recommendationReason: "Starting soon",
-    }));
-
-    return NextResponse.json({ recommended_bubbles: recommendations });
-  } catch {
-    return NextResponse.json({ recommended_bubbles: [] });
-  }
-}
-
 export async function GET(request: NextRequest) {
   const user = await getAuthUser(request);
   if (!user) {
     return NextResponse.json({ success: false, error: "Unauthenticated", recommended_bubbles: [] }, { status: 401 });
   }
 
-  const apiBase = process.env.RECOMMENDATIONS_API_URL?.replace(/\/$/, "");
-  const recommendUrl = apiBase ? `${apiBase}/recommend` : null;
+  try {
+    const admin = getSupabaseAdmin();
+    const now = new Date();
 
-  if (recommendUrl) {
-    try {
-      const admin = getSupabaseAdmin();
-      const now = new Date().toISOString();
-      const { data: bubbles, error } = await admin
+    const [candidatesRes, profileRes, connectionsRes, blocksRes, myMembershipsRes] = await Promise.all([
+      admin
         .from("bubbles")
-        .select("id, activity, zone, start_time, duration_minutes, max_members")
+        .select("id, creator_id, activity, emoji, zone, start_time, max_members")
         .in("status", ["open", "active"])
-        .gt("expires_at", now)
+        .gt("expires_at", now.toISOString())
         .order("start_time", { ascending: true })
-        .limit(20);
+        .limit(CANDIDATE_LIMIT),
+      admin.from("users").select("vibe, interests").eq("id", user.id).maybeSingle(),
+      admin
+        .from("connections")
+        .select("requester_id, receiver_id")
+        .eq("status", "accepted")
+        .or(`requester_id.eq.${user.id},receiver_id.eq.${user.id}`),
+      admin.from("blocks").select("blocked_id").eq("blocker_id", user.id),
+      admin
+        .from("bubble_members")
+        .select("bubble_id")
+        .eq("user_id", user.id)
+        .order("joined_at", { ascending: false })
+        .limit(HISTORY_LIMIT),
+    ]);
 
-      if (error) return dbFallbackRecommendations();
-      if (!bubbles?.length) return NextResponse.json({ recommended_bubbles: [] });
+    if (candidatesRes.error) throw candidatesRes.error;
+    const bubbles = candidatesRes.data ?? [];
+    if (bubbles.length === 0) return NextResponse.json({ recommended_bubbles: [] });
 
-      const countById = await getMemberCounts(admin, bubbles.map((b) => b.id));
+    const friendIds = (connectionsRes.data ?? []).map((c) =>
+      c.requester_id === user.id ? c.receiver_id : c.requester_id
+    );
+    const historyBubbleIds = (myMembershipsRes.data ?? []).map((m) => m.bubble_id);
 
-      const withCount = bubbles.map((b) => ({
+    // Counts come from the bubble_member_counts RPC (one row per bubble).
+    // Individual memberships are only needed for the user and their friends,
+    // which keeps that query small instead of loading every member of every
+    // candidate bubble into PostgREST's 1000-row cap.
+    const bubbleIds = bubbles.map((b) => b.id);
+    const [countById, knownMembersRes, friendNamesRes, historyRes] = await Promise.all([
+      getMemberCounts(admin, bubbleIds),
+      admin
+        .from("bubble_members")
+        .select("bubble_id, user_id")
+        .in("bubble_id", bubbleIds)
+        .in("user_id", [user.id, ...friendIds]),
+      friendIds.length
+        ? admin.from("users").select("id, name").in("id", friendIds)
+        : Promise.resolve({ data: [] as { id: string; name: string | null }[] }),
+      historyBubbleIds.length
+        ? admin.from("bubbles").select("activity").in("id", historyBubbleIds)
+        : Promise.resolve({ data: [] as { activity: string }[] }),
+    ]);
+    if (knownMembersRes.error) throw knownMembersRes.error;
+
+    const knownByBubble = new Map<string, string[]>();
+    for (const m of knownMembersRes.data ?? []) {
+      const list = knownByBubble.get(m.bubble_id) ?? [];
+      list.push(m.user_id);
+      knownByBubble.set(m.bubble_id, list);
+    }
+
+    const friends = new Map<string, string>(friendIds.map((id) => [id, ""]));
+    for (const f of friendNamesRes.data ?? []) {
+      friends.set(f.id, f.name?.trim().split(/\s+/)[0] ?? "");
+    }
+
+    const candidates: CandidateBubble[] = bubbles.map((b) => ({
+      id: b.id,
+      creator_id: b.creator_id,
+      activity: b.activity ?? "",
+      start_time: b.start_time,
+      max_members: b.max_members,
+      members_count: countById.get(b.id) ?? 0,
+      known_member_ids: knownByBubble.get(b.id) ?? [],
+    }));
+
+    const ranked = rankBubbles(candidates, {
+      userId: user.id,
+      vibe: profileRes.data?.vibe ?? null,
+      interests: profileRes.data?.interests ?? [],
+      historyCategories: (historyRes.data ?? []).map((h) => inferCategory(h.activity ?? "")),
+      friends,
+      blockedIds: new Set((blocksRes.data ?? []).map((b) => b.blocked_id)),
+      now: now.getTime(),
+    });
+
+    const byId = new Map(bubbles.map((b) => [b.id, b]));
+    const recommended_bubbles: RecommendedBubbleItem[] = ranked.map((r) => {
+      const b = byId.get(r.id)!;
+      return {
         id: b.id,
         title: b.activity || "Activity",
-        emoji: activityEmoji(b.activity ?? ""),
-        category: "Casual",
-        joined: countById.get(b.id) ?? 0,
-        maxPeople: b.max_members ?? 8,
-        startingIn: formatStartingIn(b.start_time ?? ""),
-        distance: "0.5 km",
-        description: "",
-        creator: "?",
-        creatorAvatar: "?",
+        emoji: b.emoji || activityEmoji(b.activity ?? ""),
         zone: b.zone ?? "",
         start_time: b.start_time ?? "",
-      }));
+        startingIn: formatStartingIn(b.start_time ?? ""),
+        joined: countById.get(b.id) ?? 0,
+        maxPeople: b.max_members ?? 8,
+        recommendationReason: r.reason,
+      };
+    });
 
-      const res = await fetch(recommendUrl, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          // The authenticated user, not a query param - otherwise anyone can
-          // ask for anyone else's personalised ranking.
-          user_id: user.id,
-          activities: withCount.map(({ zone, start_time, ...rest }) => rest),
-          top_k: 12,
-        }),
-        signal: AbortSignal.timeout(ML_TIMEOUT_MS),
-      });
-      if (!res.ok) return dbFallbackRecommendations();
-      const data = await res.json();
-      const recs = Array.isArray(data?.recommendations) ? data.recommendations : [];
-
-      const byId = new Map(withCount.map((b) => [b.id, b]));
-      const recommended_bubbles: RecommendedBubbleItem[] = recs.map((r: { id: string; title?: string; emoji?: string; joined?: number; maxPeople?: number; startingIn?: string; recommendationReason?: string }) => {
-        const row = byId.get(r.id);
-        return {
-          id: r.id,
-          title: r.title ?? row?.title ?? "Activity",
-          emoji: r.emoji ?? row?.emoji ?? "🫧",
-          zone: row?.zone ?? "",
-          start_time: row?.start_time ?? "",
-          startingIn: r.startingIn ?? (row ? formatStartingIn(row.start_time) : "Soon"),
-          joined: r.joined ?? row?.joined ?? 0,
-          maxPeople: r.maxPeople ?? row?.maxPeople ?? 8,
-          recommendationReason: r.recommendationReason ?? "For you",
-        };
-      });
-
-      return NextResponse.json({ recommended_bubbles });
-    } catch {
-      // ML service unreachable/erroring (e.g. Render cold-start failure) - fall
-      // back to the plain DB sort instead of leaving the user with nothing.
-      return dbFallbackRecommendations();
-    }
+    return NextResponse.json({ recommended_bubbles });
+  } catch (err) {
+    console.error("[recommendations]", err);
+    return NextResponse.json({ recommended_bubbles: [] });
   }
-
-  return dbFallbackRecommendations();
 }

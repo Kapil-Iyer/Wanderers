@@ -23,7 +23,7 @@ A dev-only escape hatch, `AUTH_RETURN_RECOVERY_LINK`, returns OTP codes directly
 | **Bubbles** | `src/app/api/bubbles/*` | Real. RLS-backed Supabase tables (`supabase/migrations/`) |
 | **Bubble stars** | `src/app/api/bubbles/[id]/star` | Real |
 | **Messages** | `src/app/api/bubbles/[id]/messages` | Real. Supabase Realtime subscriptions |
-| **Recommendations** | `src/app/api/recommendations` | Real. Calls optional ML service, falls back to DB "starting soon" sort |
+| **Recommendations** | `src/app/api/recommendations` | Real. In-app scoring (`src/lib/recommendations.ts`) from vibe/interests, past joins, connections, timing, fill level |
 | **Moments / feed** | `src/app/api/moments` | Real, with a fallback to `mockFeedPosts` if the fetch fails or returns empty (see `src/app/home/page.tsx`) |
 | **Campus events** | `src/app/api/campus-events` | Real |
 | **Connections / connection requests** | *(no API route exists)* | **Still mock.** `ConnectionsContext.tsx` reads/writes only `mockConnectedFriends` / `mockConnectionRequests` from `src/lib/mockData.ts`, in-memory only, lost on refresh. A `connections` table exists in `supabase/migrations/20260820_baseline_schema.sql`, but nothing in `src/app/api` reads or writes it — the schema is provisioned but not yet wired to any route |
