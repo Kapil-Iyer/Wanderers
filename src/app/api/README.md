@@ -31,7 +31,7 @@ Every route (except intentionally-public reads like `/api/campus-events`) valida
 Every route above talks to Postgres through `getSupabaseAdmin()` (`src/lib/supabaseAdmin.ts`), the **service-role client**, which bypasses Row Level Security entirely. This is a deliberate but important thing to know when debugging:
 
 - Authorization is enforced **in application code**, per route (e.g. `ensureBubbleMembership()` checks the caller is actually a member before returning messages) - not by Postgres/RLS.
-- Any RLS policies that exist on these tables (e.g. `bubble_stars`, see `supabase/migrations/`) are **not** what's actually protecting data reached through these API routes - they'd only matter if something queried the table directly with the anon key, which nothing in this app currently does.
+- RLS only governs direct anon-key access, and since `20260925_lock_down_client_access.sql` that is read-only: a user can read their own `users` row, and (for Realtime) `messages`/`bubble_members` of bubbles they're in plus `meetup_photos`. Clients can't insert/update/delete any table directly, so **every new write must go through an API route**. Don't add client-side writes or write policies - add a route.
 - If a route is missing an authorization check, there's no database-level backstop catching it. When debugging an access-control bug, look at the route handler's own logic first, not RLS policies.
 
 ## Schema

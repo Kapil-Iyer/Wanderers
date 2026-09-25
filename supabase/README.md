@@ -4,9 +4,9 @@ This directory holds the **full** live schema as migration files, so the
 whole database can be understood (and recreated) by reading git history
 instead of clicking through the Supabase dashboard.
 
-## Current state (up to date as of `20260826_bubble_stars_and_cleanup.sql`)
+## Current state (up to date as of `20260925_lock_down_client_access.sql`)
 
-Both migrations together capture every table, column, constraint, FK cascade
+The migrations together capture every table, column, constraint, FK cascade
 rule, and RLS policy that exists live in the "Wanderers Project" Supabase
 instance:
 
@@ -18,8 +18,19 @@ instance:
   `pg_policies` + `pg_constraint` queries), not guessed from route code.
 - **`20260826_bubble_stars_and_cleanup.sql`** — the `bubble_stars` table plus
   the `cleanup_expired_bubbles()` function and its `pg_cron` schedule.
+- **`20260920_auth_rate_limits.sql`** — `auth_rate_limits` + `check_rate_limit()`.
+- **`20260922_indexes_realtime_cron_and_atomic_join.sql`** — secondary
+  indexes, Realtime publication, the expire-bubbles cron, and the
+  `bubble_member_counts()` / `join_bubble()` functions.
+- **`20260922_trust_and_safety.sql`** — `reports` and `blocks`.
+- **`20260923_join_bubble_member_fast_path.sql`** — lock-free `join_bubble()`
+  path for existing members.
+- **`20260925_lock_down_client_access.sql`** — drops every client write
+  policy and write grant, limits `users` reads to your own row and
+  `messages`/`bubble_members` reads to members, and makes the SECURITY
+  DEFINER functions server-only. All writes go through the API routes.
 
-Both are written with `if not exists` / `drop policy if exists` so they're
+All are written with `if not exists` / `drop policy if exists` so they're
 safe to re-run against the live project (no-op there) and can also bootstrap
 a brand-new empty Supabase project from scratch.
 

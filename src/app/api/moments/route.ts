@@ -20,6 +20,8 @@ const ALLOWED_IMAGE_TYPES: Record<string, string> = {
 };
 const MAX_PHOTO_BYTES = 8 * 1024 * 1024;
 
+const MAX_CAPTION_LENGTH = 500;
+
 const UPLOADS_PER_WINDOW = 20;
 const UPLOAD_WINDOW_SECONDS = 60 * 60;
 
@@ -186,6 +188,12 @@ export async function POST(request: NextRequest) {
 
     if (!bubble_id) {
       return NextResponse.json({ success: false, error: 'bubble_id required' }, { status: 400 });
+    }
+    if (caption.length > MAX_CAPTION_LENGTH) {
+      return NextResponse.json(
+        { success: false, error: `Caption must be ${MAX_CAPTION_LENGTH} characters or fewer` },
+        { status: 400 }
+      );
     }
 
     const admin = getSupabaseAdmin();
